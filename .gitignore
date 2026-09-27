@@ -1,0 +1,17 @@
+# macOS / OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+
+# Local Oracle Data (avoid uploading GBs of DB data)
+oradata/
+*.dbf
