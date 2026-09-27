@@ -1,0 +1,30 @@
+{
+  "name": "snowflakeblog",
+  "version": "1.0.0",
+  "description": "Mitsui Securities Enterprise Data Migration from Oracle to Snowflake Tutorial",
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BIGMAX-RKO007/snowflakeblog.git"
+  },
+  "keywords": [
+    "snowflake",
+    "oracle",
+    "data-migration",
+    "rbac",
+    "cloud-data-warehouse",
+    "vitepress"
+  ],
+  "author": "fanxiao",
+  "license": "MIT",
+  "devDependencies": {
+    "mermaid": "^11.4.1",
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  }
+}

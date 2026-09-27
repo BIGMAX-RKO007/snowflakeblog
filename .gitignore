@@ -1,8 +1,11 @@
-# macOS / OS
+# Node dependencies & VitePress build
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# OS / Editor
 .DS_Store
 Thumbs.db
-
-# Editor
 .idea/
 .vscode/
 *.swp
@@ -12,6 +15,6 @@ Thumbs.db
 __pycache__/
 *.pyc
 
-# Local Oracle Data (avoid uploading GBs of DB data)
+# Local Oracle Data
 oradata/
 *.dbf
