@@ -23,6 +23,7 @@
   "author": "fanxiao",
   "license": "MIT",
   "devDependencies": {
+    "debug": "^4.4.3",
     "mermaid": "^11.4.1",
     "vitepress": "^1.6.3",
     "vitepress-plugin-mermaid": "^2.0.17"
