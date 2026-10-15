@@ -45,3 +45,6 @@ scratch/
 # Local Oracle Data
 oradata/
 *.dbf
+
+# Temporary upload folder
+upd/
