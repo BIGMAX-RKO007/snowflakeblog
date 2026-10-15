@@ -289,7 +289,7 @@ SHOW TABLES LIKE 'CUST_TRADE_DETAIL';
 3. **单角色用户 vs 多角色用户**：初级/外包人员配置单一受限角色；技术主管或核心骨干配置多角色，并支持按需自由切换上下文（`USE ROLE`）。
 
 > [!TIP]
-> 本进阶演练配套全量独立可执行验证脚本已存放于工程：[`scripts/snowflake/00_account_provisioning_and_rbac_demo.sql`](../../scripts/snowflake/00_account_provisioning_and_rbac_demo.sql)。可在 Snowsight Worksheet 中一键导入或分段运行。
+> 本进阶演练配套全量独立可执行验证脚本已存放于工程：[`scripts/snowflake/00_account_provisioning_and_rbac_demo.sql`](https://github.com/BIGMAX-RKO007/snowflakeblog/blob/main/scripts/snowflake/00_account_provisioning_and_rbac_demo.sql)。可在 Snowsight Worksheet 中一键导入或分段运行。
 
 ### 5.1 企业级规范构建顺序与职责分离 (Separation of Duties)
 

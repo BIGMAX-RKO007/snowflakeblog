@@ -274,7 +274,7 @@ SHOW TABLES LIKE 'CUST_TRADE_DETAIL';
 3. **単一ロールユーザー vs 複数ロールユーザー**：外部パートナーや一般アナリストには単一の限定ロールを、テックリードや統括担当には複数ロールを付与し、セッションコンテキストの動的切り替え（`USE ROLE`）を運用する。
 
 > [!TIP]
-> 本応用検証に対応する一括実行用 SQL スクリプトはプロジェクト内に完備されています：[`scripts/snowflake/00_account_provisioning_and_rbac_demo.sql`](../../scripts/snowflake/00_account_provisioning_and_rbac_demo.sql)。Snowsight ワークシート上で順次実行して検証可能です。
+> 本応用検証に対応する一括実行用 SQL スクリプトはプロジェクト内に完備されています：[`scripts/snowflake/00_account_provisioning_and_rbac_demo.sql`](https://github.com/BIGMAX-RKO007/snowflakeblog/blob/main/scripts/snowflake/00_account_provisioning_and_rbac_demo.sql)。Snowsight ワークシート上で順次実行して検証可能です。
 
 ### 5.1 エンタープライズ標準構築順序と職務分掌 (Separation of Duties)
 

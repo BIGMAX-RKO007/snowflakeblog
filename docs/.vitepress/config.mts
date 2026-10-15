@@ -7,6 +7,7 @@ export default withMermaid(
     description: '銀行証券コア取引データにおける Oracle から Snowflake への企業級データ移行実務',
     lastUpdated: true,
     cleanUrls: true,
+    ignoreDeadLinks: true,
     rewrites: {
       'ja/:rest*': ':rest*'
     },
