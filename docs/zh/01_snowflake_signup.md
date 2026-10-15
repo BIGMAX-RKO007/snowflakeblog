@@ -106,9 +106,20 @@ SELECT
 执行后可在下方实时看到会话上下文、执行耗时（如 22ms）与全局 Query ID：
 ![SQL执行与结果面板](../images/01_img_15.png)
 
-### 5.4 SQL 工作台核心组件速览
-* **上下文选择器（Context Selector）**：位于编辑器右上角，用于随时切换当前会话生效的角色（Role）、计算仓库（Warehouse）以及默认数据库/Schema；
-* **执行控制（Run Controls）**：支持单行执行、高亮选中文本执行或全表依次批量运行；
-* **结果与历史面板（Results & Query History）**：底部实时返回结构化表格数据、受影响行数、查询执行耗时（毫秒级）及全局 Query ID，方便审计追踪。
+### 5.4 上下文选择器（Context Selector）深度解析
+在 Snowsight 编辑器的右上角，提供了一个至关重要的交互组件——**上下文选择器（Context Selector）**：
+点击当前激活的角色或仓库标签，会弹出双列切换抽屉：
+- **左列（ロールを使用 / Role Selector）**：可实时在 `ACCOUNTADMIN`、`SYSADMIN`、`USERADMIN` 以及未来创建的业务角色之间无缝切换，无需反复手写 `USE ROLE` 语句；
+- **右列（ウェアハウスを使用 / Warehouse Selector）**：可根据当前计算负载选择算力规格（如 `COMPUTE_WH` 等）。
+
+![上下文选择器与角色/仓库切换](../images/01_img_16.png)
+
+### 5.5 全局查询审计与性能详情（Query Details & Profile）
+Snowflake 为每一条执行的 SQL 语句都会自动生成唯一的全局 **Query ID**（如 `01c7bf74-0204-f4a5-0005-59ae001380ce`）。
+点击查询结果或右侧 Query ID，可直接跳转至 **「クエリの詳細（Query Details）」** 与 **「クエリプロファイル（Query Profile）」** 页面：
+- **执行元数据与合规审计**：精准记录完整 SQL 文本、执行开始/结束时间、驱动版本（如 Go 2.1.0）、会话 ID 及计费 Credits；
+- **执行计划树（Profile Graph）**：对于系统内置函数查询，系统直接通过高并发元数据层瞬时完成（`METADATA-BASED RESULT`），耗时仅 1ms 级别，无需唤醒任何底层物理磁盘扫描。
+
+![全局查询审计与性能详情](../images/01_img_17.png)
 
 完成上述基本熟悉后，账号基础环境与操作入口均已完备。接下来请进入后续章节，我们将开启本地 Oracle 环境准备及三井证券企业级 RBAC 权限体系与生产对象的全套构建！
