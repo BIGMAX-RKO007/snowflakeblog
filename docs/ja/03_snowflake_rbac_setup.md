@@ -249,19 +249,58 @@ GRANT SELECT ON TABLE CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST;
 
 ---
 
-## 4. 🎯 検証とセルフチェックリスト
+## 4. 🔐 金融エンタープライズにおける業務ユーザー初回ログイン・MFA設定と権限疎通確認 (Onboarding & Sanity Check)
+
+上記 **Step 4.1 〜 4.15** による基本権限およびオブジェクトの作成が完了すると、業務ユーザー（例：`MITSUI_ENGINEER_USER`）が正式に環境へアクセスします。日本の金融庁（FISC）安全対策基準に従い、初回ログイン時のセキュリティ初期化と権限疎通確認を実施します。
+
+### 4.1 初期パスワード強制変更ポリシー（初回ログイン時改変）
+システム管理者から払い出された企業アカウントには一時初期パスワードが設定され、作成時に強制変更フラグ（`MUST_CHANGE_PASSWORD = TRUE`）が付与されます：
+- 業務エンジニアが一時パスワードを用いて初回サインインすると、直ちにパスワード変更ダイアログが起動します；
+- 複雑性要件（英大文字・英小文字・数字・特殊文字を含む 12 桁以上）を満たす新規パスワードへ更新することで、安全にワークスペースへアクセスできます。
+
+### 4.2 金融基準に基づく多要素認証 (MFA / 2FA) 設定実務
+日本の金融機関（銀行・証券・NRI 等のパートナー企業環境）において、**本番および検証環境の Snowflake コンソールアクセスには MFA（多要素認証）の有効化が必須要件**となります：
+
+1. **設定メニューの表示**：Snowsight コンソール左下のユーザープロファイルより、**Preferences** $\to$ **Multi-Factor Authentication (MFA)** を選択します；
+2. **認証方式の選択**：**Authenticator App（TOTP 認証器）** を選択します；
+3. **秘密鍵（Secret Key）の取得**：
+   - 画面上に QR コードおよび Base32 形式の秘密鍵文字列（例：`WQQC4ZYF...`）が表示されます；
+   - モバイル端末の **Google Authenticator** / **Microsoft Authenticator** で QR をスキャンするか、開発専用端末等ではオープンソースの PC 版認証ツール [WinAuth](https://winauth.github.io/winauth/download.html) へ秘密鍵文字列を登録します；
+4. **ワンタイムコードの検証**：認証アプリに表示される 6 桁の TOTP 動的認証コードを入力し、有効化（Verify）を完了します。
+
+### 4.3 業務ロールへのコンテキスト切り替えと権限疎通確認 (Sanity Check)
+セキュリティ初期化完了後、SQL ワークスペースにて以下のスクリプトを実行し、業務エンジニアロール `MITSUI_ENGINEER` に付与された各オブジェクトへのアクセス権を自検します：
 
 ```sql
--- 1. カレントセッション情報の確認
-SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE(), CURRENT_SCHEMA();
+-- 1. 自身に付与されたロール一覧の確認
+SHOW ROLES;
 
--- 2. ロール継承関係の確認
+-- 2. カレントロールに付与されている詳細権限の確認
 SHOW GRANTS OF ROLE MITSUI_ENGINEER;
-SHOW GRANTS OF ROLE MITSUI_ADMIN;
 
--- 3. テーブル・ステージオブジェクトの確認
+-- 3. 三井証券プロジェクトコンテキストへの切り替え
+USE ROLE MITSUI_ENGINEER;
+USE WAREHOUSE MITSUI_WH;
+USE DATABASE MITSUI_SEC_DB;
+USE SCHEMA RAW_ORACLE;
+
+-- 4. 移行対象テーブルおよびステージ（Stage）の可視性とステータス確認
 SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES LIKE 'CUST_TRADE_DETAIL';
+
+-- 5. 軽量な疎通確認用一時テーブルの作成と読み書き検証 (Sandbox レベル検証)
+CREATE OR REPLACE TEMPORARY TABLE _SANITY_CHECK (
+    CHECK_ID    INT,
+    OPERATOR    VARCHAR(50),
+    CHECKED_AT  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+INSERT INTO _SANITY_CHECK (CHECK_ID, OPERATOR) VALUES (1, CURRENT_USER());
+
+SELECT * FROM _SANITY_CHECK;
+
+-- 検証完了後のクリーンアップ
+DROP TABLE IF EXISTS _SANITY_CHECK;
 ```
 
 ---

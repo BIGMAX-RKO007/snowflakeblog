@@ -264,19 +264,58 @@ GRANT SELECT ON TABLE CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST;
 
 ---
 
-## 4. 🎯 基础验证与自检清单
+## 4. 🔐 金融企业级业务用户首登、MFA 与连通性自检 (Onboarding & Sanity Check)
+
+在完成上文 **Step 4.1 ~ 4.15** 基础权限与对象创建后，业务用户（如 `MITSUI_ENGINEER_USER`）正式接入系统。按照日本金融安全标准（FISC 准则），需完成安全初始化加固与权限自检。
+
+### 4.1 初始密码安全策略（首登强制改密）
+由管理员下发的企业用户通常带有临时初始密码，并在创建时开启强制改密策略（`MUST_CHANGE_PASSWORD = TRUE`）：
+- 业务工程师首次使用临时初始密码登录 Snowsight 时，系统会自动拦截并弹出密码修改弹窗；
+- 输入符合复杂性要求（大写字母、小写字母、数字及特殊符号组合，长度 $\ge 12$ 位）的新密码后，方可完成身份确认进入工作台。
+
+### 4.2 金融企业级 MFA (多因素认证) 绑定实战
+在日本金融机构（如银行、证券、NRI 等外包及合作体系）以及金融厅安全基线要求下，**所有访问生产与验证环境的 Snowflake 控制台及特权账户，均被强制要求启用多因素认证（MFA / 2FA）**：
+
+1. **进入设置界面**：在 Snowsight 界面点击个人 Profile，进入 **Preferences** $\to$ **Multi-Factor Authentication (MFA)**；
+2. **选择认证器类型**：选择 **Authenticator App（TOTP 认证器）**；
+3. **获取密钥字符串 (Secret Key)**：
+   - 界面将展示二维码以及一串 Base32 编码的密钥字符串（如 `WQQC4ZYF...`）；
+   - 可使用移动端 **Google Authenticator** / **Microsoft Authenticator** 扫码；或在受限开发机环境中下载运行开源 PC 端工具 [WinAuth](https://winauth.github.io/winauth/download.html)，导入该密钥字符串；
+4. **验证与绑定**：在输入框内填入认证器实时生成的 6 位 TOTP 动态验证码，点击完成绑定。
+
+### 4.3 切换业务角色上下文与权限基线自检 (Sanity Check)
+完成安全初始化后，在 SQL ワークスペース中输入并执行以下语句，验证业务工程师角色 `MITSUI_ENGINEER` 对项目对象具备的实际权限：
 
 ```sql
--- 1. 查看当前会话环境
-SELECT CURRENT_USER(), CURRENT_ROLE(), CURRENT_WAREHOUSE(), CURRENT_DATABASE(), CURRENT_SCHEMA();
+-- 1. 查看当前账号被授予的角色清单
+SHOW ROLES;
 
--- 2. 检查角色继承关系
+-- 2. 查看当前角色具备的细粒度特权
 SHOW GRANTS OF ROLE MITSUI_ENGINEER;
-SHOW GRANTS OF ROLE MITSUI_ADMIN;
 
--- 3. 检查表对象与阶段
+-- 3. 切换上下文至三井证券项目环境
+USE ROLE MITSUI_ENGINEER;
+USE WAREHOUSE MITSUI_WH;
+USE DATABASE MITSUI_SEC_DB;
+USE SCHEMA RAW_ORACLE;
+
+-- 4. 验证核心迁移表与 Stage 暂存区的可见性与状态
 SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES LIKE 'CUST_TRADE_DETAIL';
+
+-- 5. 执行一次轻量级连通性读写验证（Sandbox 级别验证）
+CREATE OR REPLACE TEMPORARY TABLE _SANITY_CHECK (
+    CHECK_ID    INT,
+    OPERATOR    VARCHAR(50),
+    CHECKED_AT  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+INSERT INTO _SANITY_CHECK (CHECK_ID, OPERATOR) VALUES (1, CURRENT_USER());
+
+SELECT * FROM _SANITY_CHECK;
+
+-- 验证完毕后清理临时对象
+DROP TABLE IF EXISTS _SANITY_CHECK;
 ```
 
 ---

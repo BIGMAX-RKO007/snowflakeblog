@@ -71,77 +71,41 @@ graph TD
 
 ---
 
-## 5. 🔐 金融企业级 MFA (多因素认证) 绑定实战
+## 5. 🧭 Snowsight 控制台界面与工作台初探
 
-在日本金融机构（如银行、证券、NRI 等外包及合作体系）以及金融厅 FISC 安全基线要求下，**所有访问生产与验证环境的 Snowflake 控制台及特权账户，均被强制要求启用多因素认证（MFA / 2FA）**。
+完成注册与日语偏好设置后，接下来熟悉 Snowflake 现代 Web 控制台 **Snowsight** 的基本布局与 SQL 运行环境。
 
-### 5.1 认证器（Authenticator）绑定流程
-1. **进入设置界面**：在 Snowsight 界面点击个人 Profile，进入 **Preferences** $\to$ **Multi-Factor Authentication (MFA)**。
-2. **选择认证器类型**：选择 **Authenticator App（TOTP 认证器）**。
-3. **获取密钥字符串 (Secret Key)**：
-   - 界面将展示二维码以及一串 Base32 编码的密钥字符串（如 `WQQC4ZYF...`）。
-   - 可使用移动端 **Google Authenticator** / **Microsoft Authenticator** 扫码；或在受限开发机环境中下载运行开源 PC 端工具 [WinAuth](https://winauth.github.io/winauth/download.html)，导入该密钥字符串。
-4. **验证与绑定**：在输入框内填入认证器实时生成的 6 位 TOTP 动态验证码，点击完成绑定。
-
-### 5.2 初始密码安全策略（首登强制改密）
-由管理员下发的企业用户（如 `MITSUI_ENGINEER_USER`）通常带有临时初始密码，并开启了强制改密策略（`MUST_CHANGE_PASSWORD = TRUE`）：
-- 首次输入临时初始密码并通过 MFA 动态码后，系统会自动拦截并弹出密码修改弹窗；
-- 输入符合复杂性要求（大写字母、小写字母、数字及特殊符号组合，长度 $\ge 12$ 位）的新密码后，方可完成身份确认进入工作台。
-
----
-
-## 6. 🧪 首次登录后的基线权限与连通性验证 (Sanity Check)
-
-登录进入 Snowsight 控制台后，建议数据工程师或分析师第一时间执行基础连通性与权限基线核查，确保账号上下文与环境预期一致。
-
-### 6.1 进入工作区并新建 SQL 文件
-在执行验证脚本前，需要在控制台打开 SQL 编辑器（Worksheet）：
+### 5.1 工作区（Workspaces）导航与界面初识
+在 Snowsight 中，所有日常查询、开发与协作均在「工作区」中开展：
 
 1. 点击左侧主导航栏中的 **「プロジェクト（Projects）」**，选择进入 **「ワークスペース（Workspaces）」**：
 ![进入项目与工作空间](../images/01_img_12.png)
 
-2. 首次进入时系统会展示现代化的工作区导览界面（支持 SQL 文件、Notebook 与 dbt 等开发套件）：
+2. 首次进入时系统会展示现代化的工作区导览界面（支持 SQL 文件、Python Notebook 与 dbt 资产等多模态开发）：
 ![工作区导览界面](../images/01_img_13.png)
 
-3. 点击左上角的 **「＋ 新規追加」** 按钮，选择 **「SQLファイル（SQL File）」** 打开全新的 SQL 执行工作台：
+### 5.2 新建 SQL 工作表（Worksheet）
+在工作区中创建您的第一个 SQL 编辑运行环境：
+1. 点击左上角的 **「＋ 新規追加」** 按钮；
+2. 选择 **「SQLファイル（SQL File）」** 打开全新的 SQL 执行工作台：
 ![新建SQL文件](../images/01_img_14.png)
 
-### 6.2 执行基线验证与连通性探测 SQL
-在打开的 SQL 工作台中输入并执行以下脚本，核验当前账号的权限基准与连通性：
+### 5.3 运行首条开箱即用探测 SQL
+新注册的试用账号已由系统预置了基础环境。在打开的 SQL 编辑器中输入以下语句，点击右上角 **「▶ 実行」** 按钮（或使用快捷键 `Ctrl + Enter` / `Cmd + Enter`）执行：
 
 ```sql
--- 1. 查看当前账号被授予的角色清单
-SHOW ROLES;
-
--- 2. 查看当前角色具备的细粒度特权
-SHOW GRANTS OF ROLE MITSUI_ENGINEER;
-
--- 3. 验证数据库与 Schema 的可见性
-SHOW DATABASES;
-SHOW SCHEMAS;
-
--- 4. 切换上下文至项目环境
-USE ROLE MITSUI_ENGINEER;
-USE WAREHOUSE MITSUI_WH;
-USE DATABASE MITSUI_SEC_DB;
-USE SCHEMA RAW_ORACLE;
-
--- 5. 执行一次轻量级连通性读写验证（Sandbox 级别验证）
-CREATE OR REPLACE TEMPORARY TABLE _SANITY_CHECK (
-    CHECK_ID    INT,
-    OPERATOR    VARCHAR(50),
-    CHECKED_AT  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
-
-INSERT INTO _SANITY_CHECK (CHECK_ID, OPERATOR) VALUES (1, CURRENT_USER());
-
-SELECT * FROM _SANITY_CHECK;
-
--- 验证完毕后清理临时对象
-DROP TABLE IF EXISTS _SANITY_CHECK;
+-- 验证当前会话基本上下文与 Snowflake 引擎版本（开箱即用，无需外部对象依赖）
+SELECT 
+    CURRENT_USER()             AS "当前登录用户",
+    CURRENT_ROLE()             AS "当前生效角色",
+    CURRENT_AVAILABLE_ROLES()   AS "可用角色清单",
+    CURRENT_WAREHOUSE()        AS "当前计算仓库",
+    CURRENT_VERSION()          AS "Snowflake引擎版本";
 ```
 
-完成上述连通性验证后，即表明账号开通、MFA 认证及三井证券上下文配置均已就绪，可无缝进入后续的 Oracle 环境搭建与迁移实战。
+### 5.4 SQL 工作台核心组件速览
+* **上下文选择器（Context Selector）**：位于编辑器右上角，用于随时切换当前会话生效的角色（Role）、计算仓库（Warehouse）以及默认数据库/Schema；
+* **执行控制（Run Controls）**：支持单行执行、高亮选中文本执行或全表依次批量运行；
+* **结果与历史面板（Results & Query History）**：底部实时返回结构化表格数据、受影响行数、查询执行耗时（毫秒级）及全局 Query ID，方便审计追踪。
 
-
-
+完成上述基本熟悉后，账号基础环境与操作入口均已完备。接下来请进入后续章节，我们将开启本地 Oracle 环境准备及三井证券企业级 RBAC 权限体系与生产对象的全套构建！

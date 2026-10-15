@@ -1,66 +1,64 @@
-# 第01章：Snowflake アカウント開設と初期設定
+# 第 01 章：Snowflake アカウント開設と初期設定
 
-銀行証券のクラウド移行 PoC に向けて、Snowflake 30 日間無料トライアル（$400 クレジット付与）のアカウントを開設し、UI 言語を日本語に設定します。
+金融機関（銀行・証券）におけるクラウドデータ基盤移行のファーストステップとして、Snowflake が提供する 30 日間無料のエンタープライズ評価環境（400 ドル相当のコンピュートクレジット付き）を開設し、初期セットアップを行います。
 
 ---
 
-## 1. アカウント開設窓口と主要パラメータ選定
+## 1. アカウント登録手順と推奨パラメータ
 
-公式登録 URL：[https://signup.snowflake.com/](https://signup.snowflake.com/)
+公式登録ポータル：[https://signup.snowflake.com/](https://signup.snowflake.com/)
 
-| 設定項目 | 推奨選定 | 業務・コンプライアンス上の検討理由 |
+| 設定項目 | 推奨パラメータ | 業務・コンプライアンス上の選定理由 |
 | :--- | :--- | :--- |
-| **Snowflake Edition** | **Enterprise（エンタープライズ版）** | **最大90日間のタイムトラベル（Time Travel）**、**動的データマスキング（Dynamic Data Masking）**、マルチクラスター対応。金融庁の監査要件および厳格なセキュリティ基準を満たすための最低要件。 |
-| **Cloud Provider** | **AWS (Amazon Web Services)** | 日系大手金融機関・証券会社における導入実績が最も豊富で、周辺ツールチェーンとの親和性が高い。 |
-| **Region (リージョン)** | **Asia Pacific (Tokyo) - `ap-northeast-1`** | **国内データ主権の厳格な遵守**：顧客取引明細データの国内保管要件を満たし、オンプレミス環境からのネットワークレイテンシを極小化。 |
+| **Snowflake Edition** | **Enterprise（エンタープライズ版）** | **90 日間の Time Travel**、**動的データマスキング（Dynamic Data Masking）**、マルチクラスターウェアハウスに対応。金融庁（FSA）の監査要件を満たす最低基準のエディションです。 |
+| **Cloud Provider** | **AWS (Amazon Web Services)** | 日本国内の証券・メガバンクで最も採用実績が多く、周辺のエコシステム連携が充実しています。 |
+| **Region (リージョン)** | **Asia Pacific (Tokyo) - `ap-northeast-1`** | **データレジデンシー（主権）要件**：金融庁基準により顧客取引データの国内保管が義務付けられており、レイテンシも最小化されます。 |
 
 ---
 
-## 2. アカウント開設の全手順と画面操作
+## 2. 登録ステップと画面遷移
 
 ### ステップ 1：基本情報の入力
 氏名、会社メールアドレス、役職を入力します：
-![サインアップ画面](../images/01_img_01.png)
+![登録トップ](../images/01_img_01.png)
 
-### ステップ 2：エディションおよびリージョン選定
-**Enterprise** エディションを選択し、基盤クラウドに **AWS - Asia Pacific (Tokyo)** を指定します：
-![エディション選択](../images/01_img_02.png)
+### ステップ 2：エディションおよびクラウド・リージョンの選択
+**Enterprise** エディションを選択し、**AWS - Asia Pacific (Tokyo)** を指定します：
+![エディションとリージョン選択](../images/01_img_02.png)
 
 ### ステップ 3：アクティベーションメールの確認
-登録後に送信される *"Activate your Snowflake account"* メールを開き、「Click to Activate」をクリックします：
-![アクティベーションメール](../images/01_img_03.png)
-![メール内容](../images/01_img_04.png)
+登録後、*"Activate your Snowflake account"* という件名の確認メールを受信し、本文内の認証リンクをクリックします：
+![確認メール案内](../images/01_img_03.png)
+![メール本文の確認](../images/01_img_04.png)
 
-### ステップ 4：管理者パスワード設定と初回ログイン
-管理者アカウントのユーザー名と安全な強固パスワードを設定し、Snowsight コンソールへログインします（初期状態では `ACCOUNTADMIN` 権限を保持）：
-![パスワード設定](../images/01_img_05.png)
-![Snowsight初期画面](../images/01_img_06.png)
+### ステップ 4：管理者パスワードの設定と初回サインイン
+ユーザー名および複雑性要件を満たす安全なパスワードを設定します（初期状態では `ACCOUNTADMIN` 権限を保持）：
+![パスワード設定画面](../images/01_img_05.png)
+![Snowsightログイン完了](../images/01_img_06.png)
 
 ---
 
 ## 3. Web コンソールの日本語化設定
 
-運用担当者が直感的に操作できるよう、Snowsight コンソールの表示言語を日本語に切り替えます：
+日本国内の現場エンジニア・アナリストの運用負荷を軽減するため、Snowsight の言語設定を日本語へ変更します：
 
-1. 画面左下（または右上）のユーザープロファイルアイコンから **Preferences（個人設定）** を開きます；
-2. **Language & Region** セクションにて、表示言語を **日本語 (Japanese)** に設定します：
+1. 左下または右上のユーザープロファイルアイコンをクリックし、**Preferences（環境設定）** を開きます；
+2. **Language & Region** セクションで言語を **日本語 (Japanese)** に切り替えます：
 
-![言語設定メニュー](../images/01_img_09.png)
-![日本語適用後の設定画面](../images/01_img_10.png)
-![日本語UIナビゲーション](../images/01_img_11.png)
+![言語設定画面](../images/01_img_09.png)
+![日本語切り替え完了](../images/01_img_10.png)
+![日本語ナビゲーション画面](../images/01_img_11.png)
 
 ---
 
-## 4. システムビルトイン標準ロール体系の理解
-
-Snowflake のアカウント作成直後には、以下のような標準ロール階層が自動定義されています：
+## 4. システム標準ロール階層の全体像
 
 ```mermaid
 graph TD
-    AA["ACCOUNTADMIN\n全体最高管理者\n(課金・組織管理・緊急時特権のみに限定)"]
-    SA["SECURITYADMIN\nセキュリティ統括管理者\n(監査・ネットワークポリシー・MANAGE GRANTS)"]
-    UA["USERADMIN\nユーザー・ロール管理者\n(USER・ROLE の作成およびライフサイクル管理)"]
-    SY["SYSADMIN\nシステム運用管理者\n(ウェアハウス・DB・スキーマ等すべての物理オブジェクト作成)"]
+    AA["ACCOUNTADMIN\n最上位特権ロール\n(請求・組織管理・緊急時のみ使用)"]
+    SA["SECURITYADMIN\nセキュリティ管理者\n(ネットワークポリシー・セキュリティ監査・MANAGE GRANTS)"]
+    UA["USERADMIN\nユーザー・ロール管理者\n(USER および ROLE の作成・管理)"]
+    SY["SYSADMIN\nシステム運用管理者\n(Warehouse・Database 等の全物理オブジェクト作成)"]
 
     AA --> SA
     SA --> UA
@@ -74,74 +72,41 @@ graph TD
 
 ---
 
-## 5. 🔐 金融基準に基づく多要素認証 (MFA / 2FA) 設定実務
+## 5. 🧭 Snowsight コンソール画面構成とワークスペース初探
 
-日本の金融機関（銀行、証券、NRI等のSIパートナー環境）や金融庁 FISC 安全対策基準においては、**検証環境・本番環境を問わず、Snowflake コンソールへのアクセスには多要素認証（MFA / 2FA）の適用が強く推奨・義務付けられています**。
+アカウント登録および日本語化が完了したら、Snowflake のモダン Web コンソールである **Snowsight** の基本レイアウトと SQL 実行環境を確認します。
 
-### 5.1 認証アプリ（Authenticator）の紐付け手順
-1. **設定メニューの表示**：Snowsight コンソール左下のユーザープロファイルより、**Preferences** $\to$ **Multi-Factor Authentication (MFA)** を選択します。
-2. **認証方式の選択**：**Authenticator App（TOTP 認証器）** を選択します。
-3. **シークレットキーの取得**：
-   - 画面上に QR コードおよび Base32 形式の秘密鍵文字列（例：`WQQC4ZYF...`）が表示されます。
-   - モバイル端末の **Google Authenticator** や **Microsoft Authenticator** で QR をスキャンするか、開発専用端末等ではオープンソースの PC 版認証ツール [WinAuth](https://winauth.github.io/winauth/download.html) へ秘密鍵文字列を登録します。
-4. **ワンタイムコードの検証**：認証アプリに表示される 6 桁の TOTP 動的認証コードを入力し、有効化（Verify）を完了します。
-
-### 5.2 初期パスワード変更ポリシー（初回ログイン強制変更）
-システム管理者から払い出された作業用ユーザー（例：`MITSUI_ENGINEER_USER`）には、通常初回ログイン時のパスワード変更が義務付けられています（`MUST_CHANGE_PASSWORD = TRUE`）：
-- 一時パスワードと MFA 認証コードによる初回認証後、パスワード変更ダイアログが起動します；
-- 複雑性要件（大文字・小文字・数字・特殊文字を含む 12 桁以上）を満たす新規パスワードへ変更することで、安全にワークスペースへアクセスできます。
-
----
-
-## 6. 🧪 初回ログイン後の権限・疎通確認 (Sanity Check)
-
-Snowsight コンソールへの初回ログイン完了後、データエンジニアやアナリストは以下の手順で SQL ワークシートを開き、割り当てられた権限やリソースの疎通確認を実施します。
-
-### 6.1 ワークスペースへの移動とSQLファイルの新規作成
-検証スクリプトを実行する前に、Snowsight コンソールで SQL エディタ（Worksheet）を開きます：
+### 5.1 ワークスペースへの移動と画面ナビゲーション
+Snowsight では、日々のクエリ実行・開発・データ探索はすべて「ワークスペース」で行われます：
 
 1. 左側のメインナビゲーションメニューから **「プロジェクト（Projects）」** をクリックし、**「ワークスペース（Workspaces）」** を選択します：
 ![プロジェクトとワークスペースへの移動](../images/01_img_12.png)
 
-2. 初回アクセス時には、最新のワークスペースツアー画面（SQL ファイル、Notebook、dbt 等の開発スイート対応）が表示されます：
+2. 初回アクセス時には、最新のワークスペースツアー画面（SQL ファイル、Python Notebook、dbt 等の開発スイートに対応）が表示されます：
 ![ワークスペースツアー画面](../images/01_img_13.png)
 
-3. 左上の **「＋ 新規追加」** ボタンをクリックし、**「SQLファイル（SQL File）」** を選択して新しい SQL ワークシートを開きます：
+### 5.2 SQL ワークシート（Worksheet）の新規作成
+ワークスペース内で最初の SQL エディタを開きます：
+1. 左上の **「＋ 新規追加」** ボタンをクリックします；
+2. **「SQLファイル（SQL File）」** を選択して新しいワークシートを開きます：
 ![SQLファイルの新規作成](../images/01_img_14.png)
 
-### 6.2 ベースライン権限・疎通確認クエリの実行
-開いた SQL ワークシートに以下のスクリプトを入力・実行し、割り当てられた権限基盤とリソース接続を確認します：
+### 5.3 開箱即用（Out-of-the-Box）の初期疎通クエリ実行
+新規開設された評価アカウントには標準のコンピュート環境が事前配置されています。エディタに以下のクエリを入力し、右上の **「▶ 実行」** ボタン（またはショートカット `Ctrl + Enter` / `Cmd + Enter`）を押下して実行します：
 
 ```sql
--- 1. 自身に付与されたロール一覧の確認
-SHOW ROLES;
-
--- 2. カレントロールに付与されている詳細権限の確認
-SHOW GRANTS OF ROLE MITSUI_ENGINEER;
-
--- 3. 参照可能なデータベース・スキーマの確認
-SHOW DATABASES;
-SHOW SCHEMAS;
-
--- 4. プロジェクトコンテキストへの切り替え
-USE ROLE MITSUI_ENGINEER;
-USE WAREHOUSE MITSUI_WH;
-USE DATABASE MITSUI_SEC_DB;
-USE SCHEMA RAW_ORACLE;
-
--- 5. 軽量な疎通確認用一時テーブルの作成と読み書き検証 (Sandbox レベル検証)
-CREATE OR REPLACE TEMPORARY TABLE _SANITY_CHECK (
-    CHECK_ID    INT,
-    OPERATOR    VARCHAR(50),
-    CHECKED_AT  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
-);
-
-INSERT INTO _SANITY_CHECK (CHECK_ID, OPERATOR) VALUES (1, CURRENT_USER());
-
-SELECT * FROM _SANITY_CHECK;
-
--- 検証完了後のクリーンアップ
-DROP TABLE IF EXISTS _SANITY_CHECK;
+-- 現在のセッションコンテキストおよび Snowflake エンジンバージョンの確認（外部依存なし）
+SELECT 
+    CURRENT_USER()             AS "カレントユーザー",
+    CURRENT_ROLE()             AS "有効ロール",
+    CURRENT_AVAILABLE_ROLES()   AS "利用可能ロール一覧",
+    CURRENT_WAREHOUSE()        AS "カレントウェアハウス",
+    CURRENT_VERSION()          AS "Snowflakeエンジンバージョン";
 ```
 
-この疎通確認が正常に完了することで、アカウント開設・MFA 設定・三井証券向け権限基盤の接続確認が完了し、次章の Oracle 環境構築およびデータ移行作業へ安全に進むことができます。
+### 5.4 SQL ワークシート主要コンポーネントの確認
+* **コンテキストセレクター（Context Selector）**：エディタ右上に配置され、実行ロール（Role）、計算ウェアハウス（Warehouse）、接続先データベース/スキーマを即座に切り替えることができます；
+* **実行コントロール（Run Controls）**：1行実行、選択範囲実行、またはシート内全件一括実行に対応しています；
+* **結果・クエリ履歴パネル（Results & Query History）**：実行結果の表形式プレビュー、影響行数、処理ミリ秒、および一意の Query ID をリアルタイムに確認できます。
+
+基本操作の確認が完了しました。次章以降では、移行元となるオンプレミス Oracle 環境の準備、および三井証券向け企業級 RBAC 権限モデルと本番オブジェクトの構築へと進みます。
