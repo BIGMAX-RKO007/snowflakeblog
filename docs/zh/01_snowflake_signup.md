@@ -103,6 +103,9 @@ SELECT
     CURRENT_VERSION()          AS "Snowflake引擎版本";
 ```
 
+执行后可在下方实时看到会话上下文、执行耗时（如 22ms）与全局 Query ID：
+![SQL执行与结果面板](../images/01_img_15.png)
+
 ### 5.4 SQL 工作台核心组件速览
 * **上下文选择器（Context Selector）**：位于编辑器右上角，用于随时切换当前会话生效的角色（Role）、计算仓库（Warehouse）以及默认数据库/Schema；
 * **执行控制（Run Controls）**：支持单行执行、高亮选中文本执行或全表依次批量运行；
