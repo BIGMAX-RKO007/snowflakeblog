@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- 脚本名称: 02_sysadmin_objects.sql
--- 业务场景: 三井证券 仓库/数据库/Schema/Stage/Table 渐进式授权与创建 (Step 4.5 ~ 4.15)
+-- 业务场景: 银行证券 仓库/数据库/Schema/Stage/Table 渐进式授权与创建 (Step 4.5 ~ 4.15)
 -- 映射对象: CUST_TRADE_DETAIL (顧客取引明細)
 -- 执行角色: SYSADMIN 及 业务角色 MITSUI_ADMIN / MITSUI_ENGINEER
 -- ==============================================================================
@@ -17,10 +17,12 @@ CREATE WAREHOUSE IF NOT EXISTS MITSUI_WH
     AUTO_SUSPEND = 300
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
-    COMMENT = '三井证券核心数据批处理与迁移专用WH';
+    COMMENT = '银行证券核心数据批处理与迁移专用WH';
 
--- 授予计算仓库使用权给 MITSUI_ADMIN (及其下属继承的 ENGINEER 与 ANALYST)
+-- 授予计算仓库使用权 (注意：Snowflake 权限仅向上汇总，必须明示授予工程师与分析师)
 GRANT USAGE, OPERATE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ADMIN;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ENGINEER;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
 
 -- 4.6：DB 作成権限付与
 GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
@@ -36,7 +38,7 @@ USE WAREHOUSE MITSUI_WH;
 
 -- 4.8：DATABASE の作成
 CREATE DATABASE IF NOT EXISTS MITSUI_SEC_DB
-    COMMENT = '三井证券核心生产数据云端迁移仓';
+    COMMENT = '银行证券核心生产数据云端迁移仓';
 
 USE DATABASE MITSUI_SEC_DB;
 

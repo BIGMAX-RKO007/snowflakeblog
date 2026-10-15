@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "三井証券 DX 実戦プロジェクト"
+  name: "銀行証券 DX 実戦プロジェクト"
   text: "Oracle 11g から Snowflake への企業級データ移行"
   tagline: "厳格な金融RBAC権限分離・高速COPY INTO・新旧データ4段階突合検証の完全再現"
   image:

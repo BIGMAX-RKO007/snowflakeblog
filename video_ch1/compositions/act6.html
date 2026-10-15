@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .act6-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 32px;
+      height: 100%;
+    }
+    .objects-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .objects-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .obj-tag {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .obj-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .obj-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    /* Hierarchy Tree */
+    .tree-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tier-box {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      padding: 14px 18px;
+      border-left: 4px solid var(--accent-blue);
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .tier-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .tier-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .tier-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .arrow-down {
+      text-align: center;
+      color: var(--accent-cyan);
+      font-size: 14px;
+      margin: -6px 0 6px 0;
+      opacity: 0.8;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head>
+<body>
+  <div data-hf-id="hf-5hqt" id="root" class="clip" data-composition-id="act6" data-width="1920" data-height="1080" data-duration="98.55">
+  <div data-hf-id="hf-yohs" class="tech-bg"></div>
+  <div data-hf-id="hf-a3dc" class="glow-orb glow-orb-1"></div>
+  <div data-hf-id="hf-kyuz" class="glow-orb glow-orb-2"></div>
+
+  <div data-hf-id="hf-hsw1" class="top-header">
+    <div data-hf-id="hf-9v4z" class="header-left">
+      <div data-hf-id="hf-bken" class="badge-chapter">ACT 06 / 07</div>
+      <div data-hf-id="hf-35q2" class="header-title-box">
+        <h1 data-hf-id="hf-8m95">16 大金融核心受控对象与 3 级参数继承架构</h1>
+        <p data-hf-id="hf-1hcc">Securable Objects Ecosystem &amp; Multi-Level Parameter Inheritance Tree</p>
+      </div>
+    </div>
+    <div data-hf-id="hf-77im" class="header-right">
+      <div data-hf-id="hf-at4s" class="system-tag">
+        <div data-hf-id="hf-sv8g" class="live-dot"></div>
+        <span data-hf-id="hf-j2ju">SECURITY BASELINE</span>
+      </div>
+    </div>
+  </div>
+
+  <div data-hf-id="hf-2v02" class="main-stage">
+    <div data-hf-id="hf-n6gn" class="act6-grid">
+      <!-- 16 Objects -->
+      <div data-hf-id="hf-bsxu" class="objects-container">
+        <div data-hf-id="hf-gi6e" style="font-size: 18px; font-weight: 700; color: #FFFFFF;">🛡️ 金融数仓一等公民受控对象资产</div>
+        <div data-hf-id="hf-ag4t" class="objects-grid">
+          <div data-hf-id="hf-yk3k" class="obj-tag"><div data-hf-id="hf-bhqm" class="obj-name">ORGANIZATION</div><div data-hf-id="hf-syk7" class="obj-desc">最高组织账单</div></div>
+          <div data-hf-id="hf-o7js" class="obj-tag"><div data-hf-id="hf-lm0o" class="obj-name">ACCOUNT</div><div data-hf-id="hf-706e" class="obj-desc">租户独立基盘</div></div>
+          <div data-hf-id="hf-n0mp" class="obj-tag"><div data-hf-id="hf-kphx" class="obj-name">NETWORK RULE</div><div data-hf-id="hf-a02l" class="obj-desc">IP白名单网段</div></div>
+          <div data-hf-id="hf-nexq" class="obj-tag"><div data-hf-id="hf-ujil" class="obj-name">NETWORK POLICY</div><div data-hf-id="hf-uqoo" class="obj-desc">客户端安全拦截</div></div>
+          <div data-hf-id="hf-m80n" class="obj-tag"><div data-hf-id="hf-4hpv" class="obj-name">AUTH POLICY</div><div data-hf-id="hf-xoja" class="obj-desc">MFA / SSO认证</div></div>
+          <div data-hf-id="hf-mmbo" class="obj-tag"><div data-hf-id="hf-opue" class="obj-name">PASSWORD POLICY</div><div data-hf-id="hf-ebgz" class="obj-desc">密码复杂度轮转</div></div>
+          <div data-hf-id="hf-qnpt" class="obj-tag" style="border-color: var(--accent-cyan);"><div data-hf-id="hf-2fyh" class="obj-name" style="color: var(--accent-cyan);">ROLE</div><div data-hf-id="hf-tgxe" class="obj-desc">3层RBAC特权</div></div>
+          <div data-hf-id="hf-lfel" class="obj-tag"><div data-hf-id="hf-mywm" class="obj-name">USER</div><div data-hf-id="hf-gt80" class="obj-desc">服务/业务账号</div></div>
+          <div data-hf-id="hf-fa6c" class="obj-tag" style="border-color: var(--accent-blue);"><div data-hf-id="hf-4gvf" class="obj-name" style="color: var(--accent-blue);">WAREHOUSE</div><div data-hf-id="hf-jucf" class="obj-desc">独立虚拟算力</div></div>
+          <div data-hf-id="hf-ltpm" class="obj-tag"><div data-hf-id="hf-jhyc" class="obj-name">DATABASE</div><div data-hf-id="hf-sfh8" class="obj-desc">顶层逻辑库</div></div>
+          <div data-hf-id="hf-qzoz" class="obj-tag"><div data-hf-id="hf-e696" class="obj-name">SCHEMA</div><div data-hf-id="hf-09g7" class="obj-desc">业务模式容器</div></div>
+          <div data-hf-id="hf-re00" class="obj-tag"><div data-hf-id="hf-ngn7" class="obj-name">TABLE</div><div data-hf-id="hf-l8lb" class="obj-desc">微分区持久化表</div></div>
+          <div data-hf-id="hf-zg60" class="obj-tag"><div data-hf-id="hf-479w" class="obj-name">VIEW</div><div data-hf-id="hf-115y" class="obj-desc">脱敏安全视图</div></div>
+          <div data-hf-id="hf-z1uz" class="obj-tag"><div data-hf-id="hf-n65c" class="obj-name">FAILOVER GROUP</div><div data-hf-id="hf-sht1" class="obj-desc">跨云异地容灾</div></div>
+          <div data-hf-id="hf-ynjy" class="obj-tag"><div data-hf-id="hf-5lg1" class="obj-name">STAGE</div><div data-hf-id="hf-at2t" class="obj-desc">安全暂存阶段</div></div>
+          <div data-hf-id="hf-y98x" class="obj-tag"><div data-hf-id="hf-yhnj" class="obj-name">TASK / PROC</div><div data-hf-id="hf-441j" class="obj-desc">批处理/存储过程</div></div>
+        </div>
+      </div>
+
+      <!-- Parameter Hierarchy Tree -->
+      <div data-hf-id="hf-oo0b" class="tree-card">
+        <div data-hf-id="hf-yeow">
+          <div data-hf-id="hf-rz0w" style="font-size: 18px; font-weight: 700; color: #FFFFFF; margin-bottom: 14px;">🌲 Session 参数 3 级继承树</div>
+          
+          <div data-hf-id="hf-1xor" class="tier-box" style="border-left-color: var(--accent-rose);">
+            <div data-hf-id="hf-nnlm" class="tier-level">LEVEL 1 · 顶层基线</div>
+            <div data-hf-id="hf-6vvk" class="tier-name">Account Parameter</div>
+            <div data-hf-id="hf-fpmv" class="tier-desc">全账户默认基准（如：默认 AUTO_SUSPEND、全局时区）</div>
+          </div>
+
+          <div data-hf-id="hf-v39a" class="arrow-down">▼ 自动继承 / 按需定制覆盖</div>
+
+          <div data-hf-id="hf-ged2" class="tier-box" style="border-left-color: var(--accent-blue);">
+            <div data-hf-id="hf-rvuf" class="tier-level">LEVEL 2 · 中间层</div>
+            <div data-hf-id="hf-pvjo" class="tier-name">User Parameter</div>
+            <div data-hf-id="hf-mipl" class="tier-desc">为特定运维/业务用户单独绑定的个性化设定</div>
+          </div>
+
+          <div data-hf-id="hf-58f9" class="arrow-down">▼ 自动继承 / 会话动态覆盖</div>
+
+          <div data-hf-id="hf-8yh2" class="tier-box" style="border-left-color: var(--accent-emerald);">
+            <div data-hf-id="hf-xiwe" class="tier-level">LEVEL 3 · 最底层 (最高优先级)</div>
+            <div data-hf-id="hf-cnj7" class="tier-name">Session Parameter</div>
+            <div data-hf-id="hf-wnvk" class="tier-desc">应用连接执行 ALTER SESSION 动态生效的实时最终值</div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-61d4" style="font-size: 13px; color: var(--text-muted); background: rgba(0, 0, 0, 0.3); padding: 10px 14px; border-radius: 8px;">
+          📌 <strong data-hf-id="hf-d0vd">规则</strong>：未显式配置时<strong data-hf-id="hf-ymoq">向下自动继承</strong>，显式配置时<strong data-hf-id="hf-srf1">底层优先覆盖</strong>。
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Subtitle Bar inside #root -->
+  <div data-hf-id="hf-sub-act6" class="subtitle-bar">
+    <span data-hf-id="hf-sub-icon-act6" class="subtitle-icon">🎙️</span>
+    <span data-hf-id="hf-sub-txt-act6" class="subtitle-text">第六节：Snowflake 核心受控对象体系与参数继承架构。十六大金融对象矩阵精细管控，会话级、用户级与账户级参数自顶向下逐级继承与动态覆盖。</span>
+  </div>
+</div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(".main-stage", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8 }, 0.2);
+    tl.to("#root", { opacity: 0, duration: 0.8 }, 97.75);
+    window.__timelines["act6"] = tl;
+    tl.seek(0);
+  </script>
+</body>
+</html>

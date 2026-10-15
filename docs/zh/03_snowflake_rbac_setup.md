@@ -1,6 +1,6 @@
 # 第 03 章：Snowflake 企业级 RBAC 权限设计与环境搭建实战
 
-在三井证券等金融机构中，**最小特权原则（Principle of Least Privilege）**与**职能分离（Separation of Duties）**是合规的生命线。
+在银行证券等金融机构中，**最小特权原则（Principle of Least Privilege）**与**职能分离（Separation of Duties）**是合规的生命线。
 
 ---
 
@@ -15,11 +15,11 @@
    由管理基盘统一对外提供与企业级分散运维体系对接所需的公共能力与标准接口，大幅减轻各业务部门的独立运维负担。  
    > [!IMPORTANT]
    > **企业级权责边界划分原则**：  
-   > 针对因各业务系统而异的 **`SYSADMIN` 管理领域（包括各自的计算仓库 Warehouse、数据库 Database、Schema、Stage 等物理对象）**，全面下放并**由各业务系统部门（三井证券数据迁移项目组）自主管理与规划**，兼顾全局安全合规与业务线的敏捷工程落地。
+   > 针对因各业务系统而异的 **`SYSADMIN` 管理领域（包括各自的计算仓库 Warehouse、数据库 Database、Schema、Stage 等物理对象）**，全面下放并**由各业务系统部门（银行证券数据迁移项目组）自主管理与规划**，兼顾全局安全合规与业务线的敏捷工程落地。
 
 ---
 
-## 2. 🏛️ 三井证券角色继承与访问控制架构
+## 2. 🏛️ 银行证券角色继承与访问控制架构
 
 ```mermaid
 graph TD
@@ -34,8 +34,8 @@ graph TD
         ACCOUNTADMIN --> SYSADMIN
     end
 
-    subgraph CustomRoles ["三井证券三层业务角色"]
-        ADMIN["MITSUI_ADMIN (三井项目总管)"]
+    subgraph CustomRoles ["银行证券三层业务角色"]
+        ADMIN["MITSUI_ADMIN (银行项目总管)"]
         ENG["MITSUI_ENGINEER (数据工程师)"]
         ANA["MITSUI_ANALYST (数据分析师)"]
 
@@ -79,11 +79,11 @@ USE ROLE USERADMIN;
 ```
 
 #### 4.1 创建 Role
-创建三井证券三层业务角色体系：
+创建银行证券三层业务角色体系：
 ```sql
-CREATE ROLE IF NOT EXISTS MITSUI_ADMIN    COMMENT = '三井证券项目总管角色';
-CREATE ROLE IF NOT EXISTS MITSUI_ENGINEER COMMENT = '三井证券数据工程师角色';
-CREATE ROLE IF NOT EXISTS MITSUI_ANALYST  COMMENT = '三井证券数据分析师角色';
+CREATE ROLE IF NOT EXISTS MITSUI_ADMIN    COMMENT = '银行证券项目总管角色';
+CREATE ROLE IF NOT EXISTS MITSUI_ENGINEER COMMENT = '银行证券数据工程师角色';
+CREATE ROLE IF NOT EXISTS MITSUI_ANALYST  COMMENT = '银行证券数据分析师角色';
 ```
 
 #### 4.2 赋予 / 继承权限 (Role Hierarchy)
@@ -101,6 +101,10 @@ GRANT ROLE MITSUI_ANALYST TO ROLE MITSUI_ENGINEER;
 
 #### 4.3 创建 User
 创建实际业务用户：
+
+> [!NOTE]
+> **依赖时序说明**：此处为用户预先配置了 `DEFAULT_WAREHOUSE = MITSUI_WH`。Snowflake 允许在建用户时登记默认仓库名，但该计算资源必须在随后的 **Step 4.5** 中由 `SYSADMIN` 正式创建并下发 `USAGE` 权限后方可生效。
+
 ```sql
 -- 工程师账号
 CREATE USER IF NOT EXISTS MITSUI_ENGINEER_USER
@@ -108,7 +112,7 @@ CREATE USER IF NOT EXISTS MITSUI_ENGINEER_USER
     DEFAULT_ROLE = MITSUI_ENGINEER
     DEFAULT_WAREHOUSE = MITSUI_WH
     MUST_CHANGE_PASSWORD = FALSE
-    COMMENT = '三井证券ETL与迁移工程账号';
+    COMMENT = '银行证券ETL与迁移工程账号';
 
 -- 分析师账号
 CREATE USER IF NOT EXISTS MITSUI_ANALYST_USER
@@ -116,7 +120,7 @@ CREATE USER IF NOT EXISTS MITSUI_ANALYST_USER
     DEFAULT_ROLE = MITSUI_ANALYST
     DEFAULT_WAREHOUSE = MITSUI_WH
     MUST_CHANGE_PASSWORD = FALSE
-    COMMENT = '三井证券分析师业务账号';
+    COMMENT = '银行证券分析师业务账号';
 ```
 
 #### 4.4 赋予角色
@@ -142,10 +146,14 @@ CREATE WAREHOUSE IF NOT EXISTS MITSUI_WH
     AUTO_SUSPEND = 300           -- 5分钟无查询自动休眠
     AUTO_RESUME = TRUE           -- 有SQL请求时秒级自动拉起
     INITIALLY_SUSPENDED = TRUE
-    COMMENT = '三井证券核心数据批处理与迁移专用WH';
+    COMMENT = '银行证券核心数据批处理与迁移专用WH';
 
 -- 授予计算仓库使用权
+-- ★重要安全规则：Snowflake 角色继承仅单向向上汇总（父拥有子特权，子不继承父特权）
+-- 因此必须分别明确将 USAGE 授予 MITSUI_ADMIN、MITSUI_ENGINEER 与 MITSUI_ANALYST
 GRANT USAGE, OPERATE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ADMIN;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ENGINEER;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
 ```
 
 #### 4.6 DB 作成权限付与
@@ -167,7 +175,7 @@ USE WAREHOUSE MITSUI_WH;
 #### 4.8 DATABASE 作成
 ```sql
 CREATE DATABASE IF NOT EXISTS MITSUI_SEC_DB
-    COMMENT = '三井证券核心生产数据云端迁移仓';
+    COMMENT = '银行证券核心生产数据云端迁移仓';
 
 USE DATABASE MITSUI_SEC_DB;
 ```
@@ -256,7 +264,7 @@ GRANT SELECT ON TABLE CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST;
 
 ---
 
-## 🎯 验证与自检清单
+## 4. 🎯 基础验证与自检清单
 
 ```sql
 -- 1. 查看当前会话环境
@@ -270,3 +278,97 @@ SHOW GRANTS OF ROLE MITSUI_ADMIN;
 SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES LIKE 'CUST_TRADE_DETAIL';
 ```
+
+---
+
+## 5. 🏢 金融企业级进阶实战：多规格算力、多表隔离与单/多角色深度演练
+
+在完成上述 **Step 4.1 ~ 4.15** 基础单仓单表的标准搭建后，在真实的金融与大型企业级生产环境中，权限与资源管控往往需要进一步升级为更为灵活严密的复合场景：
+1. **多规格 Warehouse 隔离**：不同职责用户需要匹配不同算力（例如：数据分析师只需 `X-Small` 算力，而夜间跑批与 ETL 迁移工程师需要 `Medium` 高吞吐算力）；
+2. **多表细粒度权限隔离**：同一业务 Schema 下，部分表允许分析师只读查询（如公开流水 `CUST_TRADE_DETAIL`），部分高敏表（如内控费率 `CONFIDENTIAL_FEE_RATES`）则绝不可对分析师开放；
+3. **单角色用户 vs 多角色用户**：初级/外包人员配置单一受限角色；技术主管或核心骨干配置多角色，并支持按需自由切换上下文（`USE ROLE`）。
+
+> [!TIP]
+> 本进阶演练配套全量独立可执行验证脚本已存放于工程：[`scripts/snowflake/00_account_provisioning_and_rbac_demo.sql`](../../scripts/snowflake/00_account_provisioning_and_rbac_demo.sql)。可在 Snowsight Worksheet 中一键导入或分段运行。
+
+### 5.1 企业级规范构建顺序与职责分离 (Separation of Duties)
+
+根据金融安全合规标准（FISC 规范），必须杜绝使用全局最高角色 `ACCOUNTADMIN` 进行日常对象维护，严格执行如下分层流水线：
+
+```mermaid
+flowchart TD
+    subgraph S1 ["阶段 A: 物理对象定义 (SYSADMIN)"]
+        W1["MITSUI_ANALYST_WH (X-Small 算力)"]
+        W2["MITSUI_ETL_WH (Medium 算力)"]
+        DB["数据库 MITSUI_SEC_DB 与 RAW_ORACLE"]
+        T1["公开明细表 CUST_TRADE_DETAIL"]
+        T2["内控机密表 CONFIDENTIAL_FEE_RATES"]
+    end
+
+    subgraph S2 ["阶段 B: 角色体系与继承 (USERADMIN)"]
+        R_SYS["SYSADMIN"]
+        R_ADM["MITSUI_ADMIN_ROLE"]
+        R_ENG["MITSUI_ENGINEER_ROLE"]
+        R_ANA["MITSUI_ANALYST_ROLE"]
+        R_SYS --> R_ADM --> R_ENG --> R_ANA
+    end
+
+    subgraph S3 ["阶段 C: 细粒度对象赋权 (SYSADMIN)"]
+        GRANT_W["差异化算力分配 (USAGE)"]
+        GRANT_T["差异化表权限 (SELECT vs ALL)"]
+    end
+
+    subgraph S4 ["阶段 D & E: 用户开通与角色绑定 (USERADMIN)"]
+        U1["TANAKA_ANALYST (单一角色用户)"]
+        U2["SATO_TECH_LEAD (多角色用户)"]
+    end
+
+    S1 --> S2 --> S3 --> S4
+```
+
+### 5.2 单一角色用户 vs 多角色用户对比矩阵
+
+| 评估维度 | 单一角色用户 (`TANAKA_ANALYST`) | 多角色用户 (`SATO_TECH_LEAD`) |
+| :--- | :--- | :--- |
+| **分配角色** | 仅绑定 `MITSUI_ANALYST_ROLE` | 同时绑定 `MITSUI_ADMIN_ROLE` + `MITSUI_ENGINEER_ROLE` + `MITSUI_ANALYST_ROLE` |
+| **会话上下文行为** | 登录即被限定在分析师角色，无法执行提权操作 | 默认以 `MITSUI_ENGINEER_ROLE` 登录，可随时执行 `USE ROLE` 自由切换 |
+| **计算资源约束** | 仅被允许拉起 `MITSUI_ANALYST_WH` (X-Small)，单价 1 点/时，成本严格可控 | 日常开发使用 `MITSUI_ETL_WH` (Medium)，查报表时可自主降级至分析仓库 |
+| **数据访问边界** | 仅对 `CUST_TRADE_DETAIL` 只读；访问机密费率表直接报 `Object does not exist` | 工程师角色下可读写机密费率表；切至主管角色可执行全局管理与授权 |
+| **适用人群** | 外包人员、业务合规人员、初级分析师（零特权越界风险） | 架构师、Tech Lead、核心数据工程师（兼顾高权限与日常审计安全） |
+
+### 5.3 进阶核心 SQL 摘要
+
+```sql
+-- 1. 创建多规格 Warehouse 与差异化安全表 (SYSADMIN)
+USE ROLE SYSADMIN;
+CREATE WAREHOUSE IF NOT EXISTS MITSUI_ANALYST_WH WITH WAREHOUSE_SIZE = 'X-SMALL' AUTO_SUSPEND = 60 AUTO_RESUME = TRUE;
+CREATE WAREHOUSE IF NOT EXISTS MITSUI_ETL_WH     WITH WAREHOUSE_SIZE = 'MEDIUM'  AUTO_SUSPEND = 120 AUTO_RESUME = TRUE;
+
+-- 2. 差异化赋权 (SYSADMIN)
+-- 分析师仅获轻量仓库与普通明细表只读
+GRANT USAGE ON WAREHOUSE MITSUI_ANALYST_WH TO ROLE MITSUI_ANALYST_ROLE;
+GRANT SELECT ON TABLE MITSUI_SEC_DB.RAW_ORACLE.CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST_ROLE;
+
+-- 工程师获高性能仓库与机密费率表读写
+GRANT USAGE ON WAREHOUSE MITSUI_ETL_WH TO ROLE MITSUI_ENGINEER_ROLE;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE MITSUI_SEC_DB.RAW_ORACLE.CUST_TRADE_DETAIL TO ROLE MITSUI_ENGINEER_ROLE;
+GRANT SELECT, INSERT, UPDATE ON TABLE MITSUI_SEC_DB.RAW_ORACLE.CONFIDENTIAL_FEE_RATES TO ROLE MITSUI_ENGINEER_ROLE;
+
+-- 3. 开通用户与角色绑定 (USERADMIN)
+USE ROLE USERADMIN;
+CREATE USER IF NOT EXISTS TANAKA_ANALYST PASSWORD = 'InitPassword123#A' DEFAULT_ROLE = MITSUI_ANALYST_ROLE DEFAULT_WAREHOUSE = MITSUI_ANALYST_WH;
+CREATE USER IF NOT EXISTS SATO_TECH_LEAD PASSWORD = 'InitPassword123#B' DEFAULT_ROLE = MITSUI_ENGINEER_ROLE DEFAULT_WAREHOUSE = MITSUI_ETL_WH;
+
+-- 绑定角色
+GRANT ROLE MITSUI_ANALYST_ROLE TO USER TANAKA_ANALYST;
+GRANT ROLE MITSUI_ENGINEER_ROLE TO USER SATO_TECH_LEAD;
+GRANT ROLE MITSUI_ANALYST_ROLE  TO USER SATO_TECH_LEAD;
+GRANT ROLE MITSUI_ADMIN_ROLE    TO USER SATO_TECH_LEAD;
+```
+
+### 5.4 验证测试清单（可在 Snowflake 直接复核）
+* **测试 1（受限用户查询）**：以 `MITSUI_ANALYST_ROLE` 查询 `CUST_TRADE_DETAIL`，成功读取；
+* **测试 2（越权拦截）**：以 `MITSUI_ANALYST_ROLE` 尝试执行 `INSERT` 或查询 `CONFIDENTIAL_FEE_RATES`，系统直接拦截报错（Access denied）；
+* **测试 3（算力隔离）**：以 `MITSUI_ANALYST_ROLE` 执行 `USE WAREHOUSE MITSUI_ETL_WH`，系统提示无权限拒绝使用；
+* **测试 4（多角色动态切换）**：以 `SATO_TECH_LEAD` 执行 `USE ROLE MITSUI_ANALYST_ROLE`，成功动态降级切换。
+

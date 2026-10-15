@@ -1,4 +1,4 @@
-# 三井証券DX：OracleからSnowflakeへのエンタープライズデータ移行実践
+# 銀行証券DX：OracleからSnowflakeへのエンタープライズデータ移行実践
 # Mitsui Securities DX: Enterprise Data Migration from Oracle to Snowflake
 
 [![Snowflake](https://img.shields.io/badge/Snowflake-29B5E8?style=flat&logo=snowflake&logoColor=white)](https://www.snowflake.com/)
@@ -10,7 +10,7 @@
 
 ## 📖 项目简介 / プロジェクト概要
 
-本项目模拟**三井证券（Mitsui Securities）**核心顾客交易流水（`CUST_TRADE_DETAIL`）从本地传统关系型数据库（Oracle 11g）向云原生数据云（Snowflake）的完整迁移与数仓重构实战。
+本项目模拟**银行证券（Mitsui Securities）**核心顾客交易流水（`CUST_TRADE_DETAIL`）从本地传统关系型数据库（Oracle 11g）向云原生数据云（Snowflake）的完整迁移与数仓重构实战。
 
 项目严格遵循**金融企业级安全规范**与 **Snowflake 最佳实践（System Defined Roles & RBAC 最小权限体系）**，采用图文并茂的手把手实操指南，涵盖：
 1. **Snowflake 账号注册与日语环境初始化**（带 11 张高清控制台截图）
@@ -28,7 +28,7 @@
 ```mermaid
 flowchart TD
     subgraph On-Premise ["オンプレミス環境 (On-Premise)"]
-        ORA[("Oracle Database 11g XE\n(三井証券 基幹系取引DB)")]
+        ORA[("Oracle Database 11g XE\n(銀行証券 基幹系取引DB)")]
         DUMP["数据导出 (UTF-8 CSV.GZ)\nCUST_TRADE_DETAIL"]
         ORA --> DUMP
     end
@@ -89,6 +89,7 @@ flowchart TD
 
 | 脚本文件 | 适用系统 / 角色 | 内容说明 |
 | :--- | :--- | :--- |
+| [`scripts/snowflake/00_account_provisioning_and_rbac_demo.sql`](scripts/snowflake/00_account_provisioning_and_rbac_demo.sql) | `SYSADMIN` / `USERADMIN` | 金融级账号开通、多规格算力、多表隔离与单角色/多角色用户实战验证 |
 | [`scripts/oracle/01_create_schema.sql`](scripts/oracle/01_create_schema.sql) | Oracle 11g | `CUST_TRADE_DETAIL` 顾客取引明细表 DDL（CHAR 语义，全角字符安全） |
 | [`scripts/oracle/02_seed_trades_data.sql`](scripts/oracle/02_seed_trades_data.sql) | Oracle 11g | 包含 11 组极值、外汇、全角百字边界、跨年交易的真实业务测试数据集 |
 | [`scripts/snowflake/01_useradmin_rbac.sql`](scripts/snowflake/01_useradmin_rbac.sql) | `USERADMIN` | Step 4.1~4.4: 创建 ADMIN / ENGINEER / ANALYST 角色树及用户 |

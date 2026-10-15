@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: "三井证券 DX 实战项目"
+  name: "银行证券 DX 实战项目"
   text: "Oracle 11g 迁移至 Snowflake 企业级落地全记录"
   tagline: "金融级三层 RBAC 权限隔离 · 高性能 COPY INTO · 新老数据 4 阶段对账稽核全真还原"
   image:

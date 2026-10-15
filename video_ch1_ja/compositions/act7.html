@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .act7-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      height: 100%;
+    }
+    .dr-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+      border-top: 3px solid var(--accent-blue);
+      position: relative;
+    }
+    .dr-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .dr-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 16px;
+    }
+    .dr-desc {
+      font-size: 14.5px;
+      line-height: 1.8;
+      color: var(--text-muted);
+      flex-grow: 1;
+    }
+    .dr-meta-box {
+      margin-top: 20px;
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 8px;
+      padding: 14px;
+      border-left: 3px solid var(--accent-cyan);
+      font-size: 13px;
+      color: #E2E8F0;
+      line-height: 1.6;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head>
+<body>
+  <div data-hf-id="hf-vq0j" id="root" class="clip" data-composition-id="act7" data-width="1920" data-height="1080" data-duration="157.02">
+  <div data-hf-id="hf-yohs" class="tech-bg"></div>
+  <div data-hf-id="hf-a3dc" class="glow-orb glow-orb-1"></div>
+  <div data-hf-id="hf-kyuz" class="glow-orb glow-orb-2"></div>
+
+  <div data-hf-id="hf-hsw1" class="top-header">
+    <div data-hf-id="hf-9v4z" class="header-left">
+      <div data-hf-id="hf-ad12" class="badge-chapter">ACT 07 / 07</div>
+      <div data-hf-id="hf-35q2" class="header-title-box">
+        <h1 data-hf-id="hf-i50j">金融グレード 3 重防御モデルとディザスタリカバリ</h1>
+        <p data-hf-id="hf-3saj">Comprehensive Business Continuity: Time Travel, Fail-safe &amp; Zero-Copy Clone</p>
+      </div>
+    </div>
+    <div data-hf-id="hf-77im" class="header-right">
+      <div data-hf-id="hf-at4s" class="system-tag">
+        <div data-hf-id="hf-sv8g" class="live-dot"></div>
+        <span data-hf-id="hf-2ltk">DISASTER RECOVERY ARCHITECTURE</span>
+      </div>
+    </div>
+  </div>
+
+  <div data-hf-id="hf-2v02" class="main-stage">
+    <div data-hf-id="hf-uhv8" class="act7-grid">
+      <!-- Barrier 1 -->
+      <div data-hf-id="hf-yzj0" class="glass-card dr-card" style="border-top-color: var(--accent-blue);">
+        <div data-hf-id="hf-yeow">
+          <div data-hf-id="hf-wh2b" class="dr-level">DEFENSE LAYER 01</div>
+          <div data-hf-id="hf-fgd4" class="dr-title">Time Travel (タイムトラベル)</div>
+          <div data-hf-id="hf-et9u" class="dr-desc">
+            運用担当者が SQL 文で即座に自律復旧。<br data-hf-id="hf-x5px"><br data-hf-id="hf-rsrt">
+            • テーブル誤削除時（DROP TABLE）も <code data-hf-id="hf-0xmx" class="code-inline">UNDROP</code> で秒単位復元<br data-hf-id="hf-szow">
+            • 誤更新・破損データを <code data-hf-id="hf-pmih" class="code-inline">AT(TIMESTAMP)</code> 句で過去断面参照<br data-hf-id="hf-sldv">
+            • 従来データベースのような長大な冷備リストア作業から完全解放
+          </div>
+        </div>
+        <div data-hf-id="hf-prfh" class="dr-meta-box" style="border-left-color: var(--accent-blue);">
+          ⏱️ <strong data-hf-id="hf-gzjy">保持期間</strong>：0 〜 90 日間（Enterprise Edition）<br data-hf-id="hf-qluq">
+          💰 <strong data-hf-id="hf-cciw">コスト影響</strong>：保持期間に応じた差分マイクロパーティション課金
+        </div>
+      </div>
+
+      <!-- Barrier 2 -->
+      <div data-hf-id="hf-6dqp" class="glass-card dr-card" style="border-top-color: var(--accent-rose);">
+        <div data-hf-id="hf-y7yw">
+          <div data-hf-id="hf-4vn5" class="dr-level" style="color: var(--accent-rose);">DEFENSE LAYER 02 · 最終防衛線</div>
+          <div data-hf-id="hf-tosb" class="dr-title">Fail-safe (フェイルセーフ)</div>
+          <div data-hf-id="hf-m45n" class="dr-desc">
+            Snowflake 基盤側の災害復旧・防衛仕組み。<br data-hf-id="hf-q7jp"><br data-hf-id="hf-regs">
+            • Time Travel 期間終了後も 7 日間基盤側で保護<br data-hf-id="hf-r05r">
+            • <strong data-hf-id="hf-pltq">日常運用の復旧手段としての利用は厳禁</strong><br data-hf-id="hf-p0mm">
+            • Snowflake 公式サポートへの作業依頼が必須（復旧に数日要す）
+          </div>
+        </div>
+        <div data-hf-id="hf-tbt9" class="dr-meta-box" style="border-left-color: var(--accent-rose); background: rgba(244, 63, 94, 0.08);">
+          ⚠️ <strong data-hf-id="hf-xi0r">提供形態</strong>：ベストエフォート（サポート手動対応）<br data-hf-id="hf-ombl">
+          ⏱️ <strong data-hf-id="hf-d47m">保護期間</strong>：7 日間固定（延長・短縮不可）
+        </div>
+      </div>
+
+      <!-- Barrier 3 -->
+      <div data-hf-id="hf-q4b2" class="glass-card dr-card" style="border-top-color: var(--accent-emerald);">
+        <div data-hf-id="hf-x11t">
+          <div data-hf-id="hf-2x7i" class="dr-level" style="color: var(--accent-emerald);">DEFENSE LAYER 03 · 瞬時複製</div>
+          <div data-hf-id="hf-8h5d" class="dr-title">Zero-Copy Clone (即時クローン)</div>
+          <div data-hf-id="hf-843h" class="dr-desc">
+            物理ストレージを重複消費しないメタデータ瞬時複製。<br data-hf-id="hf-qsyj"><br data-hf-id="hf-r79k">
+            • テーブル、スキーマ、DB 全体を数秒でクローン生成<br data-hf-id="hf-uc2n">
+            • 本番実データを用いた安全なサンドボックス検証・リハーサル<br data-hf-id="hf-ym5l">
+            • 重要なデータ切替や四半期監査前の瞬時スナップショット保存
+          </div>
+        </div>
+        <div data-hf-id="hf-73k1" class="dr-meta-box" style="border-left-color: var(--accent-emerald);">
+          ✨ <strong data-hf-id="hf-7h8u">初期コスト</strong>：追加ストレージ課金 <strong>$0</strong>（メタデータのみ）<br data-hf-id="hf-sldh">
+          ⚡ <strong data-hf-id="hf-a3n5">差分課金</strong>：クローン先での更新・追加分のみ Copy-on-Write 課金
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Subtitle Bar inside #root -->
+  <div data-hf-id="hf-sub-act7" class="subtitle-bar">
+    <span data-hf-id="hf-sub-icon-act7" class="subtitle-icon">🎙️</span>
+    <span data-hf-id="hf-sub-txt-act7" class="subtitle-text">第７セクションでは、金融グレードの耐障害性・高可用性を担保する３重防御モデル（Time Travel 0〜90日セルフ復元、Fail-safe 7日間基盤防衛、Zero-copy Clone即時複製）について解説します。</span>
+  </div>
+</div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(".main-stage", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8 }, 0.2);
+    tl.to("#root", { opacity: 0, duration: 0.8 }, 156.22);
+    window.__timelines["act7"] = tl;
+    tl.seek(0);
+  </script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    .act6-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 36px;
+      height: 100%;
+    }
+    .objects-matrix {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      height: 100%;
+    }
+    .obj-cell {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .obj-cat {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .obj-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin: 4px 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .obj-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    /* Hierarchy Tree */
+    .param-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.8));
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .tier-box {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      padding: 14px 18px;
+      border-left: 4px solid var(--accent-blue);
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .tier-level {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .tier-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .tier-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .arrow-down {
+      text-align: center;
+      color: var(--accent-cyan);
+      font-size: 14px;
+      margin: -6px 0 6px 0;
+      opacity: 0.8;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head>
+<body>
+  <div data-hf-id="hf-5hqt" id="root" class="clip" data-composition-id="act6" data-width="1920" data-height="1080" data-duration="145.52">
+  <div data-hf-id="hf-yohs" class="tech-bg"></div>
+  <div data-hf-id="hf-a3dc" class="glow-orb glow-orb-1"></div>
+  <div data-hf-id="hf-kyuz" class="glow-orb glow-orb-2"></div>
+
+  <div data-hf-id="hf-hsw1" class="top-header">
+    <div data-hf-id="hf-9v4z" class="header-left">
+      <div data-hf-id="hf-bken" class="badge-chapter">ACT 06 / 07</div>
+      <div data-hf-id="hf-35q2" class="header-title-box">
+        <h1 data-hf-id="hf-8m95">19 大コア・オブジェクト体系と 3 層パラメータ継承</h1>
+        <p data-hf-id="hf-1hcc">Securable Objects Ecosystem &amp; Multi-Level Parameter Inheritance Tree</p>
+      </div>
+    </div>
+    <div data-hf-id="hf-77im" class="header-right">
+      <div data-hf-id="hf-at4s" class="system-tag">
+        <div data-hf-id="hf-sv8g" class="live-dot"></div>
+        <span data-hf-id="hf-6scl">OBJECT MATRIX</span>
+      </div>
+    </div>
+  </div>
+
+  <div data-hf-id="hf-2v02" class="main-stage">
+    <div data-hf-id="hf-4t98" class="act6-grid">
+      <!-- 16 Objects Grid Matrix -->
+      <div data-hf-id="hf-h3uk" class="objects-matrix">
+        <div data-hf-id="hf-e59q" class="obj-cell"><div data-hf-id="hf-l2tf" class="obj-cat">TOP TIER</div><div data-hf-id="hf-7t3v" class="obj-name">ORGANIZATION</div><div data-hf-id="hf-qx5x" class="obj-desc">最上位組織・全体請求管理</div></div>
+        <div data-hf-id="hf-y7yw" class="obj-cell"><div data-hf-id="hf-fnzb" class="obj-cat">TENANT</div><div data-hf-id="hf-6c20" class="obj-name">ACCOUNT</div><div data-hf-id="hf-133i" class="obj-desc">全リソースを内包するテナント</div></div>
+        <div data-hf-id="hf-97rn" class="obj-cell"><div data-hf-id="hf-nb88" class="obj-cat">SECURITY</div><div data-hf-id="hf-z8a4" class="obj-name">NETWORK RULE</div><div data-hf-id="hf-53jq" class="obj-desc">IP・VPC エンドポイント識別</div></div>
+        <div data-hf-id="hf-hj17" class="obj-cell"><div data-hf-id="hf-x11t" class="obj-cat">SECURITY</div><div data-hf-id="hf-g2ac" class="obj-name">NETWORK POLICY</div><div data-hf-id="hf-by34" class="obj-desc">通信経路の遮断・トラフィック制御</div></div>
+
+        <div data-hf-id="hf-veis" class="obj-cell"><div data-hf-id="hf-9jn9" class="obj-cat">AUTH</div><div data-hf-id="hf-4qh8" class="obj-name">AUTH POLICY</div><div data-hf-id="hf-ssm4" class="obj-desc">MFA・SSO・キーペア認証定義</div></div>
+        <div data-hf-id="hf-p0mm" class="obj-cell"><div data-hf-id="hf-ombl" class="obj-cat">AUTH</div><div data-hf-id="hf-qsyj" class="obj-name">PASS POLICY</div><div data-hf-id="hf-r79k" class="obj-desc">パスワード強度・有効期限要件</div></div>
+        <div data-hf-id="hf-uc2n" class="obj-cell"><div data-hf-id="hf-ym5l" class="obj-cat">RBAC</div><div data-hf-id="hf-sldh" class="obj-name">ROLE</div><div data-hf-id="hf-1z96" class="obj-desc">特権を束ねるロール権限</div></div>
+        <div data-hf-id="hf-sub-act1" class="obj-cell"><div data-hf-id="hf-sub-icon-act1" class="obj-cat">IDENTITY</div><div data-hf-id="hf-sub-txt-act1" class="obj-name">USER</div><div data-hf-id="hf-84k5" class="obj-desc">接続IDおよび認証クレデンシャル</div></div>
+
+        <div data-hf-id="hf-f97v" class="obj-cell" style="border-color: rgba(56,189,248,0.3);"><div data-hf-id="hf-g7r0" class="obj-cat">COMPUTE</div><div data-hf-id="hf-r2c6" class="obj-name">WAREHOUSE</div><div data-hf-id="hf-q4b5" class="obj-desc">SQL実行コンピュートリソース</div></div>
+        <div data-hf-id="hf-7s5m" class="obj-cell"><div data-hf-id="hf-3z5n" class="obj-cat">STORAGE</div><div data-hf-id="hf-tq7w" class="obj-name">DATABASE</div><div data-hf-id="hf-w0n8" class="obj-desc">スキーマの論理グループ定義</div></div>
+        <div data-hf-id="hf-q6f4" class="obj-cell"><div data-hf-id="hf-i672" class="obj-cat">STORAGE</div><div data-hf-id="hf-52e6" class="obj-name">SCHEMA</div><div data-hf-id="hf-w0h4" class="obj-desc">テーブル群の論理ネームスペース</div></div>
+        <div data-hf-id="hf-yq2x" class="obj-cell"><div data-hf-id="hf-p764" class="obj-cat">STORAGE</div><div data-hf-id="hf-bsw8" class="obj-name">TABLE</div><div data-hf-id="hf-tqq8" class="obj-desc">マイクロパーティション永続化</div></div>
+
+        <div data-hf-id="hf-k7k4" class="obj-cell"><div data-hf-id="hf-o4u5" class="obj-cat">STORAGE</div><div data-hf-id="hf-q8p0" class="obj-name">VIEW</div><div data-hf-id="hf-2s3n" class="obj-desc">セキュア動的クエリ定義</div></div>
+        <div data-hf-id="hf-068s" class="obj-cell" style="border-color: rgba(139,92,246,0.3);"><div data-hf-id="hf-8sw1" class="obj-cat">HA / DR</div><div data-hf-id="hf-0q2x" class="obj-name">FAILOVER GROUP</div><div data-hf-id="hf-d9e2" class="obj-desc">異リージョン間フェイルオーバー同期</div></div>
+        <div data-hf-id="hf-h5j8" class="obj-cell" style="border-color: rgba(6,227,250,0.3);"><div data-hf-id="hf-s3n8" class="obj-cat">PIPELINE</div><div data-hf-id="hf-6v7j" class="obj-name">STAGE</div><div data-hf-id="hf-v2y8" class="obj-desc">暗号化ファイル取込中間領域</div></div>
+        <div data-hf-id="hf-l3d1" class="obj-cell"><div data-hf-id="hf-5j0i" class="obj-cat">AUTOMATION</div><div data-hf-id="hf-8r80" class="obj-name">TASK / PROC</div><div data-hf-id="hf-bks9" class="obj-desc">Cron定期ジョブ・ストアド処理</div></div>
+      </div>
+
+      <!-- Parameter Inheritance Tree -->
+      <div data-hf-id="hf-7h6e" class="param-card">
+        <div data-hf-id="hf-f8x4">
+          <div data-hf-id="hf-w03t" style="font-size: 18px; font-weight: 700; color: #FFFFFF; margin-bottom: 4px;">セッションパラメータ 3 層継承モデル</div>
+          <div data-hf-id="hf-d93u" style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 20px;">TOP-DOWN INHERITANCE &amp; BOTTOM-UP OVERRIDE</div>
+
+          <!-- Tier 1 -->
+          <div data-hf-id="hf-g43v" class="tier-box" style="border-left-color: var(--accent-blue);">
+            <div data-hf-id="hf-b4y8" class="tier-level">TIER 1 · 最上位層</div>
+            <div data-hf-id="hf-p9g1" class="tier-name">Account（アカウント共通設定）</div>
+            <div data-hf-id="hf-b1x7" class="tier-desc">全社共通ベースライン（タイムゾーン、標準日付形式等）。下位層に設定がない場合、自動的に継承。</div>
+          </div>
+
+          <div data-hf-id="hf-54h2" class="arrow-down">▼ 継承 / 個別上書き</div>
+
+          <!-- Tier 2 -->
+          <div data-hf-id="hf-j4n0" class="tier-box" style="border-left-color: var(--accent-cyan);">
+            <div data-hf-id="hf-d3b1" class="tier-level">TIER 2 · 中間層</div>
+            <div data-hf-id="hf-4v3e" class="tier-name">User（ユーザ固有設定）</div>
+            <div data-hf-id="hf-56w8" class="tier-desc">特定ユーザに対する個別プロファイル設定。アカウント既定値を必要に応じて上書き。</div>
+          </div>
+
+          <div data-hf-id="hf-3h6e" class="arrow-down">▼ 継承 / 動的オーバーライド</div>
+
+          <!-- Tier 3 -->
+          <div data-hf-id="hf-sub-act2" class="tier-box" style="border-left-color: var(--accent-emerald);">
+            <div data-hf-id="hf-sub-icon-act2" class="tier-level">TIER 3 · 最下層</div>
+            <div data-hf-id="hf-sub-txt-act2" class="tier-name">Session（動的セッション設定）</div>
+            <div data-hf-id="hf-lffq" class="tier-desc">ALTER SESSION 等で接続時に動的に指定。最優先で適用される一時的設定値。</div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-u3j9" style="font-size: 12.5px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+          ✦ パラメータは「Account / Session / Object」の 3 種類に大別され、厳格な統制と柔軟性を両立
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Subtitle Bar inside #root -->
+  <div data-hf-id="hf-sub-act6" class="subtitle-bar">
+    <span data-hf-id="hf-sub-icon-act6" class="subtitle-icon">🎙️</span>
+    <span data-hf-id="hf-sub-txt-act6" class="subtitle-text">第６セクションでは、Snowflake の 19 大コア・オブジェクト体系と、アカウント・ユーザ・セッションの３層パラメータ継承・オーバーライド構造について解説します。</span>
+  </div>
+</div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(".main-stage", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8 }, 0.2);
+    tl.to("#root", { opacity: 0, duration: 0.8 }, 144.72);
+    window.__timelines["act6"] = tl;
+    tl.seek(0);
+  </script>
+</body>
+</html>

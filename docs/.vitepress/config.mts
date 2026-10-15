@@ -3,8 +3,8 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(
   defineConfig({
-    title: '三井証券DX：Oracle to Snowflake',
-    description: '三井証券コア取引データにおける Oracle から Snowflake への企業級データ移行実務',
+    title: '銀行証券DX：Oracle to Snowflake',
+    description: '銀行証券コア取引データにおける Oracle から Snowflake への企業級データ移行実務',
     lastUpdated: true,
     cleanUrls: true,
     rewrites: {
@@ -33,7 +33,7 @@ export default withMermaid(
           ],
           sidebar: [
             {
-              text: '三井証券移行実践マニュアル',
+              text: '銀行証券移行実践マニュアル',
               items: [
                 { text: '00. プロジェクト背景とアーキテクチャ設計', link: '/00_architecture_overview' },
                 { text: '01. Snowflake アカウント開設と初期設定', link: '/01_snowflake_signup' },
@@ -76,7 +76,7 @@ export default withMermaid(
           ],
           sidebar: [
             {
-              text: '三井证券迁移实战教程',
+              text: '银行证券迁移实战教程',
               items: [
                 { text: '00. 业务背景与架构设计', link: '/zh/00_architecture_overview' },
                 { text: '01. Snowflake 账号申请与初始化', link: '/zh/01_snowflake_signup' },
@@ -101,7 +101,7 @@ export default withMermaid(
     },
 
     themeConfig: {
-      siteTitle: '三井証券 DX 移行実戦',
+      siteTitle: '銀行証券 DX 移行実戦',
       logo: '/snowflake.svg',
       logoLink: '/',
       search: {
@@ -134,6 +134,12 @@ export default withMermaid(
       footer: {
         message: 'Enterprise Data Cloud Architecture',
         copyright: 'Copyright © 2026 Mitsui Securities Migration Project Team'
+      }
+    },
+
+    vite: {
+      optimizeDeps: {
+        include: ['fastdom', 'mermaid']
       }
     },
 

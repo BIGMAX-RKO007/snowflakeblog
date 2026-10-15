@@ -1,7 +1,7 @@
 # 第 04 章：数据迁移实战（Oracle 导出、Stage 暂存与 COPY INTO 加载）
 
 完成 Snowflake 基础设施与权限层级搭建后，本章进入核心迁移阶段。
-针对三井证券 `CUST_TRADE_DETAIL` 表的迁移，完整演练**从本地导出分块 -> SnowSQL PUT 加密上传到 `@MITSUI_STAGE` -> 执行字段转换与批量 `COPY INTO`**。
+针对银行证券 `CUST_TRADE_DETAIL` 表的迁移，完整演练**从本地导出分块 -> SnowSQL PUT 加密上传到 `@MITSUI_STAGE` -> 执行字段转换与批量 `COPY INTO`**。
 
 ---
 

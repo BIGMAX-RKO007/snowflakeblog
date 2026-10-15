@@ -15,6 +15,33 @@ Thumbs.db
 __pycache__/
 *.pyc
 
+# Audio & Video Media Files (Large Blobs)
+*.mp4
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.flac
+*.webm
+*.avi
+*.mov
+
+# HyperFrames Cache & Generated Media
+video_*/.hyperframes/
+video_*/.thumbnails/
+video_*/.waveform-cache/
+video_*/audio/
+video_*/**/audio/
+video_*/**/*.wav
+video_*/**/*.mp3
+video_*/**/*.mp4
+video_*/**/*.m4a
+
+# Build Outputs & Exports
+output/
+exports/
+scratch/
+
 # Local Oracle Data
 oradata/
 *.dbf

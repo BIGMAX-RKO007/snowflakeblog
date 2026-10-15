@@ -2,7 +2,7 @@
 
 在日企金融 IT 工程中，新旧系统数据对账阶段被称为 **「新旧データ突合検証 (Reconciliation & Validation)」**。
 
-针对三井证券 `CUST_TRADE_DETAIL`，我们由 `MITSUI_ANALYST` 角色执行四层递进式对账。
+针对银行证券 `CUST_TRADE_DETAIL`，我们由 `MITSUI_ANALYST` 角色执行四层递进式对账。
 
 ---
 

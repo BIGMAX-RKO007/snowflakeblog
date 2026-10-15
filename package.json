@@ -1,12 +1,15 @@
 {
   "name": "snowflakeblog",
   "version": "1.0.0",
-  "description": "Mitsui Securities Enterprise Data Migration from Oracle to Snowflake Tutorial",
+  "description": "Bank Securities Enterprise Data Migration from Oracle to Snowflake Tutorial",
   "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "export:docx": "python3 scripts/export_docx.py",
+    "player": "npx hyperframes preview video_ch1",
+    "player:ch1": "npx hyperframes preview video_ch1"
   },
   "repository": {
     "type": "git",
@@ -23,6 +26,7 @@
   "author": "fanxiao",
   "license": "MIT",
   "devDependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.64.7",
     "debug": "^4.4.3",
     "mermaid": "^11.4.1",
     "vitepress": "^1.6.3",

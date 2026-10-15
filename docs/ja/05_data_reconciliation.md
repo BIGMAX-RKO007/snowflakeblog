@@ -1,6 +1,6 @@
 # 第05章：移行後データ突合検証・整合性監査 (Data Reconciliation)
 
-三井証券のデータアナリストロール（`MITSUI_ANALYST`）により、Oracle 側と Snowflake 側の `CUST_TRADE_DETAIL` データ突合検証を実施します。
+銀行証券のデータアナリストロール（`MITSUI_ANALYST`）により、Oracle 側と Snowflake 側の `CUST_TRADE_DETAIL` データ突合検証を実施します。
 
 ---
 
