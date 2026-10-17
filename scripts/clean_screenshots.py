@@ -1,5 +1,5 @@
 """
-clean_screenshots.py - Automatically cleans Edge Page Context Halo (glow) and Copilot Action Widget from screenshots.
+clean_screenshots.py - Right-only cropping to remove Edge Copilot widget while keeping 100% of Left, Top, and Bottom.
 """
 import os
 import shutil
@@ -31,38 +31,37 @@ AFFECTED_IMAGES = [
     '01_img_21.png',
 ]
 
-def clean_all(images_dir='docs/images', backup_dir='docs/images/.backup'):
-    os.makedirs(backup_dir, exist_ok=True)
+def clean_right_only(images_dir='docs/images', backup_dir='docs/images/.backup'):
     results = []
 
     for name in AFFECTED_IMAGES:
+        backup_path = os.path.join(backup_dir, name)
         file_path = os.path.join(images_dir, name)
-        if not os.path.exists(file_path):
+        
+        # Read from untouched backup if available, else original
+        src_path = backup_path if os.path.exists(backup_path) else file_path
+        if not os.path.exists(src_path):
             continue
 
-        # Backup original
-        backup_path = os.path.join(backup_dir, name)
-        if not os.path.exists(backup_path):
-            shutil.copy2(file_path, backup_path)
-
-        # Open and crop
-        with Image.open(file_path) as im:
+        with Image.open(src_path) as im:
             w, h = im.size
             if w >= 2500:
-                crop_box = (22, 18, w - 48, h - 18)
+                cut_right = 48
             elif w >= 1400:
-                crop_box = (20, 16, w - 46, h - 16)
+                cut_right = 46
             else:
-                crop_box = (16, 14, w - 54, h - 14)
+                cut_right = 54
 
+            # ONLY crop right side (x=0, y=0, right=w-cut_right, bottom=h)
+            crop_box = (0, 0, w - cut_right, h)
             cropped = im.crop(crop_box)
             cropped.save(file_path, format='PNG', optimize=True)
             cw, ch = cropped.size
 
         results.append((name, (w, h), (cw, ch)))
-        print(f"[CLEANED] {name}: {w}x{h} -> {cw}x{ch}")
+        print(f"[RIGHT-ONLY CLEANED] {name}: {w}x{h} -> {cw}x{ch} (full top/left/bottom preserved)")
 
-    print(f"\nSuccessfully cleaned {len(results)} images.")
+    print(f"\nSuccessfully processed {len(results)} images with right-only cropping.")
 
 if __name__ == '__main__':
-    clean_all()
+    clean_right_only()
