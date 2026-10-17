@@ -106,6 +106,69 @@ Snowsight 左侧主导航栏（Sidebar）整合了数据工程师、架构师与
 
 ![Horizon Catalog 统一数据目录视图](../images/01_img_20.png)
 
+#### 1. データ取り込み (Ingestion / 数据摄取与 Stage)
+点击左侧 **「取り込み」**，直达数据导入控制中心：
+- **数据源载入**：支持直接通过 Web 界面加载文件至 Snowflake 表，或将数据放入指定的 **暂存区（Stage）**；
+- **外部存储集成**：原生对接云端对象存储（Amazon S3、Google Cloud Storage、Azure Blob Storage 及 Microsoft OneLake）；
+- **微批与管道（Snowpipe）**：配置基于云端消息通知（如 SNS/SQS、Event Grid）触发的轻量级自动化持续摄取。
+
+![数据摄取与暂存区配置](../images/01_cat_01_ingestion.png)
+
+#### 2. データ変換 (Transformation / 连续转换与动态表)
+点击左侧 **「変換」**，进入现代化数据建模流水线：
+- **声明式动态表（Dynamic Tables）**：以简单的 SQL SELECT 语句定义目标形态，由 Snowflake 自动化计算增量并在指定的延迟目标（Target Lag）内持续刷新，无需编写复杂的手动 Merge/Insert 存储过程；
+- **任务与流（Tasks & Streams）**：原生支持基于变更数据捕获（CDC）的行级增量追踪，驱动事件流自动化运行。
+
+![连续转换与动态表管理](../images/01_cat_02_transformation.png)
+
+#### 3. AI と ML (Agent Studio & Cortex AI / 智能体与库内大模型)
+点击左侧 **「AI と ML」**，进入企业级生成式 AI 演练场：
+- **Cortex Agent Studio**：允许开发者基于企业私域数据构建安全智能体（Agent），支持自然语言到 SQL（Text-to-SQL）的自动转换与交互；
+- **数据合规与私密性保障**：调用前沿大语言模型（如 Llama 3、Mistral 等）在 Snowflake 安全虚拟私有网络内本地运行，企业专有数据绝不流向公网第三方平台。
+
+![Cortex AI 与智能体控制中心](../images/01_cat_03_ai_ml.png)
+
+#### 4. モニタリング (Monitoring / 全局查询审计与性能监控)
+点击左侧 **「モニタリング」**，直达全局查询与运行分析看板：
+- **全量执行日志（Query History）**：详细记录当前账号下任何工具（Snowsight、DBeaver、Python、JDBC）提交的每条 SQL；
+- **多维度性能检索**：支持按用户、仓库、状态（成功、失败、等待锁）以及 128 位全局 **Query ID** 精准过滤；
+- **资源瓶颈诊断**：直观展示编译耗时、计算时间、读写字节数及排队等待，协助 DBA 开展性能调优与索引聚簇优化。
+
+![全局查询历史与性能监控](../images/01_cat_04_monitoring.png)
+
+#### 5. データ共有 (Data Sharing / Horizon Catalog 零拷贝数据共享)
+点击 Horizon Catalog 下的 **「データ共有」**，体验 Snowflake 最具革命性的数据分发技术：
+- **零拷贝直连共享（Direct Share）**：无需耗费算力做物理数据导出（Unload/Dump）或 API 传输，通过底层元数据指针授权，将只读数据集安全共享给其他部门、子公司或外部合作伙伴；
+- **实时同步与零冗余**：数据提供方更新数据时，使用方毫秒级可见最新数据，杜绝存储膨胀与版本不一致风险。
+
+![数据共享与数据产品中心](../images/01_cat_05_data_sharing.png)
+
+#### 6. ガバナンスとセキュリティ (Governance & Security / 零信任与用户管理)
+点击 Horizon Catalog 下的 **「ガバナンスとセキュリティ」**，掌控金融级权限合规大局：
+- **用户与角色总览**：一屏掌握当前所有用户（Users）的启用状态、密码策略到期日以及多因素认证（MFA）绑定情况；
+- **动态数据脱敏（Masking Policies）**：结合敏感数据标签（Tags），实现针对普通分析师自动掩码（如 `****-****-****`），对合规主管展示明文的动态权限模型；
+- **行级访问策略（Row Access Policies）**：基于用户所属支店或地域，自动限制只能检索所属范围内的数据行。
+
+![安全合规与用户权限控制](../images/01_cat_06_governance.png)
+
+#### 7. コンピュート (Compute / 虚拟数仓与算力池管理)
+点击管理下方的 **「コンピュート」**，进入核心算力调度中心：
+- **虚拟数仓（Virtual Warehouses）配置**：创建和调整无状态计算集群（X-Small 到 4X-Large），每个 T-shirt 尺码对应算力与每小时 Credit 翻倍增长；
+- **弹性成本控制机制**：
+  - **Auto-Suspend（自动挂起）**：当指定时间内（如 5 分钟）无 SQL 运行时自动休眠，停止计费；
+  - **Auto-Resume（自动拉起）**：当新查询到达时，毫秒级自动拉起集群继续处理；
+  - **Multi-cluster 自动水平扩展**：在高峰期自动根据排队负载弹性增加 1~N 个同等集群，负载回落自动缩减。
+
+![虚拟数仓与计算资源管理](../images/01_cat_07_compute.png)
+
+#### 8. 管理者 (Admin / 成本核算与账单计费)
+点击 **「管理者」**，查阅企业级运营与财务计费透明度报告：
+- **点数消耗看板（Billing & Usage）**：精确统计每一天、每一个虚拟数仓、每一个功能模块（如云服务、数据存储、复制传输）所消耗的 Credits；
+- **30 天免费试用额度监控**：实时展示当前账号剩余的 `$400` 试用额度与到期天数；
+- **账户网络策略（Network Policies）**：设置公司固定出口 IP 白名单，杜绝未授权网络非法接入。
+
+![账户管理与成本计费看板](../images/01_cat_08_admin.png)
+
 ---
 
 ### 5.3 SQL Worksheet 核心交互按钮全解析
