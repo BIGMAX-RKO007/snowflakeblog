@@ -1,9 +1,0 @@
-{
-  "name": "fx_player_ch1_architecture",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "npx --yes hyperframes@0.8.149 preview",
-    "render": "npx --yes hyperframes@0.8.149 render"
-  }
-}

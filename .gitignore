@@ -26,16 +26,10 @@ __pycache__/
 *.avi
 *.mov
 
-# HyperFrames Cache & Generated Media
-video_*/.hyperframes/
-video_*/.thumbnails/
-video_*/.waveform-cache/
-video_*/audio/
-video_*/**/audio/
-video_*/**/*.wav
-video_*/**/*.mp3
-video_*/**/*.mp4
-video_*/**/*.m4a
+# Video generation & HyperFrames (Unrelated to Blog/Docs project)
+video_*/
+setup_*.py
+
 
 # Build Outputs & Exports
 output/
