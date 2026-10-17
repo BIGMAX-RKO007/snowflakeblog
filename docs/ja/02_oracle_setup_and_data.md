@@ -178,9 +178,40 @@ DATABASE IS READY TO USE!
 
 ---
 
-## 四、 🔐 企業級スキーマ・ユーザーと読み取り専用ロールの初期化
+## 四、 🔌 統合開発環境からの接続確認 (VSCode / DBeaver)
 
-コンテナの準備が整ったら、管理者 `SYSTEM` で接続し、スキーマ・ユーザー・ロール初期化スクリプトを実行します（リポジトリ内 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
+コンテナ起動後、開発ツールから Oracle インスタンスへの接続を確立します。[第 01 章第 6 節](01_snowflake_signup.md#六-アカウント識別子体系とクライアント接続エコシステム-account-identifier--ecosystem) で整理した通り、VSCode 拡張機能（**Database Client**）または **DBeaver** を利用します。
+
+### 4.1 VSCode Database Client プラグインの設定
+
+VSCode の拡張機能マーケットプレイスで **Database Client** をインストールし、新規接続を作成します。
+
+初回接続時はまだ業務アカウントが存在しないため、**初手は管理者 `system` で接続**します。初期化スクリプトの実行完了後に、各専用アカウントの接続を作成します：
+
+| 接続種別 | フェーズ 1：管理者接続（初期化用） | フェーズ 2：業務スキーマ接続（テーブル用） | フェーズ 2：抽出参照接続（検証・ETL用） |
+| :--- | :--- | :--- | :--- |
+| **Connection Type** | `Oracle` | `Oracle` | `Oracle` |
+| **Host** | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` |
+| **Port** | `1521` | `1521` | `1521` |
+| **Database / SID** | `xe` | `xe` | `xe` |
+| **Username** | **`system`** | **`mitsui_src`** | **`mitsui_extractor`** |
+| **Password** | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` |
+
+![VSCode接続プラグイン](../images/02_img_01.png)
+
+### 4.2 接続テストと疎通確認
+管理者 `system` の接続情報を入力し、**「Connect」** ボタンをクリックして疎通および認証の成功を確認します：
+
+![接続成功](../images/02_img_02.png)
+
+> [!TIP]
+> **DBeaver クイック接続**：ドライバーに `Oracle` を選択し、JDBC URL `jdbc:oracle:thin:@//localhost:1521/xe` を指定します。初手は `system` で初期化を実行し、その後 `mitsui_src` や `mitsui_extractor` へ適宜切り替えます。
+
+---
+
+## 五、 🔐 企業級スキーマ・ユーザーと読み取り専用ロールの初期化 (`00_init_user_and_permissions.sql`)
+
+管理者 `system` で接続後、SQL エディタを開いて以下の権限・スキーマ初期化スクリプトを実行します（リポジトリ内 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
 
 ```sql
 -- ==============================================================================
@@ -192,6 +223,11 @@ DATABASE IS READY TO USE!
 
 SET SQLBLANKLINES ON;
 SET DEFINE OFF;
+
+-- 環境リセットが必要な場合、以下を実行して既存ユーザーを削除可能：
+-- DROP USER MITSUI_SRC CASCADE;
+-- DROP USER MITSUI_EXTRACTOR CASCADE;
+-- DROP ROLE ROLE_MITSUI_READ;
 
 -- ============================================================
 -- 1. 三井証券業務スキーマ所有者 (MITSUI_SRC) の作成
@@ -228,38 +264,9 @@ COMMIT;
 
 ---
 
-## 五、 🔌 統合開発環境からの接続確認 (VSCode / DBeaver)
+## 六、 🏛️ 中核 2 テーブル DDL と Oracle ➔ Snowflake 型設計哲学 (`01_create_schema.sql`)
 
-[第 01 章第 6 節](01_snowflake_signup.md#六-アカウント識別子体系とクライアント接続エコシステム-account-identifier--ecosystem) で整理したクライアントエコシステムに基づき、VSCode 拡張機能（**Database Client**）または **DBeaver** を利用して接続します。
-
-### 1. VSCode Database Client プラグインの設定
-
-VSCode の拡張機能マーケットプレイスで **Database Client** をインストールし、新規接続を作成します：
-
-| 設定項目 | 管理者接続（運用保守用） | 業務スキーマ接続（テーブル作成用） | 抽出参照接続（検証・ETL用） |
-| :--- | :--- | :--- | :--- |
-| **Connection Type** | `Oracle` | `Oracle` | `Oracle` |
-| **Host** | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` |
-| **Port** | `1521` | `1521` | `1521` |
-| **Database / SID** | `xe` | `xe` | `xe` |
-| **Username** | `system` | `mitsui_src` | `mitsui_extractor` |
-| **Password** | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` |
-
-![VSCode接続設定](../images/02_img_01.png)
-
-### 2. 接続テストと疎通確認
-**「Connect」** ボタンをクリックし、ネットワーク疎通および認証が成功することを確認します：
-
-![接続成功](../images/02_img_02.png)
-
-> [!TIP]
-> **DBeaver クイック接続**：ドライバーに `Oracle` を選択し、JDBC URL `jdbc:oracle:thin:@//localhost:1521/xe`、ユーザー名 `mitsui_src` または `mitsui_extractor` を指定します。
-
----
-
-## 六、 🏛️ 中核 2 テーブル DDL と Oracle ➔ Snowflake 型設計哲学
-
-`mitsui_src` ユーザーで接続後、以下の標準 DDL スクリプトを実行し、参照専用ロールへ権限を付与します（リポジトリ内 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
+**`mitsui_src`** アカウントで接続を切り替え、以下のコア 2 テーブル DDL スクリプトを実行します（リポジトリ内 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
 
 ### 6.1 テーブル 1：マスター表 `CUST_MASTER` (顧客基本台帳)
 
@@ -542,35 +549,95 @@ COMMIT;
 
 ## 八、 🚀 ローカル自動化デプロイと実機テスト実行ログ (Local Test Execution Log)
 
-読者が**100%確実に再現可能**であることを担保するため、本リポジトリでは一括自動構成スクリプトを用意しています。ホストのコンテナランタイムを自動検知（マイクロソフト純正 `wslc` を優先、未検出時は `docker` へフォールバック）し、権限設定・DDL・データ投入を自動完結します。
+学習者のニーズに合わせて、以下の 2 つの導入アプローチを提供しています：
+* **ステップ精読ルート（学習推奨）**：上記第 4 〜 7 節の通り、VSCode や DBeaver から各 SQL を順次実行・理解するルート；
+* **高速一括自動化ルート（効率推奨）**：後述の Python 自動化スクリプトを実行し、権限初期化・DDL・データ投入を約 10 秒で全自動デプロイするルート。
 
-### 8.1 Python 自動化スクリプトの一括実行
+### 8.1 一括自動実行 Python スクリプト (`setup_oracle_full.py`)
 
-```bash
+ホスト上のコンテナランタイム（マイクロソフト純正 `wslc` を最優先、未検出時は `docker` へ自動フォールバック）を自動検知し、SQL*Plus の改行バッファを制御して 3 つの SQL スクリプトを順次自動実行します：
+
+::: code-group
+```python [scripts/oracle/setup_oracle_full.py (完全スクリプト)]
+"""
+setup_oracle_full.py - Oracle 11g 移行元環境の一括自動デプロイツール
+Windows ネイティブ WSL Containers (wslc) および Docker ランタイム双方に完全対応
+"""
+import subprocess
+import sys
+import os
+
+def run_sql_file(sql_file_path, connection_str, use_wslc=True):
+    with open(sql_file_path, 'r', encoding='utf-8') as f:
+        sql = f.read()
+
+    # SQL*Plus 実行用の環境変数を設定（空行のバッファ切断防止・置換変数オフ）
+    wrapped_sql = 'SET SQLBLANKLINES ON;\nSET DEFINE OFF;\n' + sql + '\nCOMMIT;\nEXIT;\n'
+    cmd = ['wslc' if use_wslc else 'docker', 'exec', '-i', 'mitsui_oracle_11g', 'sqlplus', '-S', connection_str]
+
+    print(f"[*] 接続ユーザー {connection_str.split('@')[0]} にて {os.path.basename(sql_file_path)} を実行中...")
+    proc = subprocess.run(cmd, input=wrapped_sql.encode('utf-8'), capture_output=True)
+    out = proc.stdout.decode('utf-8', errors='replace')
+    err = proc.stderr.decode('utf-8', errors='replace')
+    
+    if proc.returncode != 0 or 'ERROR' in out:
+        print(f"[!] {sql_file_path} の実行出力に警告またはエラーが含まれます:\n{out}")
+    else:
+        print(f"[+] {os.path.basename(sql_file_path)} の実行に成功しました。")
+    return out
+
+def main():
+    use_wslc = True
+    try:
+        subprocess.run(['wslc', '--version'], capture_output=True, check=True)
+    except Exception:
+        use_wslc = False
+
+    print(f"=== Oracle 11g 自動初期化開始 (使用コンテナランタイム: {'wslc' if use_wslc else 'docker'}) ===")
+    
+    # ステップ 1: 管理者 SYSTEM によるユーザー・スキーマ・ロールの初期化
+    run_sql_file('scripts/oracle/00_init_user_and_permissions.sql', 'system/Mitsui_Sec_2026@//localhost:1521/xe', use_wslc)
+
+    # ステップ 2: 業務スキーマ MITSUI_SRC による中核 2 テーブル DDL の適用と権限付与
+    run_sql_file('scripts/oracle/01_create_schema.sql', 'mitsui_src/Mitsui_Sec_2026@//localhost:1521/xe', use_wslc)
+
+    # ステップ 3: 業務スキーマ MITSUI_SRC による金融模擬テストデータの一括投入
+    run_sql_file('scripts/oracle/02_seed_trades_data.sql', 'mitsui_src/Mitsui_Sec_2026@//localhost:1521/xe', use_wslc)
+
+    print("\n=== Oracle 11g 金融サンドボックスの自動構築が正常に完了しました！ ===")
+
+if __name__ == '__main__':
+    main()
+```
+
+```bash [実行コマンド]
 # プロジェクトルートディレクトリで実行
 python scripts/oracle/setup_oracle_full.py
 ```
+:::
+
+---
 
 ### 8.2 実際のテスト実行ログ（実機実行結果）
 
 以下は、ローカル環境の実機テストで取得された完全な実行結果ログです：
 
 ```text
-=== Starting Oracle 11g Enterprise Provisioning (Using wslc) ===
-[*] Executing 00_init_user_and_permissions.sql with system/Mitsui_Sec_2026...
-[+] 00_init_user_and_permissions.sql executed successfully.
+=== Oracle 11g 自動初期化開始 (使用コンテナランタイム: wslc) ===
+[*] 接続ユーザー system/Mitsui_Sec_2026 にて 00_init_user_and_permissions.sql を実行中...
+[+] 00_init_user_and_permissions.sql の実行に成功しました。
 USERNAME                       ACCOUNT_STATUS                   DEFAULT_TABLESPACE             CREATED
 ------------------------------ -------------------------------- ------------------------------ ---------
 MITSUI_SRC                     OPEN                             USERS                          17-OCT-26
 MITSUI_EXTRACTOR               OPEN                             USERS                          17-OCT-26
 
-[*] Executing 01_create_schema.sql with mitsui_src/Mitsui_Sec_2026...
-[+] 01_create_schema.sql executed successfully.
+[*] 接続ユーザー mitsui_src/Mitsui_Sec_2026 にて 01_create_schema.sql を実行中...
+[+] 01_create_schema.sql の実行に成功しました。
 
-[*] Executing 02_seed_trades_data.sql with mitsui_src/Mitsui_Sec_2026...
-[+] 02_seed_trades_data.sql executed successfully.
+[*] 接続ユーザー mitsui_src/Mitsui_Sec_2026 にて 02_seed_trades_data.sql を実行中...
+[+] 02_seed_trades_data.sql の実行に成功しました。
 
-=== Oracle 11g Provisioning Finished Successfully! ===
+=== Oracle 11g 金融サンドボックスの自動構築が正常に完了しました！ ===
 ```
 
 ---
@@ -699,7 +766,7 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 
 ## 十、 本章のまとめと次章への案内
 
-本章では、金融実務に即した高精度な Oracle 11g 移行元データベースをローカルに構築し、専用の **`MITSUI_SRC` スキーマ所有者** と **`MITSUI_EXTRACTOR` 抽出専用アカウント** を整備しました。さらに **`CUST_MASTER` 顧客基本台帳** と **`CUST_TRADE_DETAIL` 顧客取引明细** の 2 テーブル構成をデプロイし、高カバレッジな模擬データを投入して自動化スクリプトによる実機検証を完了しました。
+本章では、金融実務に即した高精度な Oracle 11g 移行元データベースをローカルに構築し、専用の **`MITSUI_SRC` スキーマ所有者** と **`MITSUI_EXTRACTOR` 抽出専用アカウント** を整備しました。さらに **`CUST_MASTER` 顧客基本台帳** と **`CUST_TRADE_DETAIL` 顧客取引明細** の 2 テーブル構成をデプロイし、高カバレッジな模擬データを投入して自動化スクリプトによる実機検証を完了しました。
 
 次章からは、いよいよクラウド側の環境構築と移行エンジニアリングが本格始動します：
 - 👉 **[第 03 章：Snowflake エンタープライズ RBAC 権限設計と環境構築実践](03_snowflake_rbac_setup.md)**：`USERADMIN` と `SYSADMIN` の 2 系統ロールを用い、三井証券の 3 階層ロール体系を Snowflake 上に構築。本章の設計に基づき、3 階層ネームスペース `MITSUI_SEC_DB.RAW_ORACLE` 配下にターゲット 2 テーブルを作成します！

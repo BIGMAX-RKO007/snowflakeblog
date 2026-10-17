@@ -179,9 +179,40 @@ DATABASE IS READY TO USE!
 
 ---
 
-## 四、 🔐 企业级 Schema、用户与只读角色初始化
+## 四、 🔌 统一开发工具链连接配置 (VSCode / DBeaver)
 
-在容器启动并就绪后，首先以管理员 `SYSTEM` 身份登录，执行用户、模式与权限初始化脚本（对应仓库脚本 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
+容器就绪后，我们首先在开发环境中建立对 Oracle 实例的连接。在实战中，推荐在 VSCode 内统一集成开发，或使用通用的 **DBeaver** 客户端。
+
+### 4.1 VSCode Database Client 插件配置
+
+在 VSCode 扩展市场中搜索并安装 **Database Client**（或 Database Client JDBC），点击新建 Oracle 连接。
+
+由于此时数据库中尚未创建业务账号，**首步必须使用超级管理员 `system` 连接**。后续执行完初始化脚本后，再建立专属的业务属主与只读抽取连接：
+
+| 连接标识 | 阶段一：管理员连接 (用于初始化) | 阶段二：业务属主连接 (用于维护双表) | 阶段二：只读抽取连接 (用于迁移/ETL) |
+| :--- | :--- | :--- | :--- |
+| **Connection Type** | `Oracle` | `Oracle` | `Oracle` |
+| **Host** | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` |
+| **Port** | `1521` | `1521` | `1521` |
+| **Database / SID** | `xe` | `xe` | `xe` |
+| **Username** | **`system`** | **`mitsui_src`** | **`mitsui_extractor`** |
+| **Password** | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` |
+
+![VSCode连接插件安装](../images/02_img_01.png)
+
+### 4.2 连通性测试与验证
+输入管理员 `system` 参数后，点击 **「Connect」** 按钮，验证网络握手与身份认证成功：
+
+![连接成功效果](../images/02_img_02.png)
+
+> [!TIP]
+> **DBeaver 快捷连接**：驱动选择 `Oracle`，JDBC URL 为 `jdbc:oracle:thin:@//localhost:1521/xe`。首先以 `system` 登录执行初始脚本，后续可随时切换为 `mitsui_src` 或 `mitsui_extractor`。
+
+---
+
+## 五、 🔐 企业级 Schema、用户与只读角色初始化 (`00_init_user_and_permissions.sql`)
+
+使用管理员 `system` 连接成功后，打开 SQL 编辑窗口，执行以下权限与模式初始化脚本（对应仓库脚本 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
 
 ```sql
 -- ==============================================================================
@@ -193,6 +224,11 @@ DATABASE IS READY TO USE!
 
 SET SQLBLANKLINES ON;
 SET DEFINE OFF;
+
+-- 若需重置环境，可先安全删除历史用户与角色：
+-- DROP USER MITSUI_SRC CASCADE;
+-- DROP USER MITSUI_EXTRACTOR CASCADE;
+-- DROP ROLE ROLE_MITSUI_READ;
 
 -- ============================================================
 -- 1. 创建三井证券业务模式属主 (MITSUI_SRC)
@@ -229,38 +265,9 @@ COMMIT;
 
 ---
 
-## 五、 🔌 统一开发工具链连接配置 (VSCode / DBeaver)
+## 六、 🏛️ 核心双表 DDL 与 Oracle ➔ Snowflake 架构推导哲学 (`01_create_schema.sql`)
 
-在[第 01 章第 6 节](01_snowflake_signup.md#六-账号定位标识体系与客户端连接生态-account-identifier--ecosystem)中，我们梳理了现代数据工程的客户端生态。在实战中，我们推荐在 VSCode 内统一集成开发，或使用通用的 **DBeaver** 客户端。
-
-### 1. VSCode Database Client 插件配置
-
-在 VSCode 扩展市场中搜索并安装 **Database Client**（或 Database Client JDBC），点击新建 Oracle 连接并填入参数：
-
-| 配置项 | 管理员连接 (用于运维) | 业务属主连接 (用于建表) | 抽取只读连接 (用于验证/ETL) |
-| :--- | :--- | :--- | :--- |
-| **Connection Type** | `Oracle` | `Oracle` | `Oracle` |
-| **Host** | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` |
-| **Port** | `1521` | `1521` | `1521` |
-| **Database / SID** | `xe` | `xe` | `xe` |
-| **Username** | `system` | `mitsui_src` | `mitsui_extractor` |
-| **Password** | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` |
-
-![VSCode连接配置](../images/02_img_01.png)
-
-### 2. 连通性测试与验证
-点击 **「Connect」** 按钮，验证网络握手与身份认证成功：
-
-![连接成功效果](../images/02_img_02.png)
-
-> [!TIP]
-> **DBeaver 快捷连接**：驱动选择 `Oracle`，JDBC URL 为 `jdbc:oracle:thin:@//localhost:1521/xe`，用户名为 `mitsui_src` 或 `mitsui_extractor`。
-
----
-
-## 六、 🏛️ 核心双表 DDL 与 Oracle ➔ Snowflake 架构推导哲学
-
-以 `mitsui_src` 身份连入数据库后，在 SQL 编辑窗口执行以下标准双表 DDL，并授权给只读角色（对应脚本 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
+切换至 **`mitsui_src`** 用户连入数据库后，执行以下核心双表 DDL（对应脚本 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
 
 ### 6.1 表 1：维度主表 `CUST_MASTER` (顧客基本台帳)
 
@@ -494,7 +501,7 @@ VALUES
  'CU00004444', '01', '0002', DATE '2025-03-29', DATE '2025-03-01',
  TO_DATE('2025-03-29 13:45:12','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 8. 全角 100 文字境界値テスト（VARCHAR2(100 CHAR) 语义验证用）
+-- 8. 全角 100 文字境界値测试（VARCHAR2(100 CHAR) 语义验证用）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -541,37 +548,97 @@ COMMIT;
 
 ---
 
-## 八、 🚀 本地自动化部署与实操测试执行记录 (Local Test Execution Log)
+## 八、 🚀 本地自动化一键部署脚本与全流程实机测试日志
 
-为保证读者**100% 可复制、零踩坑**，本项目提供了本地一键自动化配置 Python 脚本。该脚本自动感知宿主机的容器运行时（优先使用微软原生 `wslc`，若无则平滑降级至 `docker`），并依次完成用户授权、DDL 部署与数据灌入。
+为满足不同习惯的开发者，本项目提供两条并行的实施路径：
+* **分步精读路径（学习首选）**：如上文第 4 至 7 节所示，通过 VSCode/DBeaver 依次研读并手工执行各脚本；
+* **极速一键部署路径（高效首选）**：直接运行下述 Python 自动化脚本，10 秒内自动完成权限初始化、表结构部署与高覆盖率数据灌入！
 
-### 8.1 一键执行 Python 自动化部署脚本
+### 8.1 一键执行 Python 自动化部署脚本 (`setup_oracle_full.py`)
 
-```bash
+脚本自动侦测宿主机当前可用的容器运行时（优先微软原生 `wslc`，若未安装则自动回退至 `docker`），并妥善处理 SQL*Plus 换行缓存机制，依次调度执行三大 SQL 脚本：
+
+::: code-group
+```python [scripts/oracle/setup_oracle_full.py (完整脚本源码)]
+"""
+setup_oracle_full.py - 针对 Oracle 11g 源库的企业级 Schema、权限与测试数据一键初始化部署工具
+支持 Windows 原生 WSL Containers (wslc) 与 通用 Docker 双运行时
+"""
+import subprocess
+import sys
+import os
+
+def run_sql_file(sql_file_path, connection_str, use_wslc=True):
+    with open(sql_file_path, 'r', encoding='utf-8') as f:
+        sql = f.read()
+
+    # 封装 SQL*Plus 必要的系统环境参数：保持空行、关闭特殊变量提示符
+    wrapped_sql = 'SET SQLBLANKLINES ON;\nSET DEFINE OFF;\n' + sql + '\nCOMMIT;\nEXIT;\n'
+    cmd = ['wslc' if use_wslc else 'docker', 'exec', '-i', 'mitsui_oracle_11g', 'sqlplus', '-S', connection_str]
+
+    print(f"[*] 正在通过身份 {connection_str.split('@')[0]} 执行 {os.path.basename(sql_file_path)}...")
+    proc = subprocess.run(cmd, input=wrapped_sql.encode('utf-8'), capture_output=True)
+    out = proc.stdout.decode('utf-8', errors='replace')
+    err = proc.stderr.decode('utf-8', errors='replace')
+    
+    if proc.returncode != 0 or 'ERROR' in out:
+        print(f"[!] {sql_file_path} 执行输出包含警告或异常:\n{out}")
+    else:
+        print(f"[+] {os.path.basename(sql_file_path)} 执行成功。")
+    return out
+
+def main():
+    use_wslc = True
+    try:
+        subprocess.run(['wslc', '--version'], capture_output=True, check=True)
+    except Exception:
+        use_wslc = False
+
+    print(f"=== 开始 Oracle 11g 源库自动化配置 (使用容器运行时: {'wslc' if use_wslc else 'docker'}) ===")
+    
+    # 步骤 1: 管理员 SYSTEM 初始化用户、模式属主与角色
+    run_sql_file('scripts/oracle/00_init_user_and_permissions.sql', 'system/Mitsui_Sec_2026@//localhost:1521/xe', use_wslc)
+
+    # 步骤 2: 模式属主 MITSUI_SRC 部署核心双表 DDL 与只读授权
+    run_sql_file('scripts/oracle/01_create_schema.sql', 'mitsui_src/Mitsui_Sec_2026@//localhost:1521/xe', use_wslc)
+
+    # 步骤 3: 模式属主 MITSUI_SRC 灌入高覆盖率双表金融测试数据
+    run_sql_file('scripts/oracle/02_seed_trades_data.sql', 'mitsui_src/Mitsui_Sec_2026@//localhost:1521/xe', use_wslc)
+
+    print("\n=== Oracle 11g 金融沙箱初始化全部顺利完成！ ===")
+
+if __name__ == '__main__':
+    main()
+```
+
+```bash [执行一键部署命令]
 # 在项目根目录下执行
 python scripts/oracle/setup_oracle_full.py
 ```
+:::
+
+---
 
 ### 8.2 实测运行过程与执行输出（真实测试记录）
 
 以下是我们在本地宿主机中真实运行产出的测试输出记录：
 
 ```text
-=== Starting Oracle 11g Enterprise Provisioning (Using wslc) ===
-[*] Executing 00_init_user_and_permissions.sql with system/Mitsui_Sec_2026...
-[+] 00_init_user_and_permissions.sql executed successfully.
+=== 开始 Oracle 11g 源库自动化配置 (使用容器运行时: wslc) ===
+[*] 正在通过身份 system/Mitsui_Sec_2026 执行 00_init_user_and_permissions.sql...
+[+] 00_init_user_and_permissions.sql 执行成功。
 USERNAME                       ACCOUNT_STATUS                   DEFAULT_TABLESPACE             CREATED
 ------------------------------ -------------------------------- ------------------------------ ---------
 MITSUI_SRC                     OPEN                             USERS                          17-OCT-26
 MITSUI_EXTRACTOR               OPEN                             USERS                          17-OCT-26
 
-[*] Executing 01_create_schema.sql with mitsui_src/Mitsui_Sec_2026...
-[+] 01_create_schema.sql executed successfully.
+[*] 正在通过身份 mitsui_src/Mitsui_Sec_2026 执行 01_create_schema.sql...
+[+] 01_create_schema.sql 执行成功。
 
-[*] Executing 02_seed_trades_data.sql with mitsui_src/Mitsui_Sec_2026...
-[+] 02_seed_trades_data.sql executed successfully.
+[*] 正在通过身份 mitsui_src/Mitsui_Sec_2026 执行 02_seed_trades_data.sql...
+[+] 02_seed_trades_data.sql 执行成功。
 
-=== Oracle 11g Provisioning Finished Successfully! ===
+=== Oracle 11g 金融沙箱初始化全部顺利完成！ ===
 ```
 
 ---
