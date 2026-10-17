@@ -85,167 +85,276 @@ graph TD
 
 ---
 
-## 三、 🛠️ 企业级环境部署详细实操（Step 1 ~ Step 15 双轨推进）
+## 三、 🛠️ 企业级环境部署详细实操（17 步标准流水线实战）
 
-本节提供标准企业级分步操作手册。在实战中，你可以选择在 **Snowsight Worksheet** 中逐段执行，也可以直接利用项目仓库中的对应脚本批量运行：
-* **阶段一 对应脚本**：`scripts/snowflake/01_useradmin_rbac.sql`
-* **阶段二与三 对应脚本**：`scripts/snowflake/02_sysadmin_objects.sql`
+本节严格按照日本金融机构（FISC 安全基线）标准建设流水线展开实操。在本实战演练中，**所有 SQL 语句均完整保留于工作区脚本中，代码格式规范、逐段配备详尽的设计理由注释**，让每一位学习者具备 100% 的可复现能力。
+
+* **配套全量生产级脚本**：[`scripts/snowflake/03_rbac_and_env_master.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/03_rbac_and_env_master.sql)
 
 ---
 
 ### 阶段一：切换 `USERADMIN`（管理用户与角色的生命周期）
 
-以具备特权的用户连入 Snowflake，首先切换至专职人员与角色管理的 `USERADMIN`：
+#### Step 01: 切换 useradmin 账户
+* **为什么这么做**：按职能分离（Separation of Duties）原则，用户（User）与角色（Role）的生命周期管理必须由专职的 `USERADMIN` 负责，坚决杜绝滥用全局最高特权角色 `ACCOUNTADMIN`，收敛特权扩散风险。
 
 ```sql
+-- ====================================================================
+-- 【Step 01: 切换 useradmin 账户】
+-- 目的・理由: 职能分离（Separation of Duties）原则，用户与角色的
+--             生命周期管理必须由 USERADMIN 专职管理，杜绝滥用 ACCOUNTADMIN。
+-- ====================================================================
 USE ROLE USERADMIN;
 ```
 
-#### Step 1: 创建银行证券三层业务角色
+![Step 01: 切换 USERADMIN 账户现场](../images/03_step_01.png)
+
+> **实操结果解读**：  
+> 右上角角色上下文成功切换为 `USERADMIN`，底部结果面板显示 `Statement executed successfully.`（耗时仅 86ms）。
+
+---
+
+#### Step 02: 创建 role（三层业务角色体系）
+* **为什么这么做**：在银行证券数据治理体系中，设立“项目总管（`MITSUI_ADMIN`）”、“数据工程师（`MITSUI_ENGINEER`）”与“业务分析师（`MITSUI_ANALYST`）”三层角色，实现数据资产的治理、构建与消费三权分立。
+
 ```sql
-CREATE ROLE IF NOT EXISTS MITSUI_ADMIN    COMMENT = '银行证券项目总管角色';
-CREATE ROLE IF NOT EXISTS MITSUI_ENGINEER COMMENT = '银行证券数据工程师角色';
-CREATE ROLE IF NOT EXISTS MITSUI_ANALYST  COMMENT = '银行证券数据分析师角色';
+-- ====================================================================
+-- 【Step 02: 创建 role】
+-- 目的・理由: 在银行证券数据基盘中建立三层业务角色：
+--             - MITSUI_ADMIN: 统括管理者，负责库级规划与特权下发
+--             - MITSUI_ENGINEER: 数据工程师，负责数据管道、Schema与表DDL
+--             - MITSUI_ANALYST: 数据分析师，仅拥有查询与对账只读特权
+-- ====================================================================
+CREATE ROLE IF NOT EXISTS MITSUI_ADMIN    COMMENT = '银行证券项目统括管理者角色';
+CREATE ROLE IF NOT EXISTS MITSUI_ENGINEER COMMENT = '银行证券数据工程师角色（负责迁移与ETL）';
+CREATE ROLE IF NOT EXISTS MITSUI_ANALYST  COMMENT = '银行证券数据分析师角色（负责对账与查询）';
 ```
 
-#### Step 2: 建立角色层级树 (Role Hierarchy)
-使得业务权限平滑继承，并最终汇总受控于 `SYSADMIN`：
+![Step 02: 创建三层业务角色](../images/03_step_02.png)
+
+> **实操结果解读**：  
+> 角色创建成功，系统输出反馈 `Role MITSUI_ANALYST successfully created.`，前置历史代码完好保留在上方。
+
+---
+
+#### Step 03: 赋予/继承权限（建立角色继承树）
+* **为什么这么做**：构建角色层级树（Role Hierarchy）。将 `MITSUI_ADMIN` 挂载到系统管理员 `SYSADMIN` 配下，确保顶层运维团队的集中治理；同时让权限自上而下逐级包含。
+
 ```sql
--- 将 MITSUI_ADMIN 挂载到 SYSADMIN 之下
+-- ====================================================================
+-- 【Step 03: 赋予/继承权限】
+-- 目的・理由: 统括管理者挂载至 SYSADMIN 确保集中监管，
+--             并建立 MITSUI_ADMIN -> MITSUI_ENGINEER -> MITSUI_ANALYST 继承链。
+-- ====================================================================
+-- 统括管理者汇总至 SYSADMIN
 GRANT ROLE MITSUI_ADMIN TO ROLE SYSADMIN;
 
--- 工程师继承总管
+-- 工程师向统括管理者汇总特权
 GRANT ROLE MITSUI_ENGINEER TO ROLE MITSUI_ADMIN;
 
--- 分析师继承工程师
+-- 分析师向工程师汇总特权
 GRANT ROLE MITSUI_ANALYST TO ROLE MITSUI_ENGINEER;
 ```
 
-#### Step 3: 创建业务技术账号 (User)
+![Step 03: 建立角色层级树与继承赋权](../images/03_step_03.png)
 
-> [!NOTE]
-> **依赖时序说明**：此处为用户预先配置了 `DEFAULT_WAREHOUSE = MITSUI_WH`。Snowflake 允许在建用户时登记默认仓库名，但该计算资源必须在随后的 **Step 5** 中由 `SYSADMIN` 正式创建并下发 `USAGE` 权限后方可激活。
+> **实操结果解读**：  
+> 继承关系确立，`SYSADMIN` 天然具备对全部业务对象的集中巡检与合规审计能力。
+
+---
+
+#### Step 04: 创建 user（技术账号与业务账号）
+* **为什么这么做**：为实际操作人员与跑批程序开通专属账号，并在创建时强制绑定默认角色（`DEFAULT_ROLE`）与默认虚拟数仓（`DEFAULT_WAREHOUSE`），避免操作人员因未设默认环境而发生权限错乱或未按规范使用算力。
 
 ```sql
--- 工程师账号（负责数据迁移与跑批）
+-- ====================================================================
+-- 【Step 04: 创建 user】
+-- 目的・理由: 创建实际操作账号，绑定默认角色与计算仓库，防范权限混淆。
+-- ====================================================================
+-- 数据工程师账号（负责数据迁移与跑批）
 CREATE USER IF NOT EXISTS MITSUI_ENGINEER_USER
     PASSWORD = 'MitsuiSecStrongPass2026!'
     DEFAULT_ROLE = MITSUI_ENGINEER
     DEFAULT_WAREHOUSE = MITSUI_WH
     MUST_CHANGE_PASSWORD = FALSE
-    COMMENT = '银行证券ETL与迁移工程账号';
+    COMMENT = '银行证券数据工程师业务账号';
 
--- 分析师账号（负责对账突合与业务查询）
+-- 数据分析师账号（负责对账突合与业务查询）
 CREATE USER IF NOT EXISTS MITSUI_ANALYST_USER
     PASSWORD = 'MitsuiSecStrongPass2026!'
     DEFAULT_ROLE = MITSUI_ANALYST
     DEFAULT_WAREHOUSE = MITSUI_WH
     MUST_CHANGE_PASSWORD = FALSE
-    COMMENT = '银行证券分析师业务账号';
+    COMMENT = '银行证券数据分析师业务账号';
 ```
 
-#### Step 4: 绑定角色至具体用户
+![Step 04: 创建技术业务账号](../images/03_step_04.png)
+
+> **实操结果解读**：  
+> 两个业务账号顺利开通，初始化默认参数注入完毕。
+
+---
+
+#### Step 05: 赋予角色（账号与角色正式绑定）
+* **为什么这么做**：将定制业务角色授权给对应账号，并通过 `SHOW ROLES` 和 `SHOW USERS` 命令核验生成的对象状态，确认人员准入基准。
+
 ```sql
+-- ====================================================================
+-- 【Step 05: 赋予角色】
+-- 目的・理由: 将业务角色正式授予对应账号，并验证当前生成状态。
+-- ====================================================================
 GRANT ROLE MITSUI_ENGINEER TO USER MITSUI_ENGINEER_USER;
 GRANT ROLE MITSUI_ANALYST TO USER MITSUI_ANALYST_USER;
 
--- 验证创建结果
+-- 作成されたロールとユーザーの検証
 SHOW ROLES LIKE 'MITSUI_%';
 SHOW USERS LIKE 'MITSUI_%';
 ```
 
-![Snowsight 中三层业务角色与用户创建结果](../images/03_img_01.png)
+![Step 05: 绑定角色并核验证实](../images/03_step_05.png)
 
 ---
 
 ### 阶段二：切换 `SYSADMIN`（分配计算资源与下发建库特权）
 
-```sql
-USE ROLE SYSADMIN;
-```
+#### Step 06: 切换 sysadmin 账户与 WAREHOUSE 作成
+* **为什么这么做**：在 Snowflake 中，物理计算与存储对象由 `SYSADMIN` 统一调度。我们创建按需自休眠的计算仓库 `MITSUI_WH`，设定 5 分钟（300 秒）无查询自动挂起（`AUTO_SUSPEND`），杜绝闲置费用浪费。
 
-#### Step 5: 创建虚拟计算仓库 (MITSUI_WH)
-创建按需自动启停的虚拟计算仓库，并配置严格的成本自休眠策略：
 ```sql
+-- ====================================================================
+-- 【Step 06: 切换 sysadmin 账户并创建 WAREHOUSE】
+-- 目的・理由: 切换至物理基础设施主管 SYSADMIN，创建自动休眠虚拟数仓。
+-- ====================================================================
+USE ROLE SYSADMIN;
+
 CREATE WAREHOUSE IF NOT EXISTS MITSUI_WH
     WITH 
     WAREHOUSE_SIZE = 'XSMALL'
     AUTO_SUSPEND = 300           -- 5分钟无查询自动休眠（停止计费）
     AUTO_RESUME = TRUE           -- 有SQL请求时秒级自动拉起
-    INITIALLY_SUSPENDED = TRUE
-    COMMENT = '银行证券核心数据批处理与迁移专用WH';
-
--- 显式为各业务角色分配计算仓库的使用权与操作权
-GRANT USAGE, OPERATE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ADMIN;
-GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ENGINEER;
-GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
+    INITIALLY_SUSPENDED = TRUE   -- 初始状态挂起，避免创建即产生扣费
+    COMMENT = '银行证券数据迁移与跑批专用虚拟计算仓库';
 ```
 
-#### Step 6: 下发建库特权给项目总管
-在账户（Account）层级授予项目总管建库特权，从而无需动用 `SYSADMIN` 来创建具体业务库：
-```sql
-GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
-```
+![Step 06: 切换 SYSADMIN 并创建虚拟计算仓库](../images/03_step_06.png)
 
-![Snowsight 虚拟计算仓库 MITSUI_WH 创建与建库特权委让验证](../images/03_img_02.png)
+> **实操结果解读**：  
+> 屏幕右上角切换为 `SYSADMIN`，`MITSUI_WH` 创建成功，当前处于挂起（`SUSPENDED`）待命状态。
 
 ---
 
-### 阶段三：切换至业务角色，验证特权并创建存储实体
+#### Step 07 & 08: WAREHOUSE 权限配分与 DB 作成权限下发
+* **为什么这么做**：  
+  1. 计算资源创建后，必须显式为各业务角色分配 `USAGE`（使用权）与 `OPERATE`（启动/挂起权）；  
+  2. 为了让证券数据项目组能够自主规划数据库，`SYSADMIN` 在账户层级（`ON ACCOUNT`）向 `MITSUI_ADMIN` 委任 `CREATE DATABASE` 权限，实现业务自治，无需事事依赖基盘运维。
 
-#### Step 7: 切换为项目总管 MITSUI_ADMIN
 ```sql
+-- ====================================================================
+-- 【Step 07: WAREHOUSE作成与权限配分】
+-- 目的・理由: 向各业务角色显式分发计算仓库使用权（USAGE / OPERATE）。
+-- ====================================================================
+GRANT USAGE, OPERATE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ADMIN;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ENGINEER;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
+
+SHOW WAREHOUSES LIKE 'MITSUI_WH';
+
+-- ====================================================================
+-- 【Step 08: DB 作成权限下发】
+-- 目的・理由: 业务线自立，SYSADMIN 向 MITSUI_ADMIN 下发账户级建库特权。
+-- ====================================================================
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
+```
+
+![Step 07与08: 计算仓库权限配分与建库特权委任](../images/03_step_07_08.png)
+
+---
+
+### 阶段三：业务角色自治推进（数据库、Schema、Stage 与迁移双表构建）
+
+#### 🚨【核心实战排障避坑录：用户切换未分配角色的底层权限拦截】
+在很多教程中，通常会直接写 `USE ROLE MITSUI_ENGINEER;`，但在企业现场演练中，如果在当前会话直接切换，系统将抛出严重安全报错：
+
+```text
+SQL access control error: Requested role 'MITSUI_ENGINEER' is not assigned to the executing user. Specify another role to activate.
+```
+
+![避坑实录: 用户未分配激活角色报错现场](../images/03_error_role_not_assigned.png)
+
+> [!CAUTION]
+> **★ 金融级安全机制深度解析**：  
+> 为什么明明在 Step 03 中建立了角色继承树，当前登录的用户依然不能切换为 `MITSUI_ENGINEER`？  
+> **因为 Snowflake 的会话激活机制是“强用户绑定（User-bound Activation）”**！继承树解决的是“角色与角色之间的特权流动”，但任何一个登录账号（如当前登录的管理账号），**必须被显式直接授予了该角色**，该账号才能在会话中执行 `USE ROLE <RoleName>`！  
+> **解决方案**：在测试演练阶段，需在 `USERADMIN` 角色下将业务角色同时授予当前操作管理员（`GRANT ROLE ... TO USER CURRENT_USER();`），方可自由切换上下文进行自检！
+
+---
+
+#### Step 09 ~ 11: アカウント切り替え登録 (MITSUI_ADMIN) $\to$ DATABASE の作成 $\to$ スキーマ 作成権限付与
+* **为什么这么做**：  
+  - 切换至项目总管 `MITSUI_ADMIN`，行使自治特权创建业务数据库 `MITSUI_SEC_DB`；  
+  - 项目总管将 Schema 的管理权委派给实操线的数据工程师（`MITSUI_ENGINEER`），授予 `USAGE` 与 `CREATE SCHEMA`。
+
+```sql
+-- ====================================================================
+-- 【Step 09: アカウント切り替え登録 (MITSUI_ADMIN)】
+-- 【Step 10: DATABASEの作成 (MITSUI_SEC_DB)】
+-- 【Step 11: スキーマ 作成権限付与】
+-- 目的・理由: MITSUI_ADMIN 自治建库 MITSUI_SEC_DB，并将 Schema 创建权下发给工程师。
+-- ====================================================================
+-- 先确保当前操作人员具备激活权限（避坑强化）
+USE ROLE USERADMIN;
+GRANT ROLE MITSUI_ADMIN TO USER CURRENT_USER();
+GRANT ROLE MITSUI_ENGINEER TO USER CURRENT_USER();
+GRANT ROLE MITSUI_ANALYST TO USER CURRENT_USER();
+
+-- 切换为项目总管
 USE ROLE MITSUI_ADMIN;
 USE WAREHOUSE MITSUI_WH;
-```
 
-#### Step 8: 创建核心业务数据库 (MITSUI_SEC_DB)
-```sql
+-- 创建核心业务数据库
 CREATE DATABASE IF NOT EXISTS MITSUI_SEC_DB
-    COMMENT = '银行证券核心生产数据云端迁移仓';
+    COMMENT = '三井证券核心生产数据云端迁移仓';
 
 USE DATABASE MITSUI_SEC_DB;
-```
 
-#### Step 9: 将 Schema 创建特权委托给工程师角色
-```sql
+-- 委派 Schema 特权给数据工程师
 GRANT USAGE ON DATABASE MITSUI_SEC_DB TO ROLE MITSUI_ENGINEER;
 GRANT CREATE SCHEMA ON DATABASE MITSUI_SEC_DB TO ROLE MITSUI_ENGINEER;
 ```
 
-#### Step 10: 切换为数据工程师 MITSUI_ENGINEER
+![Step 09-11: 项目总管建库与特权委让验证](../images/03_step_09_11.png)
+
+---
+
+#### Step 12 ~ 17: SCHEMA 作成 $\to$ ステージ作成 $\to$ テーブル作成（1:N 双表就绪）
+* **为什么这么做**：  
+  1. **Step 12 & 13 (SCHEMA 作成)**：工程师创建 `RAW_ORACLE` 模式，开启 7 天金融级 Time Travel 数据恢复窗口；  
+  2. **Step 14 & 15 (权能交接与上下文确认)**：按最小权限原则，授予分析师 Schema 访问权（`USAGE`）；固定当前工程师上下文；  
+  3. **Step 16 (ステージ作成)**：针对 Oracle 异构断层（末尾空格敏感、空串 `''` 与 `NULL` 差异、UTF8 编码），创建高精度 CSV 文件解析器 `CSV_ORACLE_IMPORT_FF` 与中间受控暂存区 `MITSUI_STAGE`；  
+  4. **Step 17 (テーブル作成)**：严格按照第 02 章建立的类型映射，创建顾客基本台账 `CUST_MASTER`（主表）与顾客交易明细 `CUST_TRADE_DETAIL`（明细表），并为分析师配置只读 `SELECT` 权限。
+
 ```sql
+-- ====================================================================
+-- 【Step 12: 切换 MITSUI_ENGINEER】
+-- 【Step 13: SCHEMA作成 (RAW_ORACLE)】
+-- 【Step 14: 授予分析师 SCHEMA 使用权】
+-- 【Step 15: 确认工程师上下文】
+-- ====================================================================
 USE ROLE MITSUI_ENGINEER;
 USE WAREHOUSE MITSUI_WH;
 USE DATABASE MITSUI_SEC_DB;
-```
 
-#### Step 11: 创建 Oracle 原始数据落地 Schema (RAW_ORACLE)
-```sql
 CREATE SCHEMA IF NOT EXISTS RAW_ORACLE
     DATA_RETENTION_TIME_IN_DAYS = 7
-    COMMENT = 'Oracle 迁移落地原始表 Schema';
+    COMMENT = 'Oracle 迁移原始表 Schema (Time Travel 7日)';
 
 USE SCHEMA RAW_ORACLE;
-```
 
-#### Step 12: 授予分析师 Schema 访问权
-`MITSUI_ENGINEER` 作为当前 Schema 的创建者（OWNER），天然拥有内部对象的全部特权；在此按最小权限原则，为分析师赋予 Schema 的使用权：
-```sql
 GRANT USAGE ON SCHEMA MITSUI_SEC_DB.RAW_ORACLE TO ROLE MITSUI_ANALYST;
-```
 
-#### Step 13: 确认当前工程上下文环境
-```sql
-USE ROLE MITSUI_ENGINEER;
-USE WAREHOUSE MITSUI_WH;
-USE DATABASE MITSUI_SEC_DB;
-USE SCHEMA RAW_ORACLE;
-```
-
-#### Step 14: 创建解析文件格式与受控暂存区 (Stage)
-针对第 02 章中定义的末尾空格与空串（`''` vs `NULL`）陷阱，配置高精度的 CSV 解析器：
-```sql
+-- ====================================================================
+-- 【Step 16: ステージ作成 (File Format & Stage)】
+-- ====================================================================
 CREATE OR REPLACE FILE FORMAT CSV_ORACLE_IMPORT_FF
     TYPE = 'CSV'
     FIELD_DELIMITER = ','
@@ -253,104 +362,62 @@ CREATE OR REPLACE FILE FORMAT CSV_ORACLE_IMPORT_FF
     SKIP_HEADER = 1
     FIELD_OPTIONALLY_ENCLOSED_BY = '"'
     NULL_IF = ('NULL', 'null', '')
-    EMPTY_FIELD_AS_NULL = TRUE             -- 关键：确保 Oracle 的空值在 Snowflake 中对齐
+    EMPTY_FIELD_AS_NULL = TRUE             -- 解决 Oracle '' 与 NULL 异构断层
     TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS'
     ENCODING = 'UTF8';
 
 CREATE OR REPLACE STAGE MITSUI_STAGE
     FILE_FORMAT = CSV_ORACLE_IMPORT_FF
-    COMMENT = '接收来自 Oracle 导出的中间受控暂存区';
-```
+    COMMENT = 'Oracle 11g 迁移数据受控暂存区';
 
-#### Step 15-A: 创建维度主表 `CUST_MASTER` (顧客基本台帳)
-严格对应第 02 章确立的字段类型推导哲学，创建维度主表，并授予分析师查询特权：
-```sql
+-- ====================================================================
+-- 【Step 17: テーブル作成 (双表构建与授权)】
+-- ====================================================================
+-- ① 顾客基本台账（维度主表）
 CREATE OR REPLACE TABLE CUST_MASTER (
-    -- ① 顧客識別子：Oracle CHAR(10) -> Snowflake VARCHAR(10)（测试空格对齐与 RTRIM）
     CUST_ID            VARCHAR(10)       NOT NULL COMMENT '顧客ID (CHAR(10)规范化)',
-
-    -- ② 顧客氏名（漢字）：全角文字
     CUST_NAME_KANJI    VARCHAR(50)       NOT NULL COMMENT '顧客氏名 (漢字全角)',
-
-    -- ③ 顧客氏名（カナ）：半角カナ・全角カナ
     CUST_NAME_KANA     VARCHAR(50)       COMMENT '顧客氏名 (カナ)',
-
-    -- ④ 顧客ランク：Oracle CHAR(2) -> Snowflake VARCHAR(2)（末尾空格敏感度验证）
     CUST_RANK_CD       VARCHAR(2)        DEFAULT 'C ' NOT NULL COMMENT '顧客ランク (A /B /C 等)',
-
-    -- ⑤ 開設支店コード：VARCHAR(4)
     BRANCH_CD          VARCHAR(4)        NOT NULL COMMENT '支店コード',
-
-    -- ⑥ 口座ステータス：Oracle '' -> NULL（空值与空串异构断层验证）
     STATUS_CD          VARCHAR(2)        COMMENT '口座状態 (01:有効, 02:休眠, NULL:未設定)',
-
-    -- ⑦ 口座開設日：DATE 型
     OPEN_DATE          DATE              NOT NULL COMMENT '口座開設日',
-
-    -- ⑧ 登録日時：秒级升至微秒级
     REG_DATETIME       TIMESTAMP_NTZ(6)  DEFAULT CURRENT_TIMESTAMP() NOT NULL COMMENT '登録日時',
-
-    -- ⑨ 云端迁移审计字段（血缘追踪）
     MIGRATED_AT        TIMESTAMP_LTZ(6)  DEFAULT CURRENT_TIMESTAMP() COMMENT 'Snowflake 迁移入云时间戳',
-
     CONSTRAINT PK_CUST_MASTER PRIMARY KEY (CUST_ID)
-)
-COMMENT = '顧客基本台帳（Oracle 11g 迁移目标表）';
+) COMMENT = '顧客基本台帳（Oracle 11g 迁移目标表）';
 
--- 遵循最小权限，授予分析师只读 SELECT 权
 GRANT SELECT ON TABLE CUST_MASTER TO ROLE MITSUI_ANALYST;
-```
 
-#### Step 15-B: 创建事实流水表 `CUST_TRADE_DETAIL` (顧客取引明細)
-```sql
+-- ② 顾客交易明细（事实流水表）
 CREATE OR REPLACE TABLE CUST_TRADE_DETAIL (
-    -- ① 取引数量：整数，Scale 设为 0
     TRADE_QTY          NUMBER(15, 0)     DEFAULT 0 NOT NULL COMMENT '取引数量',
-
-    -- ② 約定金額・邦貨（円貨）：固定 3 位小数精度统一
     AMOUNT_JPY         NUMBER(18, 3)     DEFAULT 0 NOT NULL COMMENT '約定金額・円貨',
-
-    -- ③ 約定金額・外貨 ＋ 通貨区分：配对定义
     AMOUNT_FCY         NUMBER(18, 3)     DEFAULT 0 COMMENT '約定金額・外貨',
     CCY_CODE           VARCHAR(3)        COMMENT '通貨区分 (USD/EUR等)',
-
-    -- ④ 為替レート：统一 6 位小数
     EXCHANGE_RATE      NUMBER(9, 6)      COMMENT '為替レート',
-
-    -- ⑤ 摘要・備考：Snowflake VARCHAR(100) 天然以字符数计数，免除 Oracle BYTE 溢出烦恼
     REMARKS            VARCHAR(100)      DEFAULT ' ' COMMENT '摘要・備考 (全角半角混在安全)',
-
-    -- ⑥ 顧客ID：固定 10 位账号
     CUST_ID            VARCHAR(10)       NOT NULL COMMENT '顧客ID',
-
-    -- ⑦ 业务区分与支店
     TRADE_TYPE_CD      VARCHAR(2)        NOT NULL COMMENT '取引区分 (01:買付, 02:売付)',
     BRANCH_CD          VARCHAR(4)        NOT NULL COMMENT '支店コード',
-
-    -- ⑧ 业务日期字段：标准化为定长纯数字文本，提升剪枝效率
     TRADE_DATE         VARCHAR(8)        NOT NULL COMMENT '約定日 (YYYYMMDD形式)',
     SETTLE_MONTH       VARCHAR(6)        COMMENT '決済対象月 (YYYYMM形式)',
-
-    -- ⑨ 审计时间戳字段
     REG_DATETIME       TIMESTAMP_NTZ(6)  DEFAULT CURRENT_TIMESTAMP() NOT NULL COMMENT '登録日時',
     UPD_DATETIME       TIMESTAMP_NTZ(6)  COMMENT '更新日時',
-
-    -- ⑩ 云端迁移审计字段（血缘追踪）
     MIGRATED_AT        TIMESTAMP_LTZ(6)  DEFAULT CURRENT_TIMESTAMP() COMMENT 'Snowflake 迁移入云时间戳',
-
     CONSTRAINT PK_CUST_TRADE_DETAIL PRIMARY KEY (CUST_ID, TRADE_DATE, TRADE_TYPE_CD)
-)
-COMMENT = '顧客取引明細（Oracle 11g 迁移目标表）';
+) COMMENT = '顧客取引明細（Oracle 11g 迁移目标表）';
 
--- 遵循最小权限，授予分析师只读 SELECT 权
 GRANT SELECT ON TABLE CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST;
 
--- 验证创建结果
-SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
 ```
 
-![Snowsight 暂存区 Stage 与目标双表构建及授权完成](../images/03_img_03.png)
+![Step 16-17: Stage 与目标双表构建及 SHOW TABLES 成果](../images/03_step_16_17.png)
+
+> **实操结果解读**：  
+> 右上角完整体现为：`MITSUI_ENGINEER` / `MITSUI_WH` / `MITSUI_SEC_DB` / `RAW_ORACLE`；  
+> 底部输出面板中，`CUST_TRADE_DETAIL` 与 `CUST_MASTER` 赫然在列，Owner 明确归属于 `MITSUI_ENGINEER`，Retention Time 为 7 天，双表正式建成交付！
 
 ---
 
@@ -373,27 +440,22 @@ SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
    - 可使用移动端 **Google Authenticator** / **Microsoft Authenticator** 扫码；或在受限开发机环境中下载运行开源 PC 端工具 [WinAuth](https://winauth.github.io/winauth/download.html)，导入该密钥字符串；
 4. **验证与绑定**：在输入框内填入认证器实时生成的 6 位 TOTP 动态验证码，点击完成绑定。
 
-### 4.3 切换业务角色上下文与权限基线自检 (Sanity Check)
-完成安全初始化后，在 SQL Worksheet 中输入并执行以下语句，验证业务工程师角色 `MITSUI_ENGINEER` 对项目对象具备的实际权限：
+### 4.3 切换业务角色上下文与权限基线自检 (Step 18 & Step 19 核心实测)
+完成安全初始化后，在 SQL Worksheet 中依次执行以下自检与防御实测语句：
+
+#### Step 18: 工程师沙箱连通性与读写自检 (Sanity Check)
+验证 `MITSUI_ENGINEER` 角色在其所属 Schema 下拥有完备的 DDL/DML 权限，使用临时表进行零污染测试：
 
 ```sql
--- 1. 查看当前账号被授予的角色清单
-SHOW ROLES;
-
--- 2. 查看当前角色具备的细粒度特权
-SHOW GRANTS OF ROLE MITSUI_ENGINEER;
-
--- 3. 切换上下文至三井证券项目环境
+-- ====================================================================
+-- 【Step 18: 疎通検証 (Sanity Check - MITSUI_ENGINEER)】
+-- 目的・理由: 验证工程师角色的会话稳定性与 DDL/DML 权限。
+-- ====================================================================
 USE ROLE MITSUI_ENGINEER;
 USE WAREHOUSE MITSUI_WH;
 USE DATABASE MITSUI_SEC_DB;
 USE SCHEMA RAW_ORACLE;
 
--- 4. 验证核心迁移双表与 Stage 暂存区的可见性与状态
-SHOW STAGES LIKE 'MITSUI_STAGE';
-SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
-
--- 5. 执行一次轻量级连通性读写验证（Sandbox 级别验证）
 CREATE OR REPLACE TEMPORARY TABLE _SANITY_CHECK (
     CHECK_ID    INT,
     OPERATOR    VARCHAR(50),
@@ -404,25 +466,38 @@ INSERT INTO _SANITY_CHECK (CHECK_ID, OPERATOR) VALUES (1, CURRENT_USER());
 
 SELECT * FROM _SANITY_CHECK;
 
--- 验证完毕后清理临时对象
 DROP TABLE IF EXISTS _SANITY_CHECK;
+```
 
--- 6. 切换为只读分析师角色，执行最小特权防御测试 (Least Privilege Verification)
+#### Step 19: 分析师最小特权防御拦截实测 (Least Privilege Defense)
+切换为只读分析师角色 `MITSUI_ANALYST`，验证合法查询与越权拦截的真实系统反应：
+
+```sql
+-- ====================================================================
+-- 【Step 19: 最小特权防御验证 (Least Privilege Defense - MITSUI_ANALYST)】
+-- 目的・理由: 验证分析师具备 SELECT 权，但在非法 INSERT 写入时被系统底层强行拦截。
+-- ====================================================================
 USE ROLE MITSUI_ANALYST;
 USE WAREHOUSE MITSUI_WH;
 USE DATABASE MITSUI_SEC_DB;
 USE SCHEMA RAW_ORACLE;
 
--- 允许执行 SELECT 查询（返回空结果集，表明具备读取权限）
+-- 1. SELECT 查询完全合法（成功返回 0 行结果集，验证查询权通畅）
 SELECT * FROM CUST_MASTER;
 
--- 越权写入立即被系统安全拦截
+-- 2. INSERT 尝试越权写入数据（预期被 Snowflake 安全机制当场拦截！）
 INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, OPEN_DATE) 
 VALUES ('TEST0001', '不正書込テスト', CURRENT_DATE());
--- 预期报错：SQL compilation error: Object 'CUST_MASTER' does not exist or not authorized.
 ```
 
-![Snowsight 只读角色 MITSUI_ANALYST 越权拦截安全防御验证](../images/03_img_04.png)
+![Step 18与19: 最小特权防御越权拦截报错现场](../images/03_step_18_19.png)
+
+> **现场报错详细分析**：  
+> ```text
+> SQL compilation error: Object 'CUST_MASTER' does not exist or not authorized. Your primary role MITSUI_ANALYST or one of your secondary roles must have at least one privilege granted on TABLE CUST_MASTER.
+> ```  
+> 如图中鲜红的警告所示，系统直接将非法写入请求击落并拒绝编译！  
+> **这标志着最小特权原则在生产云端完全落地生效**：合法分析师只能通过只读通道观察数据，从根源上消除了业务端由于人为失误或越权脚本篡改生产财务流水数据的可能性！
 
 ---
 

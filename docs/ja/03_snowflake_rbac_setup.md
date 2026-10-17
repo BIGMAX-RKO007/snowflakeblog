@@ -85,272 +85,336 @@ graph TD
 
 ---
 
-## 三、 🛠️ エンタープライズ環境構築実践マニュアル（Step 1 〜 Step 15 双軌推進）
+## 三、 🛠️ エンタープライズ環境構築詳細実践（17ステップ標準パイプライン）
 
-本節では、金融機関標準のステップ別実行手順を解説します。**Snowsight ワークシート** で順次実行するか、リポジトリに配置されているスクリプトを用いて一括実行が可能です：
-* **フェーズ 1 対応スクリプト**：`scripts/snowflake/01_useradmin_rbac.sql`
-* **フェーズ 2 & 3 対応スクリプト**：`scripts/snowflake/02_sysadmin_objects.sql`
+本節では、金融庁および FISC 安全対策基準に準拠した厳格な構築パイプラインに沿って実機検証を進めます。本実習において、**実行されたすべての SQL スクリプトはワークシート上に履歴として完全保持され、フォーマットの統一およびステップごとの設計理由コメントを網羅**しています。
+
+* **本章対応プロダクションスクリプト**：[`scripts/snowflake/03_rbac_and_env_master.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/03_rbac_and_env_master.sql)
 
 ---
 
 ### フェーズ 1：`USERADMIN` による ID・ロールガバナンス
 
-特権ユーザーで Snowflake に接続し、ユーザーおよびロール管理を所管する `USERADMIN` へ切り替えます：
+#### Step 01: 切换 useradmin 账户（USERADMIN への切り替え）
+* **なぜそうするのか（理由と目的）**：職務分掌（Separation of Duties）の原則に基づき、ユーザー（User）およびロール（Role）のライフサイクル管理は専任の `USERADMIN` が管轄します。グローバル最高特権である `ACCOUNTADMIN` の日常利用を厳格に遮断し、特権濫用リスクを最小化します。
 
 ```sql
+-- ====================================================================
+-- 【Step 01: 切换 useradmin 账户】
+-- 目的・理由: 職務分掌（Separation of Duties）に基づき、ユーザーおよび
+--             ロールのライフサイクル管理は USERADMIN に切り替えて実行します。
+-- ====================================================================
 USE ROLE USERADMIN;
 ```
 
-#### Step 1: 銀行証券 3 層業務ロールの作成
+![Step 01: USERADMIN への切り替え実行現場](../images/03_step_01.png)
+
+> **実行結果の解説**：  
+> 右上の実行ロールが `USERADMIN` へ切り替わり、下部の結果ペインに `Statement executed successfully.`（実行時間 86ms）が表示されます。
+
+---
+
+#### Step 02: 创建 role（3層業務ロール体系の新設）
+* **なぜそうするのか（理由と目的）**：銀行証券データ基盤において、「プロジェクト統括管理者（`MITSUI_ADMIN`）」、「データエンジニア（`MITSUI_ENGINEER`）」、「データアナリスト（`MITSUI_ANALYST`）」の 3 層ロールを定義し、ガバナンス・構築・活用の三権分立を確立します。
+
 ```sql
-CREATE ROLE IF NOT EXISTS MITSUI_ADMIN    COMMENT = '銀行証券プロジェクト総括管理者ロール';
-CREATE ROLE IF NOT EXISTS MITSUI_ENGINEER COMMENT = '銀行証券データエンジニアロール';
-CREATE ROLE IF NOT EXISTS MITSUI_ANALYST  COMMENT = '銀行証券データアナリストロール';
+-- ====================================================================
+-- 【Step 02: 创建 role】
+-- 目的・理由: 銀行証券データ基盤における3層業務ロールを新設します：
+--             - MITSUI_ADMIN: 統括管理者、DB設計および権限委譲を担当
+--             - MITSUI_ENGINEER: エンジニア、パイプライン・Schema・Table DDLを担当
+--             - MITSUI_ANALYST: アナリスト、データ照合・突合のためのSELECT参照のみ担当
+-- ====================================================================
+CREATE ROLE IF NOT EXISTS MITSUI_ADMIN    COMMENT = '銀行証券プロジェクト統括管理者ロール';
+CREATE ROLE IF NOT EXISTS MITSUI_ENGINEER COMMENT = '銀行証券データエンジニアロール（移行・ETL担当）';
+CREATE ROLE IF NOT EXISTS MITSUI_ANALYST  COMMENT = '銀行証券データアナリストロール（照会・分析担当）';
 ```
 
-#### Step 2: 権限の付与・継承（Role Hierarchy 設定）
-業務権限を平滑に継承させ、最終的に `SYSADMIN` 配下に集約します：
+![Step 02: 3層業務ロールの作成](../images/03_step_02.png)
+
+> **実行結果の解説**：  
+> ロールが正常に作成され、結果ペインに `Role MITSUI_ANALYST successfully created.` が返却されます。先行する Step 01 のコードも上部に完全保持されています。
+
+---
+
+#### Step 03: 赋予/继承权限（ロール階層ツリーの確立）
+* **なぜそうするのか（理由と目的）**：ロール階層（Role Hierarchy）を構築します。最上位の `MITSUI_ADMIN` を `SYSADMIN` 配下に束ねることで、インフラ運用チームによる全体統制を担保し、権限を上意下達・集約管理します。
+
 ```sql
--- MITSUI_ADMIN を SYSADMIN 配下にマウント
+-- ====================================================================
+-- 【Step 03: 赋予/继承权限】
+-- 目的・理由: 統括管理者を SYSADMIN に束ねて全体ガバナンスを確保し、
+--             MITSUI_ADMIN -> MITSUI_ENGINEER -> MITSUI_ANALYST の階層を構築します。
+-- ====================================================================
+-- 統括管理者を SYSADMIN に束ねる
 GRANT ROLE MITSUI_ADMIN TO ROLE SYSADMIN;
 
--- エンジニアを管理者ロールに継承
+-- エンジニアの特権を統括管理者へ集約
 GRANT ROLE MITSUI_ENGINEER TO ROLE MITSUI_ADMIN;
 
--- アナリストをエンジニアロールに継承
+-- アナリストの特権をエンジニアへ集約
 GRANT ROLE MITSUI_ANALYST TO ROLE MITSUI_ENGINEER;
 ```
 
-#### Step 3: 業務技術アカウント (User) の作成
+![Step 03: ロール階層ツリーと権限継承の確立](../images/03_step_03.png)
 
-> [!NOTE]
-> **依存関係と順序に関する補足**：ここではユーザー作成時に先行して `DEFAULT_WAREHOUSE = MITSUI_WH` を指定しています。Snowflake の仕様上、事前登録は可能ですが、このコンピュートリソースは後続の **Step 5** にて `SYSADMIN` が正式に作成し、`USAGE` 権限を付与した後に初めて有効化されます。
+> **実行結果の解説**：  
+> 継承関係が確立され、`SYSADMIN` はすべての配下業務オブジェクトに対する監査・集中保守能力を自動的に保有します。
+
+---
+
+#### Step 04: 创建 user（業務アカウントの作成）
+* **なぜそうするのか（理由と目的）**：実際の運用担当者やバッチ連携プロセス向けのアカウントを作成します。初期パスワードに加え、デフォルトロール（`DEFAULT_ROLE`）およびデフォルト仮想ウェアハウス（`DEFAULT_WAREHOUSE`）を強制バインドし、意図しないコンピュート浪費や権限混同を未然に防止します。
 
 ```sql
--- エンジニアアカウント（データ移行・バッチ処理担当）
+-- ====================================================================
+-- 【Step 04: 创建 user】
+-- 目的・理由: 実際の運用担当者アカウントを作成し、デフォルトロール・WHをバインド。
+-- ====================================================================
+-- エンジニア業務アカウント
 CREATE USER IF NOT EXISTS MITSUI_ENGINEER_USER
     PASSWORD = 'MitsuiSecStrongPass2026!'
     DEFAULT_ROLE = MITSUI_ENGINEER
     DEFAULT_WAREHOUSE = MITSUI_WH
     MUST_CHANGE_PASSWORD = FALSE
-    COMMENT = '銀行証券ETLとデータ移行作業用アカウント';
+    COMMENT = '銀行証券データエンジニア業務アカウント';
 
--- アナリストアカウント（照合・分析業務担当）
+-- アナリスト業務アカウント
 CREATE USER IF NOT EXISTS MITSUI_ANALYST_USER
     PASSWORD = 'MitsuiSecStrongPass2026!'
     DEFAULT_ROLE = MITSUI_ANALYST
     DEFAULT_WAREHOUSE = MITSUI_WH
     MUST_CHANGE_PASSWORD = FALSE
-    COMMENT = '銀行証券分析・監査突合用アカウント';
+    COMMENT = '銀行証券アナリスト分析・監査業務アカウント';
 ```
 
-#### Step 4: ユーザーへのロール紐付け
+![Step 04: 業務技術アカウントの作成](../images/03_step_04.png)
+
+---
+
+#### Step 05: 赋予角色（ロールとユーザーの正式バインドと検証）
+* **なぜそうするのか（理由と目的）**：作成したアカウントに対して業務ロールを付与し、`SHOW ROLES` および `SHOW USERS` コマンドで物理生成状態を検証します。
+
 ```sql
+-- ====================================================================
+-- 【Step 05: 赋予角色】
+-- 目的・理由: 作成したアカウントに対して各ロールを正式に付与し、状態を検証。
+-- ====================================================================
 GRANT ROLE MITSUI_ENGINEER TO USER MITSUI_ENGINEER_USER;
 GRANT ROLE MITSUI_ANALYST TO USER MITSUI_ANALYST_USER;
 
--- 作成結果の検証
+-- 作成されたロールとユーザーの検証
 SHOW ROLES LIKE 'MITSUI_%';
 SHOW USERS LIKE 'MITSUI_%';
 ```
 
-![Snowsight での3層業務ロールおよびユーザー作成結果](../images/03_img_01.png)
+![Step 05: ロールの紐付けと検証結果](../images/03_step_05.png)
 
 ---
 
 ### フェーズ 2：`SYSADMIN` によるコンピュート割当と DB 作成特権の委譲
 
-```sql
-USE ROLE SYSADMIN;
-```
+#### Step 06: 切换 sysadmin 账户与 WAREHOUSE 作成
+* **なぜそうするのか（理由と目的）**：コンピュートおよびストレージインフラは `SYSADMIN` が統制します。オンデマンドで自動起動・休眠する仮想ウェアハウス `MITSUI_WH` を作成し、5分間（300秒）無稼働時の自動サスペンド（`AUTO_SUSPEND`）を設定して不要課金を排除します。
 
-#### Step 5: 仮想ウェアハウス (MITSUI_WH) の作成
-需要に応じて自動起動・休眠する仮想ウェアハウスを作成し、厳格なコスト抑制ポリシーを設定します：
 ```sql
+-- ====================================================================
+-- 【Step 06: 切换 sysadmin 账户並びに WAREHOUSE作成】
+-- 目的・理由: SYSADMIN へ切り替え、コスト自動休眠付き仮想ウェアハウスを作成。
+-- ====================================================================
+USE ROLE SYSADMIN;
+
 CREATE WAREHOUSE IF NOT EXISTS MITSUI_WH
     WITH 
     WAREHOUSE_SIZE = 'XSMALL'
     AUTO_SUSPEND = 300           -- 5分間クエリがない場合、自動休眠（コスト課金停止）
     AUTO_RESUME = TRUE           -- SQLリクエスト到着時に秒単位で自動復帰
-    INITIALLY_SUSPENDED = TRUE
-    COMMENT = '銀行証券コアデータバッチおよび移行専用WH';
-
--- 各業務ロールに対して明示的に利用権限を付与
-GRANT USAGE, OPERATE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ADMIN;
-GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ENGINEER;
-GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
+    INITIALLY_SUSPENDED = TRUE   -- 作成時は停止状態でスタンバイ
+    COMMENT = '銀行証券データ移行・バッチ処理専用仮想ウェアハウス';
 ```
 
-#### Step 6: プロジェクト総括管理者への DB 作成特権の付与
-アカウント階層において、`MITSUI_ADMIN` に対してデータベース作成権限を委譲します：
-```sql
-GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
-```
+![Step 06: SYSADMIN への切り替えと仮想ウェアハウス作成](../images/03_step_06.png)
 
-![Snowsight 仮想ウェアハウス MITSUI_WH 作成と DB 作成特権委譲の検証](../images/03_img_02.png)
+> **実行結果の解説**：  
+> コンソール右上のロールが `SYSADMIN` に切り替わり、`MITSUI_WH` が停止状態（`SUSPENDED`）で安全に作成されました。
 
 ---
 
-### フェーズ 3：業務ロールへの切り替え、特権検証およびストレージ実体の作成
+#### Step 07 & 08: WAREHOUSE 権限配分と DB 作成権限付与
+* **なぜそうするのか（理由と目的）**：  
+  1. ウェアハウス作成後、各業務ロールに対して明示的に `USAGE`（利用権）および `OPERATE`（制御権）を付与する必要があります；  
+  2. 証券移行チームの自立運用のため、`SYSADMIN` から `MITSUI_ADMIN` に対してアカウント階層（`ON ACCOUNT`）での `CREATE DATABASE` 権限を公式に委譲します。
 
-#### Step 7: プロジェクト総括管理者 MITSUI_ADMIN への切り替え
 ```sql
+-- ====================================================================
+-- 【Step 07: WAREHOUSE作成と権限付与】
+-- 目的・理由: 各業務ロールに対して仮想ウェアハウス利用権（USAGE / OPERATE）を配分。
+-- ====================================================================
+GRANT USAGE, OPERATE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ADMIN;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ENGINEER;
+GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
+
+SHOW WAREHOUSES LIKE 'MITSUI_WH';
+
+-- ====================================================================
+-- 【Step 08: DB 作成権限付与】
+-- 目的・理由: 業務部門の自立運用のため、MITSUI_ADMIN に CREATE DATABASE を委譲。
+-- ====================================================================
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
+```
+
+![Step 07と08: ウェアハウス権限配分とDB作成特権委譲](../images/03_step_07_08.png)
+
+---
+
+### フェーズ 3：業務ロールによる自治推進（DB、Schema、Stage、Dual Table の構築）
+
+#### 🚨【重要実務トラブルシューティング：未割り当てロール切替エラーとセキュリティ仕様】
+一般的なチュートリアルでは単に `USE ROLE MITSUI_ENGINEER;` と記載されがちですが、本番・実機環境において現在のアドミンセッションで直接実行すると、以下の厳格なアクセス制御エラーが発生します：
+
+```text
+SQL access control error: Requested role 'MITSUI_ENGINEER' is not assigned to the executing user. Specify another role to activate.
+```
+
+![トラブルシューティング実証: ユーザー未割当ロールの切替遮断現場](../images/03_error_role_not_assigned.png)
+
+> [!CAUTION]
+> **★ 金融エンタープライズ安全機構の深層解析**：  
+> なぜ Step 03 でロール継承ツリーを組んだにもかかわらず、現在ログイン中のアカウントで `MITSUI_ENGINEER` に切り替えられないのでしょうか？  
+> **Snowflake のセッションアクティベーションは「強いユーザーバインド（User-bound Activation）」を採用しているためです**！継承関係はロール間の権限移譲を解決しますが、ログインセッションで `USE ROLE <Role>` を発行するには、**そのアカウント自身に直接そのロールが付与されている必要があります**。  
+> **解決策**：テスト・検証フェーズにおいては、`USERADMIN` にて現在操作中の管理者ユーザーに対しても業務ロールを付与（`GRANT ROLE ... TO USER CURRENT_USER();`）することで、自由にコンテキストを切り替えて疎通確認が可能になります！
+
+---
+
+#### Step 09 ~ 11: アカウント切り替え登録 (MITSUI_ADMIN) $	o$ DATABASE の作成 $	o$ スキーマ 作成権限付与
+* **なぜそうするのか（理由と目的）**：  
+  - 統括管理者 `MITSUI_ADMIN` に切り替え、委譲された特権を行使してコアデータベース `MITSUI_SEC_DB` を作成します；  
+  - 統括管理者から実務エンジニア（`MITSUI_ENGINEER`）へ、スキーマの管理特権（`USAGE` と `CREATE SCHEMA`）を委譲します。
+
+```sql
+-- ====================================================================
+-- 【Step 09: アカウント切り替え登録 (MITSUI_ADMIN)】
+-- 【Step 10: DATABASEの作成 (MITSUI_SEC_DB)】
+-- 【Step 11: スキーマ 作成権限付与】
+-- 目的・理由: MITSUI_ADMIN が自治的に MITSUI_SEC_DB を作成し、エンジニアへ委譲。
+-- ====================================================================
+-- 管理者自身へのロール事前バインド（トラブルシューティング対策）
+USE ROLE USERADMIN;
+GRANT ROLE MITSUI_ADMIN TO USER CURRENT_USER();
+GRANT ROLE MITSUI_ENGINEER TO USER CURRENT_USER();
+GRANT ROLE MITSUI_ANALYST TO USER CURRENT_USER();
+
+-- 統括管理者へ切り替え
 USE ROLE MITSUI_ADMIN;
 USE WAREHOUSE MITSUI_WH;
-```
 
-#### Step 8: コア業務データベース (MITSUI_SEC_DB) の作成
-```sql
+-- コア業務データベースの作成
 CREATE DATABASE IF NOT EXISTS MITSUI_SEC_DB
-    COMMENT = '銀行証券基幹データクラウド移行DWH';
+    COMMENT = '三井証券基幹データクラウド移行データベース';
 
 USE DATABASE MITSUI_SEC_DB;
-```
 
-#### Step 9: エンジニアロールへのスキーマ作成権限の委譲
-```sql
+-- エンジニアへスキーマ管理権限を委譲
 GRANT USAGE ON DATABASE MITSUI_SEC_DB TO ROLE MITSUI_ENGINEER;
 GRANT CREATE SCHEMA ON DATABASE MITSUI_SEC_DB TO ROLE MITSUI_ENGINEER;
 ```
 
-#### Step 10: データエンジニア MITSUI_ENGINEER への切り替え
+![Step 09-11: 統括管理者によるDB作成と特権委譲](../images/03_step_09_11.png)
+
+---
+
+#### Step 12 ~ 17: SCHEMA 作成 $	o$ ステージ作成 $	o$ テーブル作成（1:N 双表の完成）
+* **なぜそうするのか（理由と目的）**：  
+  1. **Step 12 & 13 (SCHEMA 作成)**：エンジニアが `RAW_ORACLE` スキーマを作成し、金融要件の 7 日間 Time Travel を設定；  
+  2. **Step 14 & 15 (権限委譲とコンテキスト固定)**：最小特権の原則に基づき、アナリストへスキーマ利用権（`USAGE`）を付与し、エンジニアコンテキストを固定；  
+  3. **Step 16 (ステージ作成)**：Oracle 異種間ギャップ（末尾スペース、空文字 `''` と `NULL` の不整合、UTF8）に対応する高精度 CSV フォーマット `CSV_ORACLE_IMPORT_FF` と内部ステージ `MITSUI_STAGE` を作成；  
+  4. **Step 17 (テーブル作成)**：第02章の型定義に基づき、顧客基本台帳 `CUST_MASTER`（親テーブル）と顧客取引明細 `CUST_TRADE_DETAIL`（子テーブル）を作成し、アナリストへ SELECT 権限を付与。
+
 ```sql
+-- ====================================================================
+-- 【Step 12: MITSUI_ENGINEER への切り替え】
+-- 【Step 13: SCHEMA作成 (RAW_ORACLE)】
+-- 【Step 14: アナリストへの SCHEMA 利用権付与】
+-- 【Step 15: エンジニアコンテキスト固定】
+-- ====================================================================
 USE ROLE MITSUI_ENGINEER;
 USE WAREHOUSE MITSUI_WH;
 USE DATABASE MITSUI_SEC_DB;
-```
 
-#### Step 11: Oracle 移行生データ受入スキーマ (RAW_ORACLE) の作成
-```sql
 CREATE SCHEMA IF NOT EXISTS RAW_ORACLE
     DATA_RETENTION_TIME_IN_DAYS = 7
-    COMMENT = 'Oracle移行生データ格納スキーマ';
+    COMMENT = 'Oracle移行生データ格納用スキーマ（Time Travel: 7日）';
 
 USE SCHEMA RAW_ORACLE;
-```
 
-#### Step 12: アナリストロールへのスキーマ利用権限の付与
-`MITSUI_ENGINEER` はスキーマの所有者（OWNER）としてすべての作成権限を有しています。最小特権の原則に基づき、アナリストへスキーマ利用権限を付与します：
-```sql
 GRANT USAGE ON SCHEMA MITSUI_SEC_DB.RAW_ORACLE TO ROLE MITSUI_ANALYST;
-```
 
-#### Step 13: 現在の実行コンテキストの確認
-```sql
-USE ROLE MITSUI_ENGINEER;
-USE WAREHOUSE MITSUI_WH;
-USE DATABASE MITSUI_SEC_DB;
-USE SCHEMA RAW_ORACLE;
-```
-
-#### Step 14: ファイルフォーマットと受入ステージ (Stage) の定義
-第 02 章で解説した末尾空白や空文字（`''` vs `NULL`）の差異を吸収する CSV パーサーを定義します：
-```sql
+-- ====================================================================
+-- 【Step 16: ステージ作成 (File Format & Stage)】
+-- ====================================================================
 CREATE OR REPLACE FILE FORMAT CSV_ORACLE_IMPORT_FF
     TYPE = 'CSV'
     FIELD_DELIMITER = ','
-    RECORD_DELIMITER = '\n'
+    RECORD_DELIMITER = '
+'
     SKIP_HEADER = 1
     FIELD_OPTIONALLY_ENCLOSED_BY = '"'
     NULL_IF = ('NULL', 'null', '')
-    EMPTY_FIELD_AS_NULL = TRUE             -- 重要：Oracleの空文字NULL変換をSnowflake側で再現
+    EMPTY_FIELD_AS_NULL = TRUE             -- Oracle ''(空文字) を Snowflake NULL に正規化
     TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS'
     ENCODING = 'UTF8';
 
 CREATE OR REPLACE STAGE MITSUI_STAGE
     FILE_FORMAT = CSV_ORACLE_IMPORT_FF
-    COMMENT = 'Oracleから抽出されたCSV受入用内部ステージ';
-```
+    COMMENT = 'Oracle 11g 抽出データ受取用内部ステージ';
 
-#### Step 15-A: マスター表 `CUST_MASTER` (顧客基本台帳) の作成
-第 02 章で設計した型変換思想に基づき、顧客マスター表を作成し、アナリストに参照権限を付与します：
-```sql
+-- ====================================================================
+-- 【Step 17: テーブル作成 (双表構築と権限設定)】
+-- ====================================================================
+-- ① 顧客基本台帳（ディメンションテーブル）
 CREATE OR REPLACE TABLE CUST_MASTER (
-    -- ① 顧客識別子：Oracle CHAR(10) -> Snowflake VARCHAR(10)（空白パディング差とRTRIMの検証）
     CUST_ID            VARCHAR(10)       NOT NULL COMMENT '顧客ID (CHAR(10)正規化)',
-
-    -- ② 顧客氏名（漢字）：全角文字
     CUST_NAME_KANJI    VARCHAR(50)       NOT NULL COMMENT '顧客氏名 (漢字全角)',
-
-    -- ③ 顧客氏名（カナ）：半角・全角カナ混在
     CUST_NAME_KANA     VARCHAR(50)       COMMENT '顧客氏名 (カナ)',
-
-    -- ④ 顧客ランク：Oracle CHAR(2) -> Snowflake VARCHAR(2)（末尾空白比較検証用）
     CUST_RANK_CD       VARCHAR(2)        DEFAULT 'C ' NOT NULL COMMENT '顧客ランク (A /B /C 等)',
-
-    -- ⑤ 開設支店コード：VARCHAR(4)
     BRANCH_CD          VARCHAR(4)        NOT NULL COMMENT '支店コード',
-
-    -- ⑥ 口座ステータス：Oracle '' -> NULL（空文字NULL変換の異種検証用）
     STATUS_CD          VARCHAR(2)        COMMENT '口座状態 (01:有効, 02:休眠, NULL:未設定)',
-
-    -- ⑦ 口座開設日：DATE 型
     OPEN_DATE          DATE              NOT NULL COMMENT '口座開設日',
-
-    -- ⑧ 登録日時：秒精度からマイクロ秒精度へ拡張
     REG_DATETIME       TIMESTAMP_NTZ(6)  DEFAULT CURRENT_TIMESTAMP() NOT NULL COMMENT '登録日時',
-
-    -- ⑨ クラウド移行監査列（データリネージ追跡用）
     MIGRATED_AT        TIMESTAMP_LTZ(6)  DEFAULT CURRENT_TIMESTAMP() COMMENT 'Snowflake 移行取込日時',
-
     CONSTRAINT PK_CUST_MASTER PRIMARY KEY (CUST_ID)
-)
-COMMENT = '顧客基本台帳（Oracle 11g 移行先テーブル）';
+) COMMENT = '顧客基本台帳（Oracle 11g 移行先テーブル）';
 
--- 最小特権の原則に基づき、アナリストロールへ SELECT 権限を付与
 GRANT SELECT ON TABLE CUST_MASTER TO ROLE MITSUI_ANALYST;
-```
 
-#### Step 15-B: トランザクション明細表 `CUST_TRADE_DETAIL` (顧客取引明細) の作成
-```sql
+-- ② 顧客取引明細（ファクトテーブル）
 CREATE OR REPLACE TABLE CUST_TRADE_DETAIL (
-    -- ① 取引数量：整数型、Scale 0 を明示
     TRADE_QTY          NUMBER(15, 0)     DEFAULT 0 NOT NULL COMMENT '取引数量',
-
-    -- ② 約定金額・邦貨（円貨）：固定 3 位の小数精度統一
     AMOUNT_JPY         NUMBER(18, 3)     DEFAULT 0 NOT NULL COMMENT '約定金額・円貨',
-
-    -- ③ 約定金額・外貨 ＋ 通貨区分：ペア定義
     AMOUNT_FCY         NUMBER(18, 3)     DEFAULT 0 COMMENT '約定金額・外貨',
     CCY_CODE           VARCHAR(3)        COMMENT '通貨区分 (USD/EUR等)',
-
-    -- ④ 為替レート：6 位の小数統一
     EXCHANGE_RATE      NUMBER(9, 6)      COMMENT '為替レート',
-
-    -- ⑤ 摘要・備考：Snowflake の VARCHAR(100) は常に文字数カウント（Oracle BYTE あふれ回避）
     REMARKS            VARCHAR(100)      DEFAULT ' ' COMMENT '摘要・備考 (全角半角混在安全)',
-
-    -- ⑥ 顧客ID：固定 10 桁
     CUST_ID            VARCHAR(10)       NOT NULL COMMENT '顧客ID',
-
-    -- ⑦ 取引区分・支店コード
     TRADE_TYPE_CD      VARCHAR(2)        NOT NULL COMMENT '取引区分 (01:買付, 02:売付)',
     BRANCH_CD          VARCHAR(4)        NOT NULL COMMENT '支店コード',
-
-    -- ⑧ 業務日付：定長数字文字列に正規化し、検索プルーニング性能を最大化
     TRADE_DATE         VARCHAR(8)        NOT NULL COMMENT '約定日 (YYYYMMDD形式)',
     SETTLE_MONTH       VARCHAR(6)        COMMENT '決済対象月 (YYYYMM形式)',
-
-    -- ⑨ 監査タイムスタンプ
     REG_DATETIME       TIMESTAMP_NTZ(6)  DEFAULT CURRENT_TIMESTAMP() NOT NULL COMMENT '登録日時',
     UPD_DATETIME       TIMESTAMP_NTZ(6)  COMMENT '更新日時',
-
-    -- ⑩ クラウド移行監査列（データリネージ追跡用）
     MIGRATED_AT        TIMESTAMP_LTZ(6)  DEFAULT CURRENT_TIMESTAMP() COMMENT 'Snowflake 移行取込日時',
-
     CONSTRAINT PK_CUST_TRADE_DETAIL PRIMARY KEY (CUST_ID, TRADE_DATE, TRADE_TYPE_CD)
-)
-COMMENT = '顧客取引明細（Oracle 11g 移行先テーブル）';
+) COMMENT = '顧客取引明細（Oracle 11g 移行先テーブル）';
 
--- 最小特権の原則に基づき、アナリストロールへ SELECT 権限を付与
 GRANT SELECT ON TABLE CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST;
 
--- 作成結果の検証
-SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
 ```
 
-![Snowsight ステージ MITSUI_STAGE および移行対象2テーブル構築完了](../images/03_img_03.png)
+![Step 16-17: ステージと移行対象2テーブル構築および SHOW TABLES 結果](../images/03_step_16_17.png)
+
+> **実行結果の解説**：  
+> 右上コンテキストが `MITSUI_ENGINEER` / `MITSUI_WH` / `MITSUI_SEC_DB` / `RAW_ORACLE` となり、結果ペインに `CUST_TRADE_DETAIL` と `CUST_MASTER` が表示されます。所有者は `MITSUI_ENGINEER`、保持期間は 7 日として正常に完成しました。
 
 ---
 
@@ -366,34 +430,29 @@ SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
 ### 4.2 金融水準 MFA (多要素認証) の設定手順
 金融庁ガイドラインおよび金融機関のセキュリティ要件に基づき、**本番・検証を問わず Snowflake コンソールへアクセスする全特権・業務アカウントに MFA（TOTP 2要素認証）の設定が義務付けられています**：
 
-1. **設定画面への移動**：Snowsight 右上の Profile アイコンから **Preferences** $\to$ **Multi-Factor Authentication (MFA)** を選択；
+1. **設定画面への移動**：Snowsight 右上の Profile アイコンから **Preferences** $	o$ **Multi-Factor Authentication (MFA)** を選択；
 2. **認証方式の選択**：**Authenticator App (TOTP)** を選択；
 3. **シークレットキーの取得**：
    - 画面に QR コードおよび Base32 シークレットキー（`WQQC4ZYF...` など）が表示されます；
    - モバイル端末の **Google Authenticator** や **Microsoft Authenticator** でスキャンするか、開発専用端末ではオープンソースの PC 版 TOTP ツール [WinAuth](https://winauth.github.io/winauth/download.html) 等にキーをインポートします；
 4. **確認と有効化**：生成された 6 桁のワンタイムパスワードを入力し、バインドを完了します。
 
-### 4.3 業務ロールの切り替えと接続性セニティチェック (Sanity Check)
-SQL ワークシートにて以下の検証スクリプトを実行し、エンジニアロール `MITSUI_ENGINEER` が所定の権限を正しく保持しているかを確認します：
+### 4.3 業務ロールの切り替えと接続性セニティチェック (Step 18 & Step 19 核心検証)
+セキュリティ初期化完了後、SQL ワークシートにて以下の検証スクリプトを実行し、各ロールの境界を検証します：
+
+#### Step 18: エンジニア疎通検証 (Sanity Check - MITSUI_ENGINEER)
+エンジニアロールにおいて、一時テーブルを用いた軽量な読み書き疎通確認（サンドボックス検証）を実行します：
 
 ```sql
--- 1. 自身に付与されているロール一覧の確認
-SHOW ROLES;
-
--- 2. ロールに付与された詳細特権の確認
-SHOW GRANTS OF ROLE MITSUI_ENGINEER;
-
--- 3. プロジェクト環境へのコンテキスト切り替え
+-- ====================================================================
+-- 【Step 18: 疎通検証 (Sanity Check - MITSUI_ENGINEER)】
+-- 目的・理由: エンジニアロールのセッション安定性と DDL/DML 権限を実証。
+-- ====================================================================
 USE ROLE MITSUI_ENGINEER;
 USE WAREHOUSE MITSUI_WH;
 USE DATABASE MITSUI_SEC_DB;
 USE SCHEMA RAW_ORACLE;
 
--- 4. 移行対象 2 テーブルおよびステージの存在確認
-SHOW STAGES LIKE 'MITSUI_STAGE';
-SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
-
--- 5. 一時テーブルを用いた軽量な読み書き疎通確認（Sandbox検証）
 CREATE OR REPLACE TEMPORARY TABLE _SANITY_CHECK (
     CHECK_ID    INT,
     OPERATOR    VARCHAR(50),
@@ -404,25 +463,38 @@ INSERT INTO _SANITY_CHECK (CHECK_ID, OPERATOR) VALUES (1, CURRENT_USER());
 
 SELECT * FROM _SANITY_CHECK;
 
--- 検証後のクリーンアップ
 DROP TABLE IF EXISTS _SANITY_CHECK;
+```
 
--- 6. 読み取り専用アナリストロールへの切り替えと最小特権防御テスト (Least Privilege Verification)
+#### Step 19: アナリスト最小特権防御検証 (Least Privilege Defense - MITSUI_ANALYST)
+参照専用のアナリストロールへ切り替え、SELECT は正常実行でき、かつ不正な INSERT 書き込みはアクセス制御機構によって即時遮断されることを実証します：
+
+```sql
+-- ====================================================================
+-- 【Step 19: 最小特権防御検証 (Least Privilege Defense - MITSUI_ANALYST)】
+-- 目的・理由: アナリストが SELECT を実行可能であり、不正な INSERT は即座に遮断されることを検証。
+-- ====================================================================
 USE ROLE MITSUI_ANALYST;
 USE WAREHOUSE MITSUI_WH;
 USE DATABASE MITSUI_SEC_DB;
 USE SCHEMA RAW_ORACLE;
 
--- SELECT 照会は正常実行可能（空レコードが返却され、権限の保持を確認）
+-- 1. SELECT は許可されているため正常実行可能（0行返却で疎通確認）
 SELECT * FROM CUST_MASTER;
 
--- 不正な書き込み（INSERT）はアクセス制御機構により即座に遮断
+-- 2. INSERT 権限はないため、システムにより即座に遮断される（エラー発生が正常な防御）
 INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, OPEN_DATE) 
 VALUES ('TEST0001', '不正書込テスト', CURRENT_DATE());
--- 期待されるエラー：SQL compilation error: Object 'CUST_MASTER' does not exist or not authorized.
 ```
 
-![Snowsight 参照専用ロール MITSUI_ANALYST による不正書込の遮断検証](../images/03_img_04.png)
+![Step 18と19: 最小特権防御越権遮断エラー現場](../images/03_step_18_19.png)
+
+> **エラーメッセージ詳細解析**：  
+> ```text
+> SQL compilation error: Object 'CUST_MASTER' does not exist or not authorized. Your primary role MITSUI_ANALYST or one of your secondary roles must have at least one privilege granted on TABLE CUST_MASTER.
+> ```  
+> 画像の警告表示の通り、不正な書き込みリクエストはコンパイル段階で完全に遮断されます。  
+> **これにより最小特権の原則（Least Privilege）がクラウド上で厳格に機能していることが実証されました**。アナリストは安全にデータ閲覧のみ行え、人為的ミスや不正スクリプトによる本番データ改ざんリスクは根本から排除されます！
 
 ---
 
