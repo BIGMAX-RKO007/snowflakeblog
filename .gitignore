@@ -29,6 +29,8 @@ __pycache__/
 # Video generation & HyperFrames (Unrelated to Blog/Docs project)
 video_*/
 setup_*.py
+generate_*.py
+scripts/generate_*.py
 
 
 # Build Outputs & Exports
