@@ -1,9 +1,77 @@
 -- ==============================================================================
 -- 脚本名称: 02_seed_trades_data.sql
--- 业务场景: 银行证券 插入 CUST_TRADE_DETAIL 真实模拟与边界测试数据集
--- 包含场景: 国内股票、外汇、外国债券、极限值(999999999999999)、全角半角混在、跨年数据
+-- 业务场景: 银行证券 插入 CUST_MASTER (顾客主表) 与 CUST_TRADE_DETAIL (交易流水) 测试数据集
+-- 包含场景: 
+--   1. 顾客主表 13 条记录（包含 11 名有交易客户、1 名无交易客户、1 名空字符串状态客户）
+--   2. 交易流水 11 条记录（国内股票、外汇、外国债券、全 9 极限值、全角半角混在、跨年数据）
+--   3. 涵盖 CHAR(10) 空格补全、CHAR(2) 评级末尾空格、空字符串转 NULL 等跨表关联痛点
 -- ==============================================================================
 
+-- ============================================================
+-- 阶段一：清空历史数据
+-- ============================================================
+DELETE FROM CUST_TRADE_DETAIL;
+DELETE FROM CUST_MASTER;
+
+-- ============================================================
+-- 阶段二：灌入 CUST_MASTER (顧客基本台帳表 - 共 13 条)
+-- ============================================================
+-- 1. 常规优质客户 (佐藤 太郎)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00001234', '佐藤 太郎', 'サトウ タロウ', 'A ', '0001', '01', DATE '2020-01-15');
+
+-- 2. 外币交易客户 (鈴木 一郎)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00005678', '鈴木 一郎', 'スズキ イチロウ', 'A ', '0002', '01', DATE '2021-05-20');
+
+-- 3. 欧债客户 (高橋 優子)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00009999', '高橋 優子', 'タカハシ ユウコ', 'B ', '0003', '01', DATE '2019-11-10');
+
+-- 4. 机构超级客户 (三井 証券機構)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00000001', '三井 証券機構', 'ミツイ ショウケンキコウ', 'S ', '9999', '01', DATE '2010-04-01');
+
+-- 5. 极简默认值客户 (田中 健一)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00002222', '田中 健一', 'タナカ ケンイチ', 'C ', '0005', '01', DATE '2022-08-01');
+
+-- 6. 月次跑批客户 (伊藤 直樹)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00003333', '伊藤 直樹', 'イトウ ナオキ', 'C ', '0001', '01', DATE '2023-02-15');
+
+-- 7. 全角混排客户 (渡辺 裕美)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00004444', '渡辺 裕美', 'ワタナベ ヒロミ', 'B ', '0002', '01', DATE '2021-09-30');
+
+-- 8. 百字极限客户 (山本 拓也)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00004445', '山本 拓也', 'ヤマモト タクヤ', 'B ', '0002', '01', DATE '2021-10-01');
+
+-- 9. 订正订单客户 (小林 誠)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00005555', '小林 誠', 'コバヤシ マコト', 'B ', '0004', '01', DATE '2022-03-12');
+
+-- 10. 微汇率交易客户 (加藤 恵)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00006666', '加藤 恵', 'カトウ メグミ', 'C ', '0006', '01', DATE '2024-01-10');
+
+-- 11. 年末跨年客户 (吉田 勇)
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00007777', '吉田 勇', 'ヨシダ イサム', 'A ', '0001', '01', DATE '2018-06-25');
+
+-- 12. ★ 潜在开户无交易客户 (松本 潤) - 用于验证 LEFT JOIN 产生 NULL 的场景
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00008888', '松本 潤', 'マツモト ジュン', 'C ', '0003', '02', DATE '2024-11-01');
+
+-- 13. ★ 状态设为空字符串 '' 客户 (井上 陽水) - 用于验证 Oracle '' 隐式转 NULL 的异构陷阱
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
+VALUES ('CU00009990', '井上 陽水', 'イノウエ ヨウスイ', 'D ', '0004', '', DATE '2025-01-05');
+
+
+-- ============================================================
+-- 阶段三：灌入 CUST_TRADE_DETAIL (顧客取引明細表 - 共 11 条)
+-- ============================================================
 -- 1. 通常取引・国内株式
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
@@ -35,7 +103,7 @@ VALUES
  'CU00009999', '01', '0003', DATE '2025-03-27', DATE '2025-03-01',
  TO_DATE('2025-03-27 11:00:00','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 4. 境界値テスト・最大桁数（全9极限值）
+-- 4. 境界値テスト・最大桁数（全 9 极限值）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -52,7 +120,7 @@ INSERT INTO CUST_TRADE_DETAIL
 VALUES
 ('CU00002222', '02', '0005', DATE '2025-03-28');
 
--- 6. 金額0・数量0の取引（キャンセル・失効等想定）
+-- 6. 金額 0・数量 0 の取引（月次失効バッチ想定）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -73,7 +141,7 @@ VALUES
  'CU00004444', '01', '0002', DATE '2025-03-29', DATE '2025-03-01',
  TO_DATE('2025-03-29 13:45:12','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 8. 全角100文字境界値テスト（VARCHAR2(100 CHAR) 語義検証用）
+-- 8. 全角 100 文字境界値テスト（VARCHAR2(100 CHAR) 語義検証用）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -95,7 +163,7 @@ VALUES
  TO_DATE('2025-03-30 09:00:00','YYYY-MM-DD HH24:MI:SS'),
  TO_DATE('2025-03-31 16:30:00','YYYY-MM-DD HH24:MI:SS'));
 
--- 10. レート少数桁・低額通貨テスト（インドネシアルピア想定）
+-- 10. レート小数桁・低額通貨テスト（インドネシアルピア想定）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -116,7 +184,3 @@ VALUES
  TO_DATE('2024-12-31 23:58:59','YYYY-MM-DD HH24:MI:SS'), NULL);
 
 COMMIT;
-
--- 统计总览
-SELECT COUNT(*) AS TOTAL_ROWS, SUM(AMOUNT_JPY) AS SUM_JPY, SUM(TRADE_QTY) AS SUM_QTY
-FROM CUST_TRADE_DETAIL;

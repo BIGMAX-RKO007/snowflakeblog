@@ -1,11 +1,49 @@
 -- ==============================================================================
 -- 脚本名称: 01_create_schema.sql
--- 业务场景: 银行证券 Oracle 11g 源库顾客取引明细表 (CUST_TRADE_DETAIL) DDL
+-- 业务场景: 银行证券 Oracle 11g 源库双表架构 (CUST_MASTER + CUST_TRADE_DETAIL) DDL
 -- 容器环境: gvenzl/oracle-xe:11 (端口 1521, 密码 Mitsui_Sec_2026)
+-- 教学目标: 揭示异构数据库 (Oracle ➔ Snowflake) 在跨表 JOIN、CHAR 末尾空格、空串与 NULL 的底层差异
 -- ==============================================================================
 
 -- ============================================================
--- 1. 创建核心业务表: CUST_TRADE_DETAIL (顧客取引明細)
+-- 1. 创建维度主表: CUST_MASTER (顧客基本台帳)
+-- ============================================================
+CREATE TABLE CUST_MASTER (
+    -- ① 顧客識別子：CHAR(10) 固定長（传统勘定系核心系统遗留规范，自动右补空格陷阱测试）
+    CUST_ID            CHAR(10)          NOT NULL,
+
+    -- ② 顧客氏名（漢字）：全角文字
+    CUST_NAME_KANJI    VARCHAR2(50 CHAR) NOT NULL,
+
+    -- ③ 顧客氏名（カナ）：半角カナ・全角カナ混在
+    CUST_NAME_KANA     VARCHAR2(50 CHAR),
+
+    -- ④ 顧客ランク区分：CHAR(2) 固定長（'A ' / 'B ' 等末尾空白陷阱测试）
+    CUST_RANK_CD       CHAR(2)           DEFAULT 'C ' NOT NULL,
+
+    -- ⑤ 開設支店コード：VARCHAR2(4 CHAR)
+    BRANCH_CD          VARCHAR2(4 CHAR)  NOT NULL,
+
+    -- ⑥ 口座ステータス：VARCHAR2(2 CHAR)（Oracle '' 视为 NULL，而 Snowflake '' 为有效空串的陷阱测试）
+    STATUS_CD          VARCHAR2(2 CHAR),
+
+    -- ⑦ 口座開設日：DATE 型
+    OPEN_DATE          DATE              NOT NULL,
+
+    -- ⑧ 登録日時
+    REG_DATETIME       DATE              DEFAULT SYSDATE NOT NULL,
+
+    CONSTRAINT PK_CUST_MASTER PRIMARY KEY (CUST_ID)
+);
+
+COMMENT ON TABLE CUST_MASTER IS '顧客基本台帳（Oracle 11g 核心客户维度表）';
+COMMENT ON COLUMN CUST_MASTER.CUST_ID IS '顧客ID：CHAR(10) 固定長。不足桁は右空白パディングされるため、Snowflake移行時のJOIN不整合検証に活用';
+COMMENT ON COLUMN CUST_MASTER.CUST_RANK_CD IS '顧客ランク：CHAR(2) 固定長。末尾空白を含む比較評価の差異検証用';
+COMMENT ON COLUMN CUST_MASTER.STATUS_CD IS '口座状態：Oracleでは空文字''''がNULLとして扱われる挙動の検証用';
+
+
+-- ============================================================
+-- 2. 创建核心交易事实表: CUST_TRADE_DETAIL (顧客取引明細)
 -- ============================================================
 CREATE TABLE CUST_TRADE_DETAIL (
     -- ① 数値情報：初期設定（一般数値）

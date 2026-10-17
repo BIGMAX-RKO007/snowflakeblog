@@ -90,7 +90,43 @@ CREATE OR REPLACE STAGE MITSUI_STAGE
     FILE_FORMAT = CSV_ORACLE_IMPORT_FF
     COMMENT = '接收来自 Oracle 导出的中间受控暂存区';
 
--- 4.15：テーブル作成 (严格对应 Excel CUST_TRADE_DETAIL 转换规范)
+-- 4.15-A：テーブル作成: CUST_MASTER (顧客基本台帳 - 维度主表)
+CREATE OR REPLACE TABLE CUST_MASTER (
+    -- ① 顧客識別子：CHAR(10) -> VARCHAR(10) (末尾空白処理とRTRIMの検証用)
+    CUST_ID            VARCHAR(10)       NOT NULL COMMENT '顧客ID (CHAR(10)から移行)',
+
+    -- ② 顧客氏名（漢字）
+    CUST_NAME_KANJI    VARCHAR(50)       NOT NULL COMMENT '顧客氏名 (漢字全角)',
+
+    -- ③ 顧客氏名（カナ）
+    CUST_NAME_KANA     VARCHAR(50)       COMMENT '顧客氏名 (カナ)',
+
+    -- ④ 顧客ランク：CHAR(2) -> VARCHAR(2) (末尾空白比較の差異検証)
+    CUST_RANK_CD       VARCHAR(2)        DEFAULT 'C ' NOT NULL COMMENT '顧客ランク (A /B /C 等)',
+
+    -- ⑤ 開設支店コード
+    BRANCH_CD          VARCHAR(4)        NOT NULL COMMENT '支店コード',
+
+    -- ⑥ 口座ステータス：VARCHAR(2) (空文字 '' と NULL の異種検証)
+    STATUS_CD          VARCHAR(2)        COMMENT '口座状態 (01:有効, 02:休眠, NULL/空文字:未設定)',
+
+    -- ⑦ 口座開設日
+    OPEN_DATE          DATE              NOT NULL COMMENT '口座開設日',
+
+    -- ⑧ 登録日時
+    REG_DATETIME       TIMESTAMP_NTZ(6)  DEFAULT CURRENT_TIMESTAMP() NOT NULL COMMENT '登録日時',
+
+    -- 迁移审计字段
+    MIGRATED_AT        TIMESTAMP_LTZ(6)  DEFAULT CURRENT_TIMESTAMP() COMMENT 'Snowflake 移行取込日時',
+
+    CONSTRAINT PK_CUST_MASTER PRIMARY KEY (CUST_ID)
+)
+COMMENT = '顧客基本台帳（Oracle移行先 Snowflake設計）';
+
+GRANT SELECT ON TABLE CUST_MASTER TO ROLE MITSUI_ANALYST;
+
+
+-- 4.15-B：テーブル作成: CUST_TRADE_DETAIL (顧客取引明細 - 事实流水表)
 CREATE OR REPLACE TABLE CUST_TRADE_DETAIL (
     -- ① 取引数量：Number(15) -> NUMBER(15, 0)
     TRADE_QTY          NUMBER(15, 0)     DEFAULT 0 NOT NULL COMMENT '取引数量',
@@ -135,4 +171,5 @@ GRANT SELECT ON TABLE CUST_TRADE_DETAIL TO ROLE MITSUI_ANALYST;
 
 -- 验证创建结果
 SHOW STAGES LIKE 'MITSUI_STAGE';
-SHOW TABLES LIKE 'CUST_TRADE_DETAIL';
+SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
+
