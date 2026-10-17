@@ -4,7 +4,9 @@
 
 在前两章中，我们深入剖析了三井证券夜间跑批耗时严重超标的业务痛点（[第 00 章](00_architecture_overview.md)），并成功开通了全新的 Snowflake 企业级云数仓环境（[第 01 章](01_snowflake_signup.md)）。
 
-为了在零额外硬件成本的前提下开展真实、高保真且极具实战深度的迁移工程，本章将在本地通过 Docker 极速构建一个 **Oracle 11g 迁移源端沙箱**。特别地，我们不再停留在单表的肤浅演示，而是构建**两张具备 1:N 主从关联关系的典型金融核心表（`CUST_MASTER` 客户基本台账 + `CUST_TRADE_DETAIL` 客户交易明细）**，并精心埋设**末尾空格（Trailing Spaces）、空字符串（`''` vs `NULL`）、字符语义（CHAR vs BYTE）及全角半角混排**等企业迁移中最为致命的异构陷阱，为后续的受控建表、数据抽取与质量对账筑牢根基！
+为了在零额外硬件成本的前提下开展真实、高保真且极具实战深度的迁移工程，本章将在本地构建一个 **Oracle 11g 迁移源端沙箱**。本教程深度拥抱最新技术栈：不仅支持传统 **Docker**，更全面支持 Windows 最新内置的 **原生 WSL Containers (`wslc`)**。
+
+特别地，我们不再停留在单表的肤浅演示，而是构建**两张具备 1:N 主从关联关系的典型金融核心表（`CUST_MASTER` 客户基本台账 + `CUST_TRADE_DETAIL` 客户交易明细）**，并精心埋设**末尾空格（Trailing Spaces）、空字符串（`''` vs `NULL`）、字符语义（CHAR vs BYTE）及全角半角混排**等企业迁移中最为致命的异构陷阱，为后续的受控建表、数据抽取与质量对账筑牢根基！
 
 ---
 
@@ -25,11 +27,11 @@ flowchart LR
         direction TB
         M_SNOW[("CUST_MASTER<br/>(VARCHAR 变长规范化)")]
         T_SNOW[("CUST_TRADE_DETAIL<br/>(VARCHAR / 定点数对齐)")]
-        M_SNOW -. "JOIN 严格空格对齐" .- T_SNOW
+        M_SNOW -. "JOIN 严格空格与空值对齐" .- T_SNOW
     end
 
     Source ==>|第 04 章 CSV 导出与 PUT 上传| Target
-    Target -.->|第 05 章 单表 + 跨表双轨突合| AUDIT["四层递进式数据突合审计"]
+    Target -.->|第 05 章 双轨数据突合审计| AUDIT["四层递进式数据突合审计"]
 
     style Source fill:#f8fafc,stroke:#ea580c,stroke-width:1px
     style Target fill:#f0f9ff,stroke:#0284c7,stroke-width:1px
@@ -50,55 +52,74 @@ flowchart LR
 
 ---
 
-## 二、 🐳 Docker 安装与 Oracle 11g 容器生命周期管理
+## 二、 🐳 容器环境部署与生命周期管理 (原生 wslc / Docker)
 
-为了确保在 Windows (PowerShell/WSL2)、macOS 及 Linux 环境下均可无缝实操，我们选用业界广泛验证的精简版 `gvenzl/oracle-xe:11` 镜像。
+为满足不同操作系统的开发习惯，本教程提供 **Windows 原生 WSL Containers (`wslc`)** 与 **通用 Docker** 双套命令。选用业界公认高可靠的 `gvenzl/oracle-xe:11` 镜像。
 
-### 步骤 1：拉取 Oracle 11g XE 镜像
-在终端或 PowerShell 中执行镜像拉取：
-```bash
-docker pull gvenzl/oracle-xe:11
-```
+> [!TIP]
+> **💡 微软原生 WSL Containers (`wslc 3.0+`) 技术优势**：  
+> 微软将容器运行时直接下沉至 Windows 与 WSL 最底层。无需常驻后台重型虚拟机或 Docker Desktop 商业授权，启动耗时仅需数十秒，跨系统文件 I/O 提速约 2 倍，且命令参数与 Docker 保持高度兼容。
 
-### 步骤 2：启动容器与持久化配置
-配置共享内存 `--shm-size=1g`（防止 Oracle SGA 内存不足报错），映射标准服务端口 `1521`，并将数据卷挂载至本地，密码设置为 `Mitsui_Sec_2026`：
+### 步骤 1：拉取 Oracle 11g 镜像并启动容器
+
+配置共享内存 `--shm-size 1g`（防止 Oracle SGA 内存不足报错），映射端口 `1521`，密码设为 `Mitsui_Sec_2026`：
 
 ::: code-group
-```bash [PowerShell / Windows]
+```bash [Windows 原生 WSL Containers (wslc)]
+# 微软原生容器运行时 (WSL 3.0+ 原生命令)
+wslc run -d `
+  --name mitsui_oracle_11g `
+  -p 1521:1521 `
+  -e ORACLE_PASSWORD=Mitsui_Sec_2026 `
+  --shm-size 1G `
+  gvenzl/oracle-xe:11
+```
+
+```bash [PowerShell / Docker Desktop]
+# Windows Docker 命令
 docker run -d `
   --name mitsui_oracle_11g `
   --restart always `
   -e ORACLE_PASSWORD=Mitsui_Sec_2026 `
   -p 1521:1521 `
   --shm-size=1g `
-  -v "${PWD}/oradata":/opt/oracle/oradata `
   gvenzl/oracle-xe:11
 ```
 
 ```bash [Bash / Linux / macOS]
+# Linux / macOS Docker 命令
 sudo docker run -d \
   --name mitsui_oracle_11g \
   --restart always \
   -e ORACLE_PASSWORD=Mitsui_Sec_2026 \
   -p 1521:1521 \
   --shm-size=1g \
-  -v "$PWD/oradata":/opt/oracle/oradata \
   gvenzl/oracle-xe:11
 ```
 :::
 
-### 步骤 3：容器健康状态检测
-Oracle 容器在首次初始化数据库时需耗时 1~2 分钟，可通过以下命令查看启动日志：
-```bash
-docker logs -f mitsui_oracle_11g
+### 步骤 2：查看容器状态与就绪日志
+
+::: code-group
+```bash [wslc]
+wslc ps
+wslc logs --tail 20 mitsui_oracle_11g
 ```
-当终端输出日志中出现如下标志性语句时，表示数据库已完全就绪：
+
+```bash [docker]
+docker ps
+docker logs --tail 20 mitsui_oracle_11g
+```
+:::
+
+当日志中出现如下标志性语句时，表示数据库已完全就绪：
 ```text
+ORACLE instance started.
+Completed: ALTER DATABASE OPEN
 #########################
 DATABASE IS READY TO USE!
 #########################
 ```
-此时按 `Ctrl + C` 退出日志跟踪即可。
 
 ---
 
@@ -114,7 +135,7 @@ DATABASE IS READY TO USE!
 | :--- | :--- | :--- |
 | **Connection Type** | `Oracle` | 选择标准 Oracle 驱动协议 |
 | **Host** | `127.0.0.1` | 本地宿主机回环地址（WSL2 用户亦可直接使用 localhost） |
-| **Port** | `1521` | Docker 映射端口 |
+| **Port** | `1521` | 映射端口 |
 | **Database / SID** | `xe` | Oracle 11g Express Edition 默认实例服务名 |
 | **Username** | `system` | 系统管理员账号 |
 | **Password** | `Mitsui_Sec_2026` | 启动容器时指定的高强度密码 |
@@ -127,9 +148,7 @@ DATABASE IS READY TO USE!
 ![连接成功效果](../images/02_img_02.png)
 
 > [!TIP]
-> **DBeaver 用户快捷连接字符串**：  
-> 若习惯使用 DBeaver，驱动选择 `Oracle`，JDBC 连接 URL 为：  
-> `jdbc:oracle:thin:@//localhost:1521/xe`，用户名为 `system`，测试连接通过后即可执行 SQL。
+> **DBeaver 快捷连接**：驱动选择 `Oracle`，JDBC URL 为 `jdbc:oracle:thin:@//localhost:1521/xe`，用户名为 `system`。
 
 ---
 
@@ -235,8 +254,8 @@ COMMENT ON TABLE CUST_TRADE_DETAIL IS '顧客取引明細（Oracle 11g 迁移源
 
 ## 五、 🧪 金融级双表测试数据集深度解析与批量注入
 
-我们精心构造了两张表的测试数据集：
-1. **主表 `CUST_MASTER`（共 13 条）**：覆盖 11 名有交易客户、1 名新开户但无交易客户（测试 LEFT JOIN 产生 NULL）、1 名状态存入 `''` 客户（测试 Oracle 空串转 NULL）；
+我们设计了高覆盖率的双表测试数据集：
+1. **主表 `CUST_MASTER`（共 13 条）**：覆盖 11 名有交易客户、1 名新开户但无交易客户（`CU00008888` 松本 润，测试 LEFT JOIN 产生 NULL）、1 名状态存入 `''` 客户（`CU00009990` 井上 阳水，测试 Oracle 空串转 NULL）；
 2. **事实表 `CUST_TRADE_DETAIL`（共 11 条）**：覆盖国内股票、外汇、外国债券、全 9 极限值、全角百字边界、超微额汇率与跨年交易。
 
 ### 批量注入完整 SQL 实操
@@ -338,7 +357,7 @@ VALUES
  'CU00000001', '01', '9999', DATE '2025-01-01', DATE '2025-01-01',
  TO_DATE('2025-01-01 00:00:00','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 5. 最小限必須項目のみ（各項目初期値の確認）
+-- 5. 最小限必須項目のみ（各項目初期值的确认）
 INSERT INTO CUST_TRADE_DETAIL
 (CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE)
 VALUES
@@ -397,7 +416,7 @@ VALUES
  'CU00006666', '01', '0006', DATE '2025-04-01', DATE '2025-04-01',
  TO_DATE('2025-04-01 08:30:00','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 11. 年末最終営業日取引（日付・時刻境界テスト）
+-- 11. 年末最終営業日取引（日付・时刻边界测试）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -412,7 +431,7 @@ COMMIT;
 
 ---
 
-## 六、 🎯 确立单表与跨表 JOIN“双轨黄金基准” (直通第 05 章)
+## 六、 🎯 实测验证：单表与跨表 JOIN“双轨黄金基准” (直通第 05 章)
 
 数据插入完成后，在 Oracle 源端立即执行双轨基准测试查询，记录下源端的不可变输出：
 
@@ -455,15 +474,18 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 
 ---
 
-### 📋 验收黄金基准对照表 (Golden Baseline Matrix)
+### 📋 实测验收黄金基准对照表 (Golden Baseline Matrix)
+
+以下数据为在本地真实 Oracle 11g 容器中实测执行产出的不可变基准值：
 
 | 审计维度 | Oracle 源端不可变基准值 (Baseline) | 跨数据库异构验证目的 |
 | :--- | :--- | :--- |
 | **客户主表行数** | **`13` 条** | 确保维度主表数据完整无缺 |
 | **交易明细行数** | **`11` 条** | 确保交易事实表数据完整无缺 |
 | **INNER JOIN 关联行数** | **`11` 条** | **验证两表 `CUST_ID` 是否因空格补全导致 JOIN 失配** |
-| **JOIN 后成交数量总计** | **`1,000,000,000,002,160` 株** | 验证关联后数量总和无膨胀、无丢失 |
-| **JOIN 后日元金额总计** | **`1,000,000,042,396,878.900` 円** | 验证关联后金额总和无丢失 |
+| **JOIN 后成交数量总计** | **`1,000,000,000,003,159` 株** | 验证关联后数量总和无膨胀、无丢失 |
+| **JOIN 后日元金额总计** | **`1,000,000,042,496,878.899` 円** | 验证关联后金额总和无丢失 |
+| **外币金额总计** | **`1,000,000,000,071,000.499`** | 验证多币种外汇金额总和绝对一致 |
 | **`CUST_RANK_CD = 'A'` 命中数** | **`3` 条** (Oracle 原生) | **★ 关键异构断层**：在 Snowflake 中若未做 `RTRIM` 将查出 0 条！ |
 | **`STATUS_CD IS NULL` 命中数** | **`1` 条** (Oracle 原生) | **★ 关键异构断层**：验证 Snowflake 是否正确配置空串转 NULL |
 
@@ -475,7 +497,7 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 
 ## 七、 本章小结与后续章节导航
 
-本章在本地 Docker 环境中成功搭建起了 100% 高保真的 Oracle 11g 金融核心业务源库，创建了典型的 **`CUST_MASTER` 维度主表** 与 **`CUST_TRADE_DETAIL` 事实流水表**，灌入了高覆盖率的双表测试数据，并确立了字段转换哲学与跨表 JOIN 黄金基准。
+本章在本地环境中成功搭建起了 100% 高保真的 Oracle 11g 金融核心业务源库，创建了典型的 **`CUST_MASTER` 维度主表** 与 **`CUST_TRADE_DETAIL` 事实流水表**，灌入了高覆盖率的双表测试数据，并确立了字段转换哲学与跨表 JOIN 黄金基准。
 
 在接下来的章节中，我们将正式开启云端建设与迁移战役：
 - 👉 **[第 03 章：Snowflake 企业级 RBAC 权限设计与环境搭建实战](03_snowflake_rbac_setup.md)**：使用 `USERADMIN` 和 `SYSADMIN` 双轨角色，在 Snowflake 端严格落地三井证券三层业务角色体系，并根据本章确立的转换哲学创建 `MITSUI_STAGE` 以及目标双表 `CUST_MASTER` 与 `CUST_TRADE_DETAIL`！

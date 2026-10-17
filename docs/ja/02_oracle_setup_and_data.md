@@ -4,7 +4,9 @@
 
 前章までにおいて、三井証券における夜間バッチ処理の遅延・超過という深刻な業務課題を整理し（[第 00 章](00_architecture_overview.md)）、クラウド側となる Snowflake エンタープライズ評価環境の開設を完了しました（[第 01 章](01_snowflake_signup.md)）。
 
-本章では、単なる単一テーブルの形式的なコピーにとどまらず、実際の金融業務に忠実な **1:N 主従リレーションシップを持つ 2 テーブル構成（`CUST_MASTER` 顧客基本台帳 ＋ `CUST_TRADE_DETAIL` 顧客取引明細）** を構築します。そして、異種データベース移行（Oracle ➔ Snowflake）において現場を最も悩ませる **「末尾空白パディング（Trailing Spaces）」「空文字（`''` vs `NULL`）」「文字数語義（CHAR vs BYTE）」「全角半角混在」** という 4 つの致命的トラップをあらかじめ組み込み、堅牢な検証基盤を確立します。
+本章では、単なる単一テーブルの形式的なコピーにとどまらず、実際の金融業務に忠実な **1:N 主従リレーションシップを持つ 2 テーブル構成（`CUST_MASTER` 顧客基本台帳 ＋ `CUST_TRADE_DETAIL` 顧客取引明細）** を構築します。環境構築においては、従来の **Docker** に加え、最新の Windows に標準搭載された **ネイティブ WSL Containers (`wslc`)** にも完全対応しています。
+
+さらに、異種データベース移行（Oracle ➔ Snowflake）において現場を最も悩ませる **「末尾空白パディング（Trailing Spaces）」「空文字（`''` vs `NULL`）」「文字数語義（CHAR vs BYTE）」「全角半角混在」** という 4 つの致命的トラップをあらかじめ組み込み、堅牢な検証基盤を確立します。
 
 ---
 
@@ -50,55 +52,74 @@ flowchart LR
 
 ---
 
-## 二、 🐳 Docker による Oracle 11g コンテナ起動とライフサイクル管理
+## 二、 🐳 コンテナ環境の起動とライフサイクル管理 (wslc / Docker)
 
-Windows (PowerShell/WSL2)、macOS、Linux の各環境で確実に動作させるため、実績豊富な軽量イメージ `gvenzl/oracle-xe:11` を採用します。
+あらゆる OS 環境に対応するため、**Windows ネイティブ WSL Containers (`wslc`)** と **汎用 Docker** の両コマンドに対応しています。実績豊富な `gvenzl/oracle-xe:11` イメージを使用します。
 
-### ステップ 1：Oracle 11g XE イメージの取得
-ターミナルまたは PowerShell を開き、以下のコマンドを実行します：
-```bash
-docker pull gvenzl/oracle-xe:11
-```
+> [!TIP]
+> **💡 マイクロソフト原生 WSL Containers (`wslc 3.0+`) の優位性**：  
+> コンテナランタイムが Windows / WSL のコア層にネイティブ統合されています。常駐バックグラウンド仮想マシンや Docker Desktop の商用ライセンスが不要で、起動が極めて高速、クロスファイルシステム I/O が約 2 倍高速化されます。
 
-### ステップ 2：コンテナ起動とデータ永続化設定
-SGA メモリ不足を防ぐため `--shm-size=1g` を指定し、標準ポート `1521` を公開、データをローカルディレクトリにマウントして起動します（パスワード：`Mitsui_Sec_2026`）：
+### ステップ 1：イメージ取得とコンテナ起動
+
+SGA メモリ不足を防ぐため `--shm-size 1G` を指定し、ポート `1521` を公開、パスワードを `Mitsui_Sec_2026` に設定して起動します：
 
 ::: code-group
-```bash [PowerShell / Windows]
+```bash [Windows ネイティブ WSL Containers (wslc)]
+# マイクロソフト純正コンテナコマンド (WSL 3.0+ ネイティブ)
+wslc run -d `
+  --name mitsui_oracle_11g `
+  -p 1521:1521 `
+  -e ORACLE_PASSWORD=Mitsui_Sec_2026 `
+  --shm-size 1G `
+  gvenzl/oracle-xe:11
+```
+
+```bash [PowerShell / Docker Desktop]
+# Windows Docker コマンド
 docker run -d `
   --name mitsui_oracle_11g `
   --restart always `
   -e ORACLE_PASSWORD=Mitsui_Sec_2026 `
   -p 1521:1521 `
   --shm-size=1g `
-  -v "${PWD}/oradata":/opt/oracle/oradata `
   gvenzl/oracle-xe:11
 ```
 
 ```bash [Bash / Linux / macOS]
+# Linux / macOS Docker コマンド
 sudo docker run -d \
   --name mitsui_oracle_11g \
   --restart always \
   -e ORACLE_PASSWORD=Mitsui_Sec_2026 \
   -p 1521:1521 \
   --shm-size=1g \
-  -v "$PWD/oradata":/opt/oracle/oradata \
   gvenzl/oracle-xe:11
 ```
 :::
 
-### ステップ 3：コンテナの起動状態・ヘルスチェック
-初回起動時はデータベースの初期化に 1〜2 分程度を要します。ログを監視して起動完了を確認します：
-```bash
-docker logs -f mitsui_oracle_11g
+### ステップ 2：コンテナ起動状態と稼働ログの確認
+
+::: code-group
+```bash [wslc]
+wslc ps
+wslc logs --tail 20 mitsui_oracle_11g
 ```
+
+```bash [docker]
+docker ps
+docker logs --tail 20 mitsui_oracle_11g
+```
+:::
+
 ログ末尾に以下のメッセージが出力されれば、データベースの準備は完了です：
 ```text
+ORACLE instance started.
+Completed: ALTER DATABASE OPEN
 #########################
 DATABASE IS READY TO USE!
 #########################
 ```
-確認後、`Ctrl + C` を押してログ監視を終了します。
 
 ---
 
@@ -114,7 +135,7 @@ VSCode の拡張機能マーケットプレイスから **Database Client**（�
 | :--- | :--- | :--- |
 | **Connection Type** | `Oracle` | 標準の Oracle 接続プロトコル |
 | **Host** | `127.0.0.1` | ローカルホスト（WSL2 環境からも localhost で到達可能） |
-| **Port** | `1521` | Docker が公開している通信ポート |
+| **Port** | `1521` | ポート |
 | **Database / SID** | `xe` | Oracle 11g Express Edition の既定インスタンス名 |
 | **Username** | `system` | データベース管理者アカウント |
 | **Password** | `Mitsui_Sec_2026` | コンテナ起動時に指定したパスワード |
@@ -127,9 +148,7 @@ VSCode の拡張機能マーケットプレイスから **Database Client**（�
 ![接続成功](../images/02_img_02.png)
 
 > [!TIP]
-> **DBeaver を使用する場合の JDBC 接続文字列**：  
-> DBeaver で接続する場合、ドライバに `Oracle` を選択し、JDBC URL として以下を指定します：  
-> `jdbc:oracle:thin:@//localhost:1521/xe`（ユーザー名：`system`）。
+> **DBeaver 接続文字列**：ドライバに `Oracle`、JDBC URL `jdbc:oracle:thin:@//localhost:1521/xe`、ユーザー名 `system`。
 
 ---
 
@@ -229,6 +248,7 @@ COMMENT ON TABLE CUST_TRADE_DETAIL IS '顧客取引明細（Oracle 11g 移行元
 | **約定日** | `TRADE_DATE DATE` | `VARCHAR(8)` (YYYYMMDD) | **日付の正規化・文字列スカラー化**：Oracle の `DATE` は内部的に時分秒を含んでいます。Snowflake の分析基盤では、日次キーとして扱いやすく、パーティションプルーニングを最大化するため 8 桁固定文字列 `YYYYMMDD` に変換します。 |
 | **決済月** | `SETTLE_MONTH DATE` | `VARCHAR(6)` (YYYYMM) | 月次集計キーとして `YYYYMM` 形式の 6 桁文字列に正規化。 |
 | **登録日時** | `REG_DATETIME DATE` | `TIMESTAMP_NTZ(6)` | **秒精度からマイクロ秒精度への進化**：Oracle DATE（秒精度）から、Snowflake ではタイムゾーンなしのマイクロ秒精度タイムスタンプ `TIMESTAMP_NTZ(6)` へ拡張。 |
+| **更新日時** | `UPD_DATETIME DATE` | `TIMESTAMP_NTZ(6)` | 変更履歴監査の保持。 |
 | **移行監査** | *(移行元にはなし)* | `MIGRATED_AT TIMESTAMP_LTZ(6)` | **★ クラウド移行専用列**：Snowflake 側で追加する物理取込日時列。既定値 `CURRENT_TIMESTAMP()` により、監査証跡・データリネージを自動保証。 |
 
 ---
@@ -236,7 +256,7 @@ COMMENT ON TABLE CUST_TRADE_DETAIL IS '顧客取引明細（Oracle 11g 移行元
 ## 五、 🧪 金融級 2 テーブル・テストデータセットの解説と投入
 
 以下の 2 テーブル構成でテストデータを投入します：
-1. **主表 `CUST_MASTER`（計 13 件）**：取引実績のある 11 名の顧客、新規開設で取引のない顧客 1 名（LEFT JOIN による NULL 発生検証用）、口座状態に `''` を登録した顧客 1 名（Oracle の空文字→NULL 挙動検証用）；
+1. **主表 `CUST_MASTER`（計 13 件）**：取引実績のある 11 名の顧客、新規開設で取引のない顧客 1 名（`CU00008888` 松本 潤、LEFT JOIN での NULL 発生検証用）、口座状態に `''` を設定した顧客 1 名（`CU00009990` 井上 陽水、Oracle の空文字→NULL 挙動検証用）；
 2. **ファクト表 `CUST_TRADE_DETAIL`（計 11 件）**：国内株式、外貨、欧州債券、全 9 限界値、全角 100 文字限界値、超極小レート、および年末年越取引。
 
 ### 一括投入 SQL スクリプト
@@ -412,7 +432,7 @@ COMMIT;
 
 ---
 
-## 六、 🎯 単表・跨テーブル結合「2 系統黄金基準値 (Dual-Track Baseline)」の確立
+## 六、 🎯 実機検証：単表・跨テーブル結合「2 系統黄金基準値 (Dual-Track Baseline)」の確立
 
 データ投入完了後、Oracle 側で以下の検証クエリを実行し、移行元の不変の集計フィンガープリントを取得します：
 
@@ -455,17 +475,20 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 
 ---
 
-### 📋 検証用黄金基準値マトリクス (Golden Baseline Matrix)
+### 📋 実機検証済み黄金基準値マトリクス (Golden Baseline Matrix)
 
-| 突合監査指標 (Metrics) | Oracle 移行元基準値 (Baseline) | 異種 DB 移行における検証目的 |
+以下の数値は、ローカル Oracle 11g 実機コンテナ環境での実行結果から取得された不変の基準値です：
+
+| 突合監査指標 (Metrics) | Oracle 移行元実測基準値 (Baseline) | 異種 DB 移行における検証目的 |
 | :--- | :--- | :--- |
 | **顧客マスタ件数** | **`13` 件** | ディメンション主表の完全性を保証 |
 | **約定明細件数** | **`11` 件** | ファクト実績表の完全性を保証 |
 | **INNER JOIN 結合件数** | **`11` 件** | **`CUST_ID` の空白パディングによる結合脱落なきことを実証** |
-| **結合後約定数量合計** | **`1,000,000,000,002,160` 株** | 結合処理に伴う数量の二重カウント・脱落がないことを確認 |
-| **結合後円貨金額合計** | **`1,000,000,042,396,878.900` 円** | 結合処理に伴う金額精度の保持を確認 |
+| **結合後約定数量合計** | **`1,000,000,000,003,159` 株** | 結合処理に伴う数量の二重カウント・脱落がないことを確認 |
+| **結合後円貨金額合計** | **`1,000,000,042,496,878.899` 円** | 結合処理に伴う金額精度の保持を確認 |
+| **外貨約定代金合計** | **`1,000,000,000,071,000.499`** | 複数外貨混在環境下での合算精度を保持 |
 | **`CUST_RANK_CD = 'A'` 件数** | **`3` 件** (Oracle 原生) | **★ 異種断層**：Snowflake では RTRIM を行わないと 0 件に転落する重要検証項目 |
-| **`STATUS_CD IS NULL` 件数** | **`1` 件** (Oracle 原生) | **★ 異種断層**：Snowflake で空文字が適切に NULL として扱われるかを検証 |
+| **`STATUS_CD IS NULL` 件数** | **`1` 件** (Oracle 原生) | **★ 异種断層**：Snowflake で空文字が適切に NULL として扱われるかを検証 |
 
 > [!IMPORTANT]
 > **後続章への絶対的コミットメント**：  
@@ -475,7 +498,7 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 
 ## 七、 本章のまとめと次章ナビゲーション
 
-本章を通じて、ローカル Docker 環境上に忠実な Oracle 11g 金融コア業務データベースを構築し、典型的な **`CUST_MASTER` 顧客マスタ** と **`CUST_TRADE_DETAIL` 取引明細** の 2 テーブル構成を整備しました。末尾空白や空文字といった異種 DB の核心的トラップを織り込んだテストデータを投入し、跨テーブル結合の黄金基準値を確立しました。
+本章を通じて、ローカル環境上に忠実な Oracle 11g 金融コア業務データベースを構築し、典型的な **`CUST_MASTER` 顧客マスタ** と **`CUST_TRADE_DETAIL` 取引明細** の 2 テーブル構成を整備しました。末尾空白や空文字といった異種 DB の核心的トラップを織り込んだテストデータを投入し、跨テーブル結合の黄金基準値を確立しました。
 
 次章より、いよいよクラウド側（Snowflake）の本格構築とデータ移行実務へ突入します：
 - 👉 **[第 03 章：3 層 RBAC 権限モデルと環境構築実戦](03_snowflake_rbac_setup.md)**：`USERADMIN` と `SYSADMIN` の役割分担のもと、三井証券の 3 層業務ロール（ADMIN / ENGINEER / ANALYST）を構築し、本章の設計思想に則ったステージ `@MITSUI_STAGE` およびターゲット 2 テーブル `CUST_MASTER` と `CUST_TRADE_DETAIL` を作成します！
