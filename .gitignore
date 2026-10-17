@@ -48,3 +48,5 @@ oradata/
 
 # Temporary upload folder
 upd/
+.backup/
+docs/images/.backup/
