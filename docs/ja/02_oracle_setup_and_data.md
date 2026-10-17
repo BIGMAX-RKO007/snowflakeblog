@@ -52,7 +52,62 @@ flowchart LR
 
 ---
 
-## 二、 🐳 コンテナ環境の起動とライフサイクル管理 (wslc / Docker)
+## 二、 🏛️ Oracle の基本アーキテクチャ哲学と三井証券専用スキーマ体系
+
+構築作業に着手する前に、**Oracle 固有のアーキテクチャ哲学** と、現代のクラウド DWH である **Snowflake** との本質的な相違点を明確に整理しておきます。
+
+### 2.1 Oracle vs Snowflake コア概念マッピング対比
+
+従来の Oracle DBA は「データベース」「インスタンス」「スキーマ」を同義のように扱いがちですが、クラウド移行においては階層境界の正確な理解が不可欠です：
+
+| アーキテクチャ階層 | Oracle 11g (オンプレミス移行元) | Snowflake (クラウド移行先) | 設計思想の深層対比 |
+| :--- | :--- | :--- | :--- |
+| **コンピュートとストレージ** | **密結合アーキテクチャ** (Shared-Disk / Instance)<br/>共有メモリ SGA ＋ バックグラウンドプロセス ＋ 物理データファイル (`.dbf`) | **完全分離アーキテクチャ** (Decoupled)<br/>クラウドオブジェクトストレージ ＋ 弾力的な仮想ウェアハウス (Virtual Warehouse) | Oracle のスケールアウトには高コストな RAC や計画停止が必要ですが、Snowflake は秒単位で柔軟に起動・停止・サイジング変更が可能です。 |
+| **インスタンスとデータベース** | **SID / サービス名 (`XE`)**<br/>1 インスタンスが 1 つのグローバルデータベースを管轄 | **アカウント ➔ データベース (`DATABASE`)**<br/>1 アカウント内に数百の独立した論理データベースを作成可能 | Oracle のインスタンスはプロセスとメモリ群を指し、Snowflake の DB は純粋なメタデータ管理境界です。 |
+| **ユーザーとスキーマ (User vs Schema)** | **User $\equiv$ Schema（等価哲学）**<br/>`CREATE USER MITSUI_SRC` を実行すると、**同名のスキーマが自動作成** されます。 | **厳格な分離**<br/>ユーザーは認証エンティティ、スキーマはデータベース配下のオブジェクト格納コンテナ（`DB.SCHEMA`） | Oracle ではオブジェクトは作成ユーザーに帰属しますが、Snowflake では所有権はロール（Role）に紐づきます。 |
+| **物理ストレージ管理** | **表領域 (Tablespace) ＋ クォータ**<br/>`USERS` や `TEMP` のデータファイルサイズや拡張上限の設計・運用が必須 | **ゼロストレージ運用 (Zero Storage Ops)**<br/>マイクロパーティションにより完全マネージド化。表領域設計は一切不要 | クラウド移行により「表領域枯渇による業務停止」リスクから完全に解放されます。 |
+| **セキュリティ・権限モデル** | **システム権限 ＋ オブジェクト権限 ＋ ロール (Role)**<br/>`GRANT SELECT ON ... TO ...` | **階層型ロールベースアクセス制御 (Discretionary RBAC)**<br/>ロールの継承ツリーを通じて権限を厳格に集約 | 両者ともにロールベース権限管理をサポートしており、金融レベルのセキュリティ統制を実現します。 |
+
+### 2.2 標準 3 階層ネームスペース（3-Part Namespace Mapping）
+
+両システム間で**1対1の厳密なトレーサビリティ**を確保するため、移行元と移行先で以下の 3 階層ネームスペースを標準化します：
+
+```mermaid
+flowchart TD
+    subgraph ORA_NS ["Oracle 側 3 階層ネームスペース (SID.SCHEMA.TABLE)"]
+        O_INST["インスタンス (SID): XE"]
+        O_SCH["スキーマ (Schema/User): MITSUI_SRC"]
+        O_T1["XE.MITSUI_SRC.CUST_MASTER"]
+        O_T2["XE.MITSUI_SRC.CUST_TRADE_DETAIL"]
+        O_INST --> O_SCH --> O_T1 & O_T2
+    end
+
+    subgraph SNOW_NS ["Snowflake 側 3 階層ネームスペース (DB.SCHEMA.TABLE)"]
+        S_DB["データベース (DB): MITSUI_SEC_DB"]
+        S_SCH["スキーマ (Schema): RAW_ORACLE"]
+        S_T1["MITSUI_SEC_DB.RAW_ORACLE.CUST_MASTER"]
+        S_T2["MITSUI_SEC_DB.RAW_ORACLE.CUST_TRADE_DETAIL"]
+        S_DB --> S_SCH --> S_T1 & S_T2
+    end
+
+    O_T1 ==>|全件移行・同期| S_T1
+    O_T2 ==>|全件移行・同期| S_T2
+
+    style ORA_NS fill:#fdf4ff,stroke:#c026d3,stroke-width:1px
+    style SNOW_NS fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+```
+
+### 2.3 金融レベルの最小特権の原則（Principle of Least Privilege）
+
+金融本番環境において、**データ抽出パイプラインにスーパーユーザー（`SYS` / `SYSTEM`）を直接接続することは厳禁** です。抽出スクリプトの不具合や誤操作によるテーブル破壊を防止するため、職務分掌（SoD）を徹底します：
+
+1. **スキーマ所有者 `MITSUI_SRC`**：業務テーブルの作成・保守専用。DDL および DML の全権限を保有；
+2. **参照専用ロール `ROLE_MITSUI_READ`**：`SELECT ON MITSUI_SRC.CUST_*` の参照権限のみを付与；
+3. **抽出専用ユーザー `MITSUI_EXTRACTOR`**：`ROLE_MITSUI_READ` を継承した ETL 抽出専用アカウント。誤って `DELETE` や `DROP` を実行しても Oracle カーネルが即座に拒絶し、移行元の健全性を担保します。
+
+---
+
+## 三、 🐳 コンテナ環境の起動とライフサイクル管理 (wslc / Docker)
 
 あらゆる OS 環境に対応するため、**Windows ネイティブ WSL Containers (`wslc`)** と **汎用 Docker** の両コマンドに対応しています。実績豊富な `gvenzl/oracle-xe:11` イメージを使用します。
 
@@ -98,7 +153,7 @@ sudo docker run -d \
 ```
 :::
 
-### ステップ 2：コンテナ起動状態と稼働ログの確認
+### ステップ 2：コンテナ起動状態とログ確認
 
 ::: code-group
 ```bash [wslc]
@@ -112,7 +167,7 @@ docker logs --tail 20 mitsui_oracle_11g
 ```
 :::
 
-ログ末尾に以下のメッセージが出力されれば、データベースの準備は完了です：
+ログに以下のメッセージが出力されれば、データベースの準備は完了です：
 ```text
 ORACLE instance started.
 Completed: ALTER DATABASE OPEN
@@ -123,44 +178,94 @@ DATABASE IS READY TO USE!
 
 ---
 
-## 三、 🔌 統合開発ツールによる疎通確認 (VSCode / DBeaver)
+## 四、 🔐 企業級スキーマ・ユーザーと読み取り専用ロールの初期化
 
-[第 01 章第 6 節](01_snowflake_signup.md#六-アカウント識別体系とクライアント接続エコシステム-account-identifier--ecosystem) で解説したように、現代のデータエンジニアリングでは単一の統合ツールから異種データベースを一括管理するのがベストプラクティスです。ここでは VSCode 内の **Database Client** 拡張機能、または汎用の **DBeaver** を使用します。
+コンテナの準備が整ったら、管理者 `SYSTEM` で接続し、スキーマ・ユーザー・ロール初期化スクリプトを実行します（リポジトリ内 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
 
-### 1. VSCode Database Client による接続設定
+```sql
+-- ==============================================================================
+-- スクリプト名: 00_init_user_and_permissions.sql
+-- 業務シナリオ: 三井証券 Oracle 11g 移行元ユーザー・ロール・スキーマと最小特権初期化
+-- 実行ユーザー: SYSTEM (特権管理者)
+-- マッピング対象: MITSUI_SRC (スキーマ所有者) と MITSUI_EXTRACTOR (抽出専用アカウント)
+-- ==============================================================================
 
-VSCode の拡張機能マーケットプレイスから **Database Client**（または Database Client JDBC）をインストールし、新しい Oracle 接続を作成します：
+SET SQLBLANKLINES ON;
+SET DEFINE OFF;
 
-| 設定項目 | 入力値 | 備考 |
-| :--- | :--- | :--- |
-| **Connection Type** | `Oracle` | 標準の Oracle 接続プロトコル |
-| **Host** | `127.0.0.1` | ローカルホスト（WSL2 環境からも localhost で到達可能） |
-| **Port** | `1521` | ポート |
-| **Database / SID** | `xe` | Oracle 11g Express Edition の既定インスタンス名 |
-| **Username** | `system` | データベース管理者アカウント |
-| **Password** | `Mitsui_Sec_2026` | コンテナ起動時に指定したパスワード |
+-- ============================================================
+-- 1. 三井証券業務スキーマ所有者 (MITSUI_SRC) の作成
+-- 注：Oracle においては、ユーザー作成が同名スキーマの作成と等価です
+-- ============================================================
+CREATE USER MITSUI_SRC IDENTIFIED BY Mitsui_Sec_2026
+    DEFAULT TABLESPACE USERS
+    TEMPORARY TABLESPACE TEMP
+    QUOTA UNLIMITED ON USERS;
+
+-- 基本接続・テーブル作成権限の付与
+GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE TO MITSUI_SRC;
+
+-- ============================================================
+-- 2. 金融参照専用ロール (ROLE_MITSUI_READ) と抽出アカウント (MITSUI_EXTRACTOR) の作成
+-- 目的: 金融セキュリティ基準および職務分掌 (SoD) に準拠し、ETL パイプラインでの特権接続を排除
+-- ============================================================
+CREATE ROLE ROLE_MITSUI_READ;
+
+CREATE USER MITSUI_EXTRACTOR IDENTIFIED BY Mitsui_Sec_2026
+    DEFAULT TABLESPACE USERS
+    TEMPORARY TABLESPACE TEMP;
+
+GRANT CREATE SESSION TO MITSUI_EXTRACTOR;
+GRANT ROLE_MITSUI_READ TO MITSUI_EXTRACTOR;
+
+-- 作成結果の検証クエリ
+SELECT USERNAME, ACCOUNT_STATUS, DEFAULT_TABLESPACE, CREATED 
+FROM DBA_USERS 
+WHERE USERNAME IN ('MITSUI_SRC', 'MITSUI_EXTRACTOR');
+
+COMMIT;
+```
+
+---
+
+## 五、 🔌 統合開発環境からの接続確認 (VSCode / DBeaver)
+
+[第 01 章第 6 節](01_snowflake_signup.md#六-アカウント識別子体系とクライアント接続エコシステム-account-identifier--ecosystem) で整理したクライアントエコシステムに基づき、VSCode 拡張機能（**Database Client**）または **DBeaver** を利用して接続します。
+
+### 1. VSCode Database Client プラグインの設定
+
+VSCode の拡張機能マーケットプレイスで **Database Client** をインストールし、新規接続を作成します：
+
+| 設定項目 | 管理者接続（運用保守用） | 業務スキーマ接続（テーブル作成用） | 抽出参照接続（検証・ETL用） |
+| :--- | :--- | :--- | :--- |
+| **Connection Type** | `Oracle` | `Oracle` | `Oracle` |
+| **Host** | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` |
+| **Port** | `1521` | `1521` | `1521` |
+| **Database / SID** | `xe` | `xe` | `xe` |
+| **Username** | `system` | `mitsui_src` | `mitsui_extractor` |
+| **Password** | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` |
 
 ![VSCode接続設定](../images/02_img_01.png)
 
-### 2. 接続テストと疎通の確認
-**「Connect」** をクリックし、ステータスが Connected となることを確認します：
+### 2. 接続テストと疎通確認
+**「Connect」** ボタンをクリックし、ネットワーク疎通および認証が成功することを確認します：
 
 ![接続成功](../images/02_img_02.png)
 
 > [!TIP]
-> **DBeaver 接続文字列**：ドライバに `Oracle`、JDBC URL `jdbc:oracle:thin:@//localhost:1521/xe`、ユーザー名 `system`。
+> **DBeaver クイック接続**：ドライバーに `Oracle` を選択し、JDBC URL `jdbc:oracle:thin:@//localhost:1521/xe`、ユーザー名 `mitsui_src` または `mitsui_extractor` を指定します。
 
 ---
 
-## 四、 🏛️ コア 2 テーブル DDL と Oracle ➔ Snowflake 設計推論哲学
+## 六、 🏛️ 中核 2 テーブル DDL と Oracle ➔ Snowflake 型設計哲学
 
-`system` アカウントで Oracle に接続し、以下の標準 2 テーブル DDL を実行します（スクリプト：[`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
+`mitsui_src` ユーザーで接続後、以下の標準 DDL スクリプトを実行し、参照専用ロールへ権限を付与します（リポジトリ内 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
 
-### 4.1 テーブル 1：ディメンション主表 `CUST_MASTER` (顧客基本台帳)
+### 6.1 テーブル 1：マスター表 `CUST_MASTER` (顧客基本台帳)
 
 ```sql
 CREATE TABLE CUST_MASTER (
-    -- ① 顧客識別子：CHAR(10) 固定長（レガシー勘定系の固定長設計。末尾空白パディングの検証用）
+    -- ① 顧客識別子：CHAR(10) 固定長（レガシー勘定系の仕様を踏襲。右空白パディングによるJOIN不整合検証用）
     CUST_ID            CHAR(10)          NOT NULL,
 
     -- ② 顧客氏名（漢字）：全角文字
@@ -175,7 +280,7 @@ CREATE TABLE CUST_MASTER (
     -- ⑤ 開設支店コード：VARCHAR2(4 CHAR)
     BRANCH_CD          VARCHAR2(4 CHAR)  NOT NULL,
 
-    -- ⑥ 口座ステータス：VARCHAR2(2 CHAR)（Oracle '' ＝ NULL と Snowflake '' の異種挙動検証用）
+    -- ⑥ 口座ステータス：VARCHAR2(2 CHAR)（Oracle の空文字 '' が NULL に変換される挙動の検証用）
     STATUS_CD          VARCHAR2(2 CHAR),
 
     -- ⑦ 口座開設日：DATE 型
@@ -187,29 +292,29 @@ CREATE TABLE CUST_MASTER (
     CONSTRAINT PK_CUST_MASTER PRIMARY KEY (CUST_ID)
 );
 
-COMMENT ON TABLE CUST_MASTER IS '顧客基本台帳（Oracle 11g 核心ディメンション表）';
+COMMENT ON TABLE CUST_MASTER IS '顧客基本台帳（Oracle 11g 顧客マスター表）';
 ```
 
 ---
 
-### 4.2 テーブル 2：ファクト明細表 `CUST_TRADE_DETAIL` (顧客取引明細)
+### 6.2 テーブル 2：トランザクション明細表 `CUST_TRADE_DETAIL` (顧客取引明細)
 
 ```sql
 CREATE TABLE CUST_TRADE_DETAIL (
     -- ① 取引数量：一般数値、初期値 0
     TRADE_QTY          NUMBER(15)        DEFAULT 0        NOT NULL,
 
-    -- ② 約定金額・円貨：固定 3 桁精度の統一
+    -- ② 約定金額・邦貨（円貨）：固定 3 位の小数精度統一
     AMOUNT_JPY         NUMBER(18,3)      DEFAULT 0        NOT NULL,
 
     -- ③ 約定金額・外貨 ＋ 通貨区分：ペア定義必須
     AMOUNT_FCY         NUMBER(18,3)      DEFAULT 0,
     CCY_CODE           VARCHAR2(3),
 
-    -- ④ 為替レート：6 桁精度
+    -- ④ 為替レート：レート統一 6 位の小数
     EXCHANGE_RATE      NUMBER(9,6),
 
-    -- ⑤ 摘要・備考：必ず CHAR 語義を明示（既定の BYTE 語義を回避）
+    -- ⑤ 摘要・備考：CHAR 語義を明示（デフォルトの BYTE 語義を回避）
     REMARKS            VARCHAR2(100 CHAR) DEFAULT ' ',
 
     -- ⑥ 顧客識別：固定 10 桁、CHAR 語義
@@ -220,10 +325,10 @@ CREATE TABLE CUST_TRADE_DETAIL (
     BRANCH_CD          VARCHAR2(4 CHAR)   NOT NULL,  -- 支店コード
 
     -- ⑧ 業務日付
-    TRADE_DATE         DATE               NOT NULL,  -- 約定日（基準日）
-    SETTLE_MONTH       DATE,                         -- 決済対象月（月初日付で代表）
+    TRADE_DATE         DATE               NOT NULL,  -- 約定日（業務発生日）
+    SETTLE_MONTH       DATE,                         -- 決済対象月（月初日で代表）
 
-    -- ⑨ 監査日時
+    -- ⑨ 監査タイムスタンプ
     REG_DATETIME       DATE               DEFAULT SYSDATE NOT NULL, -- 登録日時（秒精度）
     UPD_DATETIME       DATE,                                        -- 更新日時
 
@@ -231,45 +336,48 @@ CREATE TABLE CUST_TRADE_DETAIL (
 );
 
 COMMENT ON TABLE CUST_TRADE_DETAIL IS '顧客取引明細（Oracle 11g 移行元設計）';
+
+-- ============================================================
+-- 金融参照専用ロール (ROLE_MITSUI_READ) への権限付与
+-- ============================================================
+GRANT SELECT ON CUST_MASTER TO ROLE_MITSUI_READ;
+GRANT SELECT ON CUST_TRADE_DETAIL TO ROLE_MITSUI_READ;
 ```
 
 ---
 
-### 4.3 🌟 重要ナレッジ：Oracle ➔ Snowflake 型マッピングと設計思想対照表
+### 6.3 🌟 コア知識：Oracle ➔ Snowflake データ型マッピングと型変換思想
 
-| 項目分類 | Oracle 11g 移行元 | Snowflake 移行先 | アーキテクチャ設計思想と変換理由 (Rationale) |
+| 項目分類 | Oracle 11g 移行元 | Snowflake 移行先 | アーキテクチャ設計思想と型変換の勘所 (Architecture Rationale) |
 | :--- | :--- | :--- | :--- |
-| **顧客主キー** | `CHAR(10)` in Master<br/>`VARCHAR2(10 CHAR)` in Detail | `VARCHAR(10)` in Both | **★ 跨テーブル結合の命脈（空白トリムの統一）**：<br/>Oracle では `CHAR(10)` の末尾に自動で空白が補完されます。Snowflake で両者を `VARCHAR(10)` に移行する際、`COPY INTO` 時の `TRIM_SPACE = TRUE`、またはロード後の `RTRIM()` 統一を怠ると、`ON m.CUST_ID = t.CUST_ID` が不一致となり結合データが全滅します。 |
-| **顧客ランク** | `CUST_RANK_CD CHAR(2)` | `VARCHAR(2)` | Oracle では `'A '`（末尾空白あり）に対し `WHERE CUST_RANK_CD = 'A'` でヒットしますが、Snowflake では厳格に不一致となります。 |
-| **口座状態** | `STATUS_CD VARCHAR2(2)` | `VARCHAR(2)` | **★ 空文字と NULL の差異**：<br/>Oracle で `''` を挿入すると自動で `NULL` に変換されます。Snowflake 側でもファイルフォーマットに `EMPTY_FIELD_AS_NULL = TRUE` を設定することで、同等の業務判定を維持します。 |
-| **取引数量** | `NUMBER(15)` | `NUMBER(15, 0)` | 株式数量は整数であるため、Scale=0 を明示的に指定。浮動小数点演算による丸め誤差を防止。 |
-| **円貨金額** | `NUMBER(18,3)` | `NUMBER(18, 3)` | 金融決済における「銭・厘（0.001）」単位に対応。両環境で完全一致する固定小数点数を保持。 |
-| **摘要・備考** | `VARCHAR2(100 CHAR)` | `VARCHAR(100)` | **★ 最大の注意点（CHAR 語義 vs BYTE 語義）**：<br/>UTF-8 環境下では全角日本語 1 文字が 3 バイトを消費します。Oracle で既定の BYTE 語義（`VARCHAR2(100)`）を用いると 34 文字で `ORA-12899`（桁あふれ）が発生します。そのため移行元では必ず `CHAR` 語義を指定。一方、Snowflake の `VARCHAR(N)` は**最初から Unicode 文字数単位でカウント**されるため、両者の語義が完全に一致します。 |
-| **約定日** | `TRADE_DATE DATE` | `VARCHAR(8)` (YYYYMMDD) | **日付の正規化・文字列スカラー化**：Oracle の `DATE` は内部的に時分秒を含んでいます。Snowflake の分析基盤では、日次キーとして扱いやすく、パーティションプルーニングを最大化するため 8 桁固定文字列 `YYYYMMDD` に変換します。 |
-| **決済月** | `SETTLE_MONTH DATE` | `VARCHAR(6)` (YYYYMM) | 月次集計キーとして `YYYYMM` 形式の 6 桁文字列に正規化。 |
-| **登録日時** | `REG_DATETIME DATE` | `TIMESTAMP_NTZ(6)` | **秒精度からマイクロ秒精度への進化**：Oracle DATE（秒精度）から、Snowflake ではタイムゾーンなしのマイクロ秒精度タイムスタンプ `TIMESTAMP_NTZ(6)` へ拡張。 |
-| **更新日時** | `UPD_DATETIME DATE` | `TIMESTAMP_NTZ(6)` | 変更履歴監査の保持。 |
-| **移行監査** | *(移行元にはなし)* | `MIGRATED_AT TIMESTAMP_LTZ(6)` | **★ クラウド移行専用列**：Snowflake 側で追加する物理取込日時列。既定値 `CURRENT_TIMESTAMP()` により、監査証跡・データリネージを自動保証。 |
+| **顧客キー** | `CHAR(10)` (Master)<br/>`VARCHAR2(10 CHAR)` (Detail) | `VARCHAR(10)` (両表共通) | **★ JOIN の成否を分ける空白整合**：<br/>Oracle では `CHAR(10)` の末尾に自動で空白が付与されます。Snowflake で両表を可変長 `VARCHAR(10)` に統一する場合、`COPY INTO` 時の `TRIM_SPACE = TRUE` または ETL 処理での `RTRIM` を怠ると、`ON a.CUST_ID = b.CUST_ID` が完全に不整合を起こします！ |
+| **顧客ランク** | `CUST_RANK_CD CHAR(2)` | `VARCHAR(2)` | Oracle では `'A '` 格納時も `WHERE CUST_RANK_CD = 'A'` でヒットしますが、Snowflake は厳格判定のため事前トリム等の配慮が必要です。 |
+| **口座状態** | `STATUS_CD VARCHAR2(2)` | `VARCHAR(2)` | **★ 空文字と NULL の差異**：<br/>Oracle は空文字 `''` を自動的に `NULL` として扱いますが、Snowflake ではファイルフォーマットに `EMPTY_FIELD_AS_NULL = TRUE` を明示しない限り有効な空文字列として保持されます。 |
+| **取引数量** | `NUMBER(15)` | `NUMBER(15, 0)` | 株式数は整数であるため、Scale（小数部）を 0 に明示指定し、浮動小数点型による誤差を防止します。 |
+| **円貨金額** | `NUMBER(18,3)` | `NUMBER(18, 3)` | 証券約定計算の端数処理に対応するため、両環境で 3 桁の固定小数点精度を厳格に一致させます。 |
+| **摘要備考** | `VARCHAR2(100 CHAR)` | `VARCHAR(100)` | **★ 文字数セマンティクス（CHAR vs BYTE）の罠**：<br/>UTF-8 環境では全角 1 文字が 3 バイトを消費します。Oracle でデフォルトの BYTE 語義（`VARCHAR2(100)`）のままだと 34 文字以上で桁あふれ（`ORA-12899`）を起こします。そのため `CHAR` 語義の指定が必須であり、Snowflake の `VARCHAR(N)`（常に文字数カウント）と完全に整合します。 |
+| **約定日付** | `TRADE_DATE DATE` | `VARCHAR(8)` (YYYYMMDD) | **日付スカラー化による高速化**：Oracle の `DATE` は内部に時分秒を含みます。Snowflake 金融DWH規格では、日次指標を 8 桁固定長文字列 `YYYYMMDD` に正規化することで、検索時のパーティションプルーニング性能を最大化します。 |
+| **決済年月** | `SETTLE_MONTH DATE` | `VARCHAR(6)` (YYYYMM) | 月次集計キーとして 6 桁文字列 `YYYYMM` に標準化します。 |
+| **登録日時** | `REG_DATETIME DATE` | `TIMESTAMP_NTZ(6)` | **秒精度からマイクロ秒精度へ拡張**：Oracle `DATE` の秒精度から、金融約定監査に対応可能なタイムゾーンなしタイムスタンプ `TIMESTAMP_NTZ(6)` にアップグレードします。 |
+| **移行監査列** | *(移行元には存在せず)* | `MIGRATED_AT TIMESTAMP_LTZ(6)` | **★ クラウド追加列**：第 03 章のテーブル定義で追加。`CURRENT_TIMESTAMP()` により移行実行日時を記録し、データリネージ追跡要件を満たします。 |
 
 ---
 
-## 五、 🧪 金融級 2 テーブル・テストデータセットの解説と投入
+## 七、 🧪 金融グレード 2 テーブルテストデータ投入 (`02_seed_trades_data.sql`)
 
-以下の 2 テーブル構成でテストデータを投入します：
-1. **主表 `CUST_MASTER`（計 13 件）**：取引実績のある 11 名の顧客、新規開設で取引のない顧客 1 名（`CU00008888` 松本 潤、LEFT JOIN での NULL 発生検証用）、口座状態に `''` を設定した顧客 1 名（`CU00009990` 井上 陽水、Oracle の空文字→NULL 挙動検証用）；
-2. **ファクト表 `CUST_TRADE_DETAIL`（計 11 件）**：国内株式、外貨、欧州債券、全 9 限界値、全角 100 文字限界値、超極小レート、および年末年越取引。
+高い検証カバレッジを持つ 2 テーブルのテストデータセットを用意しました：
+1. **マスター表 `CUST_MASTER`（全 13 件）**：約定実績ありの 11 名、新規開設で取引のない顧客（`CU00008888` 松本 潤：LEFT JOIN 時の NULL 生成検証用）、状態コードに `''` を投入した顧客（`CU00009990` 井上 陽水：Oracle 空文字 ➔ NULL 変換検証用）；
+2. **トランザクション表 `CUST_TRADE_DETAIL`（全 11 件）**：国内株式、外国株式（USD）、外国債券（EUR）、全 9 境界値、全角 100 文字限界値、微細為替レート、年末最終営業日取引。
 
-### 一括投入 SQL スクリプト
-
-以下の SQL をコピーし、VSCode Database Client または Oracle 接続環境で一括実行します（スクリプト：[`scripts/oracle/02_seed_trades_data.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/02_seed_trades_data.sql)）：
+`mitsui_src` アカウントで以下のスクリプトを実行します（リポジトリ内 [`scripts/oracle/02_seed_trades_data.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/02_seed_trades_data.sql)）：
 
 ```sql
--- 既存データのクリア
+-- 既存データの初期化
 DELETE FROM CUST_TRADE_DETAIL;
 DELETE FROM CUST_MASTER;
 
 -- ============================================================
--- 1. CUST_MASTER (顧客基本台帳表 - 全 13 件)
+-- 1. CUST_MASTER (顧客基本台帳 - 全 13 件)
 -- ============================================================
 INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
 VALUES ('CU00001234', '佐藤 太郎', 'サトウ タロウ', 'A ', '0001', '01', DATE '2020-01-15');
@@ -304,17 +412,17 @@ VALUES ('CU00006666', '加藤 恵', 'カトウ メグミ', 'C ', '0006', '01', D
 INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
 VALUES ('CU00007777', '吉田 勇', 'ヨシダ イサム', 'A ', '0001', '01', DATE '2018-06-25');
 
--- 12. ★ 開設済み・取引実績なしの顧客 (松本 潤) - LEFT JOIN での NULL 発生検証用
+-- 12. ★ 取引のない新規開設顧客 (松本 潤) - LEFT JOIN での NULL 発生検証用
 INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
 VALUES ('CU00008888', '松本 潤', 'マツモト ジュン', 'C ', '0003', '02', DATE '2024-11-01');
 
--- 13. ★ 口座ステータスに空文字 '' を設定した顧客 (井上 陽水) - Oracle の ''→NULL 自動変換挙動の検証用
+-- 13. ★ 口座ステータスに空文字 '' を設定した顧客 (井上 陽水) - Oracle の空文字 NULL 自動変換検証用
 INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, CUST_NAME_KANA, CUST_RANK_CD, BRANCH_CD, STATUS_CD, OPEN_DATE)
 VALUES ('CU00009990', '井上 陽水', 'イノウエ ヨウスイ', 'D ', '0004', '', DATE '2025-01-05');
 
 
 -- ============================================================
--- 2. CUST_TRADE_DETAIL (顧客取引明細表 - 全 11 件)
+-- 2. CUST_TRADE_DETAIL (顧客取引明細 - 全 11 件)
 -- ============================================================
 -- 1. 通常取引・国内株式
 INSERT INTO CUST_TRADE_DETAIL
@@ -347,7 +455,7 @@ VALUES
  'CU00009999', '01', '0003', DATE '2025-03-27', DATE '2025-03-01',
  TO_DATE('2025-03-27 11:00:00','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 4. 境界値テスト・最大桁数（全 9 限界値）
+-- 4. 境界値テスト・最大桁数（全 9 の限界値）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -358,7 +466,7 @@ VALUES
  'CU00000001', '01', '9999', DATE '2025-01-01', DATE '2025-01-01',
  TO_DATE('2025-01-01 00:00:00','YYYY-MM-DD HH24:MI:SS'), NULL);
 
--- 5. 最小限必須項目のみ（各項目初期値の確認）
+-- 5. 最小限必須項目のみ（各項目の初期値動作確認）
 INSERT INTO CUST_TRADE_DETAIL
 (CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE)
 VALUES
@@ -407,7 +515,7 @@ VALUES
  TO_DATE('2025-03-30 09:00:00','YYYY-MM-DD HH24:MI:SS'),
  TO_DATE('2025-03-31 16:30:00','YYYY-MM-DD HH24:MI:SS'));
 
--- 10. レート少数桁・低額通貨テスト（インドネシアルピア想定）
+-- 10. レート小数桁・低額通貨テスト（インドネシアルピア想定）
 INSERT INTO CUST_TRADE_DETAIL
 (TRADE_QTY, AMOUNT_JPY, AMOUNT_FCY, CCY_CODE, EXCHANGE_RATE, REMARKS,
  CUST_ID, TRADE_TYPE_CD, BRANCH_CD, TRADE_DATE, SETTLE_MONTH,
@@ -432,17 +540,110 @@ COMMIT;
 
 ---
 
-## 六、 🎯 実機検証：単表・跨テーブル結合「2 系統黄金基準値 (Dual-Track Baseline)」の確立
+## 八、 🚀 ローカル自動化デプロイと実機テスト実行ログ (Local Test Execution Log)
 
-データ投入完了後、Oracle 側で以下の検証クエリを実行し、移行元の不変の集計フィンガープリントを取得します：
+読者が**100%確実に再現可能**であることを担保するため、本リポジトリでは一括自動構成スクリプトを用意しています。ホストのコンテナランタイムを自動検知（マイクロソフト純正 `wslc` を優先、未検出時は `docker` へフォールバック）し、権限設定・DDL・データ投入を自動完結します。
+
+### 8.1 Python 自動化スクリプトの一括実行
+
+```bash
+# プロジェクトルートディレクトリで実行
+python scripts/oracle/setup_oracle_full.py
+```
+
+### 8.2 実際のテスト実行ログ（実機実行結果）
+
+以下は、ローカル環境の実機テストで取得された完全な実行結果ログです：
+
+```text
+=== Starting Oracle 11g Enterprise Provisioning (Using wslc) ===
+[*] Executing 00_init_user_and_permissions.sql with system/Mitsui_Sec_2026...
+[+] 00_init_user_and_permissions.sql executed successfully.
+USERNAME                       ACCOUNT_STATUS                   DEFAULT_TABLESPACE             CREATED
+------------------------------ -------------------------------- ------------------------------ ---------
+MITSUI_SRC                     OPEN                             USERS                          17-OCT-26
+MITSUI_EXTRACTOR               OPEN                             USERS                          17-OCT-26
+
+[*] Executing 01_create_schema.sql with mitsui_src/Mitsui_Sec_2026...
+[+] 01_create_schema.sql executed successfully.
+
+[*] Executing 02_seed_trades_data.sql with mitsui_src/Mitsui_Sec_2026...
+[+] 02_seed_trades_data.sql executed successfully.
+
+=== Oracle 11g Provisioning Finished Successfully! ===
+```
+
+---
+
+### 8.3 🛡️ セキュリティ実機テスト：抽出専用アカウントの防御検証
+
+参照専用アカウント `MITSUI_EXTRACTOR` を使用し、SELECT 権限の正常動作と、不正な更新・削除（DELETE）の遮断テストを実施します：
+
+::: code-group
+```bash [wslc 実機検証]
+# 1. 参照権限（SELECT）の確認
+wslc exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+SELECT COUNT(*) AS MASTER_CNT FROM MITSUI_SRC.CUST_MASTER;
+SELECT COUNT(*) AS TRADE_CNT FROM MITSUI_SRC.CUST_TRADE_DETAIL;
+EXIT;
+EOF
+
+# 2. 不正な削除（DELETE）の遮断確認
+wslc exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+DELETE FROM MITSUI_SRC.CUST_MASTER;
+EXIT;
+EOF
+```
+
+```bash [docker 実機検証]
+# 1. 参照権限（SELECT）の確認
+docker exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+SELECT COUNT(*) AS MASTER_CNT FROM MITSUI_SRC.CUST_MASTER;
+SELECT COUNT(*) AS TRADE_CNT FROM MITSUI_SRC.CUST_TRADE_DETAIL;
+EXIT;
+EOF
+
+# 2. 不正な削除（DELETE）の遮断確認
+docker exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+DELETE FROM MITSUI_SRC.CUST_MASTER;
+EXIT;
+EOF
+```
+:::
+
+#### ターミナル出力結果：
+
+1. **参照クエリの正常終了**：
+   ```text
+   MASTER_CNT
+   ----------
+           13
+
+    TRADE_CNT
+   ----------
+           11
+   ```
+2. **Oracle カーネルによる書き込み遮断（セキュリティ防御の成功）**：
+   ```text
+   ERROR at line 1:
+   ORA-01031: insufficient privileges
+   ```
+> [!NOTE]
+> 抽出専用アカウント `MITSUI_EXTRACTOR` が `ROLE_MITSUI_READ` の厳格な制御下にあり、万一スクリプトの誤記述や不具合が生じても、移行元データが改ざん・破損されるリスクが完全に排除されていることが証明されました。
+
+---
+
+## 九、 🎯 実機検証：単一表と跨テーブル JOIN「2系統ゴールデンベースライン」 (第 05 章直結)
+
+データ投入後、Oracle 側で以下の検証クエリを実行し、移行元の不変ベースライン数値を記録します：
 
 ### 系統 A：単一テーブル基準クエリ（Single Table Baseline）
 
 ```sql
--- 1. CUST_MASTER 単表確認
+-- 1. CUST_MASTER 単表基準
 SELECT COUNT(*) AS MASTER_COUNT, COUNT(DISTINCT BRANCH_CD) AS BRANCH_COUNT FROM CUST_MASTER;
 
--- 2. CUST_TRADE_DETAIL 単表確認
+-- 2. CUST_TRADE_DETAIL 単表基準
 SELECT 
     COUNT(*)                                       AS TOTAL_TRADES,
     SUM(TRADE_QTY)                                 AS TOTAL_QTY,
@@ -453,10 +654,10 @@ SELECT
 FROM CUST_TRADE_DETAIL;
 ```
 
-### 系統 B：跨テーブル結合・異種トラップ基準クエリ（Multi-table JOIN Baseline）
+### 系統 B：複数テーブル JOIN および異種 DB トラップ基準クエリ（Multi-table JOIN Baseline）
 
 ```sql
--- 3. 跨テーブル INNER JOIN：顧客名義と約定実績の突合
+-- 3. 跨テーブル INNER JOIN：顧客名と取引金額の結合
 SELECT 
     COUNT(*)                          AS JOINED_ROWS,
     SUM(t.TRADE_QTY)                  AS JOINED_QTY,
@@ -464,41 +665,41 @@ SELECT
 FROM CUST_MASTER m
 INNER JOIN CUST_TRADE_DETAIL t ON m.CUST_ID = t.CUST_ID;
 
--- 4. CHAR(2) 末尾空白ランク絞り込み（Blank-padded 規則の検証）
--- Oracle では 'A ' を格納した 3 名（CU00001234, CU00005678, CU00007777）がヒットします
+-- 4. CHAR(2) 末尾空白ランク絞り込み (Blank-padded 規則の検証)
+-- Oracle 上では 'A ' の 3 名 (CU00001234, CU00005678, CU00007777) がヒット
 SELECT COUNT(*) AS RANK_A_COUNT FROM CUST_MASTER WHERE CUST_RANK_CD = 'A';
 
--- 5. 空文字 '' の NULL 自動変換検証
--- Oracle では '' を挿入した顧客（CU00009990）が IS NULL を満たし、1 件ヒットします
+-- 5. 空文字 NULL 変換の挙動検証
+-- Oracle 上で '' を投入した顧客 (CU00009990) は IS NULL を満たし、1 件がヒット
 SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 ```
 
 ---
 
-### 📋 実機検証済み黄金基準値マトリクス (Golden Baseline Matrix)
+### 📋 実機検収ゴールデンベースライン対比表 (Golden Baseline Matrix)
 
-以下の数値は、ローカル Oracle 11g 実機コンテナ環境での実行結果から取得された不変の基準値です：
+以下は、ローカルの Oracle 11g 実機コンテナ環境で算出された確定ベースライン値です：
 
-| 突合監査指標 (Metrics) | Oracle 移行元実測基準値 (Baseline) | 異種 DB 移行における検証目的 |
+| 監査次元 | Oracle 移行元ベースライン値 (Baseline) | 異種 DB 整合性検証の目的 |
 | :--- | :--- | :--- |
-| **顧客マスタ件数** | **`13` 件** | ディメンション主表の完全性を保証 |
-| **約定明細件数** | **`11` 件** | ファクト実績表の完全性を保証 |
-| **INNER JOIN 結合件数** | **`11` 件** | **`CUST_ID` の空白パディングによる結合脱落なきことを実証** |
-| **結合後約定数量合計** | **`1,000,000,000,003,159` 株** | 結合処理に伴う数量の二重カウント・脱落がないことを確認 |
-| **結合後円貨金額合計** | **`1,000,000,042,496,878.899` 円** | 結合処理に伴う金額精度の保持を確認 |
-| **外貨約定代金合計** | **`1,000,000,000,071,000.499`** | 複数外貨混在環境下での合算精度を保持 |
-| **`CUST_RANK_CD = 'A'` 件数** | **`3` 件** (Oracle 原生) | **★ 異種断層**：Snowflake では RTRIM を行わないと 0 件に転落する重要検証項目 |
-| **`STATUS_CD IS NULL` 件数** | **`1` 件** (Oracle 原生) | **★ 异種断層**：Snowflake で空文字が適切に NULL として扱われるかを検証 |
+| **顧客台帳件数** | **`13` 件** | マスター台帳データが完全に移行されていることを証明 |
+| **取引明細件数** | **`11` 件** | トランザクション明細が完全に移行されていることを証明 |
+| **INNER JOIN 結合件数** | **`11` 件** | **両表の `CUST_ID` が空白パディング差で結合不整合を起こしていないかを検証** |
+| **JOIN 後約定数量合計** | **`1,000,000,000,003,159` 株** | 結合後にデータ欠落・重複膨張がないことを検証 |
+| **JOIN 後円貨金額合計** | **`1,000,000,042,496,878.899` 円** | 結合後の金額計算に微小な誤差も生じていないことを検証 |
+| **外貨約定金額合計** | **`1,000,000,000,071,000.499`** | マルチカレンシーの通貨金額合計が完全一致することを検証 |
+| **`CUST_RANK_CD = 'A'` 該当件数** | **`3` 件** (Oracle ネイティブ) | **★ 異種 DB 比較の要点**：Snowflake で RTRIM を怠ると 0 件になります！ |
+| **`STATUS_CD IS NULL` 該当件数** | **`1` 件** (Oracle ネイティブ) | **★ 異種 DB 比較の要点**：Snowflake 側の空文字 ➔ NULL 変換設定を検証 |
 
 > [!IMPORTANT]
-> **後続章への絶対的コミットメント**：  
-> 本テーブルの基準値を記録しておいてください。[第 05 章《移行後データ突合検証・整合性監査》](05_data_reconciliation.md) では、三井証券のデータアナリスト `MITSUI_ANALYST` として、Snowflake 側で同一の集計クエリおよび跨テーブル結合監査を実行し、**単表だけでなく JOIN 結合においても誤差 0.000・欠落ゼロ・100% 完全一致** を合否判定基準として厳格に監査・サインオフします。
+> **次章以降への確約**：  
+> この数値を控えておいてください。[第 05 章「移行後データ差異比較と品質突合」](05_data_reconciliation.md) では、三井証券のリードデータアナリスト `MITSUI_ANALYST` として、Snowflake クラウド上で全く同一の監査クエリを実行します。単一テーブルの件数確認にとどまらず、**跨テーブル JOIN での空白不整合や空文字トラップを完全に克服し、差異 0・欠落 0・完全一致** を達成する監査プロセスを完遂します！
 
 ---
 
-## 七、 本章のまとめと次章ナビゲーション
+## 十、 本章のまとめと次章への案内
 
-本章を通じて、ローカル環境上に忠実な Oracle 11g 金融コア業務データベースを構築し、典型的な **`CUST_MASTER` 顧客マスタ** と **`CUST_TRADE_DETAIL` 取引明細** の 2 テーブル構成を整備しました。末尾空白や空文字といった異種 DB の核心的トラップを織り込んだテストデータを投入し、跨テーブル結合の黄金基準値を確立しました。
+本章では、金融実務に即した高精度な Oracle 11g 移行元データベースをローカルに構築し、専用の **`MITSUI_SRC` スキーマ所有者** と **`MITSUI_EXTRACTOR` 抽出専用アカウント** を整備しました。さらに **`CUST_MASTER` 顧客基本台帳** と **`CUST_TRADE_DETAIL` 顧客取引明细** の 2 テーブル構成をデプロイし、高カバレッジな模擬データを投入して自動化スクリプトによる実機検証を完了しました。
 
-次章より、いよいよクラウド側（Snowflake）の本格構築とデータ移行実務へ突入します：
-- 👉 **[第 03 章：3 層 RBAC 権限モデルと環境構築実戦](03_snowflake_rbac_setup.md)**：`USERADMIN` と `SYSADMIN` の役割分担のもと、三井証券の 3 層業務ロール（ADMIN / ENGINEER / ANALYST）を構築し、本章の設計思想に則ったステージ `@MITSUI_STAGE` およびターゲット 2 テーブル `CUST_MASTER` と `CUST_TRADE_DETAIL` を作成します！
+次章からは、いよいよクラウド側の環境構築と移行エンジニアリングが本格始動します：
+- 👉 **[第 03 章：Snowflake エンタープライズ RBAC 権限設計と環境構築実践](03_snowflake_rbac_setup.md)**：`USERADMIN` と `SYSADMIN` の 2 系統ロールを用い、三井証券の 3 階層ロール体系を Snowflake 上に構築。本章の設計に基づき、3 階層ネームスペース `MITSUI_SEC_DB.RAW_ORACLE` 配下にターゲット 2 テーブルを作成します！

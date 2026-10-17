@@ -52,7 +52,63 @@ flowchart LR
 
 ---
 
-## 二、 🐳 容器环境部署与生命周期管理 (原生 wslc / Docker)
+## 二、 🏛️ Oracle 核心架构哲学与三井证券专属 Schema 体系
+
+在动手部署之前，我们必须厘清 **Oracle 的系统架构哲学**，以及它与现代云数仓 **Snowflake** 的本质区别。
+
+### 2.1 Oracle vs Snowflake 核心概念映射对照
+
+传统 Oracle DBA 常习惯将“数据库”、“实例”和“模式”混为一谈，但在跨云迁移中，必须精准厘清层级边界：
+
+| 架构维度 | Oracle 11g (本地源端) | Snowflake (云端目标端) | 架构差异深度解析 |
+| :--- | :--- | :--- | :--- |
+| **计算与存储** | **强耦合架构** (Shared-Disk / Instance)<br/>内存 SGA + 后台进程 + 物理数据文件 (`.dbf`) | **存算解耦架构** (Decoupled)<br/>云端对象存储 + 弹性虚拟数仓 (Virtual Warehouse) | Oracle 扩容需停机或昂贵的 RAC；Snowflake 可按秒弹性启停、升降级，互不争抢资源。 |
+| **实例 (Instance) 与库** | **SID / Service Name (`XE`)**<br/>单实例通常承载一个全局系统数据库 | **账户 (Account) ➔ 数据库 (`DATABASE`)**<br/>单个账户内可创建数百个独立数据库 | Oracle 的实例代表一组进程与内存；Snowflake 的数据库是纯元数据逻辑容器。 |
+| **用户与模式 (User vs Schema)** | **User $\equiv$ Schema（等价哲学）**<br/>执行 `CREATE USER MITSUI_SRC`，系统**自动创建同名 Schema**！ | **严格分离**<br/>用户是全局身份；模式是数据库下的二级对象容器（`DB.SCHEMA`） | Oracle 中对象天然归属创建它的用户；Snowflake 中对象属主是角色（Role-based）。 |
+| **物理存储管理** | **表空间 (Tablespace) + Quota**<br/>需手动规划 `USERS`、`TEMP` 数据文件大小与扩展限额 | **零存储运维 (Zero Storage Ops)**<br/>微分区（Micro-partitions）完全托管，无需建表空间 | 迁移上云后彻底告别“表空间满导致的生产阻断”梦魇。 |
+| **安全与权限模型** | **系统特权 + 对象特权 + 角色 (Role)**<br/>`GRANT SELECT ON ... TO ...` | **分层角色访问控制 (Discretionary RBAC)**<br/>通过角色继承链收敛管理权限 | 两者都支持基于角色的权限控制，为金融级安全合规打下基础。 |
+
+### 2.2 规范化三段式命名空间（3-Part Namespace Mapping）
+
+为了实现跨系统之间**一对一严密追踪**，本项目在源端与目标端确立了企业级标准三段式对象命名空间对照：
+
+```mermaid
+flowchart TD
+    subgraph ORA_NS ["Oracle 源端三段式命名 (SID.SCHEMA.TABLE)"]
+        O_INST["实例 (SID): XE"]
+        O_SCH["模式 (Schema/User): MITSUI_SRC"]
+        O_T1["XE.MITSUI_SRC.CUST_MASTER"]
+        O_T2["XE.MITSUI_SRC.CUST_TRADE_DETAIL"]
+        O_INST --> O_SCH --> O_T1 & O_T2
+    end
+
+    subgraph SNOW_NS ["Snowflake 目标端三段式命名 (DB.SCHEMA.TABLE)"]
+        S_DB["数据库 (DB): MITSUI_SEC_DB"]
+        S_SCH["模式 (Schema): RAW_ORACLE"]
+        S_T1["MITSUI_SEC_DB.RAW_ORACLE.CUST_MASTER"]
+        S_T2["MITSUI_SEC_DB.RAW_ORACLE.CUST_TRADE_DETAIL"]
+        S_DB --> S_SCH --> S_T1 & S_T2
+    end
+
+    O_T1 ==>|全量迁移同步| S_T1
+    O_T2 ==>|全量迁移同步| S_T2
+
+    style ORA_NS fill:#fdf4ff,stroke:#c026d3,stroke-width:1px
+    style SNOW_NS fill:#f0fdf4,stroke:#16a34a,stroke-width:1px
+```
+
+### 2.3 金融级最小特权原则（Principle of Least Privilege）
+
+在真实金融机构中，**严禁使用超级管理员（`SYS` / `SYSTEM`）直接对接数据抽取管道**！一旦抽取脚本被注入或误执行写操作，将直接摧毁核心生产库。
+
+因此，本项目严格遵从企业合规规范：
+1. **模式属主账号 `MITSUI_SRC`**：仅用于存放和维护业务表结构，拥有 DDL 与 DML 读写特权；
+2. **只读抽取角色 `ROLE_MITSUI_READ`**：仅被授予 `SELECT ON MITSUI_SRC.CUST_*` 对象特权；
+3. **只读抽取账号 `MITSUI_EXTRACTOR`**：继承 `ROLE_MITSUI_READ`，供后续 Python 抽取脚本与 ETL 管道专用。即使执行 `DELETE` 或 `DROP`，也会被 Oracle 内核强制拦截，确保生产源端绝对安全！
+
+---
+
+## 三、 🐳 容器环境部署与生命周期管理 (原生 wslc / Docker)
 
 为满足不同操作系统的开发习惯，本教程提供 **Windows 原生 WSL Containers (`wslc`)** 与 **通用 Docker** 双套命令。选用业界公认高可靠的 `gvenzl/oracle-xe:11` 镜像。
 
@@ -123,7 +179,57 @@ DATABASE IS READY TO USE!
 
 ---
 
-## 三、 🔌 统一开发工具链连接测试 (VSCode / DBeaver)
+## 四、 🔐 企业级 Schema、用户与只读角色初始化
+
+在容器启动并就绪后，首先以管理员 `SYSTEM` 身份登录，执行用户、模式与权限初始化脚本（对应仓库脚本 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
+
+```sql
+-- ==============================================================================
+-- 脚本名称: 00_init_user_and_permissions.sql
+-- 业务场景: 三井证券 Oracle 11g 源库用户、角色、模式 (Schema) 与最小特权初始化
+-- 执行身份: SYSTEM (超级管理员)
+-- 映射目标: 建立 MITSUI_SRC (数据属主) 与 MITSUI_EXTRACTOR (只读抽取账号)
+-- ==============================================================================
+
+SET SQLBLANKLINES ON;
+SET DEFINE OFF;
+
+-- ============================================================
+-- 1. 创建三井证券业务模式属主 (MITSUI_SRC)
+-- 注：在 Oracle 体系中，创建用户 MITSUI_SRC 即等价于创建 Schema MITSUI_SRC
+-- ============================================================
+CREATE USER MITSUI_SRC IDENTIFIED BY Mitsui_Sec_2026
+    DEFAULT TABLESPACE USERS
+    TEMPORARY TABLESPACE TEMP
+    QUOTA UNLIMITED ON USERS;
+
+-- 授予基础建表与连接权限
+GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE TO MITSUI_SRC;
+
+-- ============================================================
+-- 2. 创建金融只读抽取角色 (ROLE_MITSUI_READ) 与抽取账号 (MITSUI_EXTRACTOR)
+-- 目的: 满足金融安全合规与职责分离 (SoD) 原则，禁止在后续数据迁移中使用超级管理员
+-- ============================================================
+CREATE ROLE ROLE_MITSUI_READ;
+
+CREATE USER MITSUI_EXTRACTOR IDENTIFIED BY Mitsui_Sec_2026
+    DEFAULT TABLESPACE USERS
+    TEMPORARY TABLESPACE TEMP;
+
+GRANT CREATE SESSION TO MITSUI_EXTRACTOR;
+GRANT ROLE_MITSUI_READ TO MITSUI_EXTRACTOR;
+
+-- 验证创建结果
+SELECT USERNAME, ACCOUNT_STATUS, DEFAULT_TABLESPACE, CREATED 
+FROM DBA_USERS 
+WHERE USERNAME IN ('MITSUI_SRC', 'MITSUI_EXTRACTOR');
+
+COMMIT;
+```
+
+---
+
+## 五、 🔌 统一开发工具链连接配置 (VSCode / DBeaver)
 
 在[第 01 章第 6 节](01_snowflake_signup.md#六-账号定位标识体系与客户端连接生态-account-identifier--ecosystem)中，我们梳理了现代数据工程的客户端生态。在实战中，我们推荐在 VSCode 内统一集成开发，或使用通用的 **DBeaver** 客户端。
 
@@ -131,14 +237,14 @@ DATABASE IS READY TO USE!
 
 在 VSCode 扩展市场中搜索并安装 **Database Client**（或 Database Client JDBC），点击新建 Oracle 连接并填入参数：
 
-| 配置项 | 参数值 | 说明 |
-| :--- | :--- | :--- |
-| **Connection Type** | `Oracle` | 选择标准 Oracle 驱动协议 |
-| **Host** | `127.0.0.1` | 本地宿主机回环地址（WSL2 用户亦可直接使用 localhost） |
-| **Port** | `1521` | 映射端口 |
-| **Database / SID** | `xe` | Oracle 11g Express Edition 默认实例服务名 |
-| **Username** | `system` | 系统管理员账号 |
-| **Password** | `Mitsui_Sec_2026` | 启动容器时指定的高强度密码 |
+| 配置项 | 管理员连接 (用于运维) | 业务属主连接 (用于建表) | 抽取只读连接 (用于验证/ETL) |
+| :--- | :--- | :--- | :--- |
+| **Connection Type** | `Oracle` | `Oracle` | `Oracle` |
+| **Host** | `127.0.0.1` | `127.0.0.1` | `127.0.0.1` |
+| **Port** | `1521` | `1521` | `1521` |
+| **Database / SID** | `xe` | `xe` | `xe` |
+| **Username** | `system` | `mitsui_src` | `mitsui_extractor` |
+| **Password** | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` | `Mitsui_Sec_2026` |
 
 ![VSCode连接配置](../images/02_img_01.png)
 
@@ -148,15 +254,15 @@ DATABASE IS READY TO USE!
 ![连接成功效果](../images/02_img_02.png)
 
 > [!TIP]
-> **DBeaver 快捷连接**：驱动选择 `Oracle`，JDBC URL 为 `jdbc:oracle:thin:@//localhost:1521/xe`，用户名为 `system`。
+> **DBeaver 快捷连接**：驱动选择 `Oracle`，JDBC URL 为 `jdbc:oracle:thin:@//localhost:1521/xe`，用户名为 `mitsui_src` 或 `mitsui_extractor`。
 
 ---
 
-## 四、 🏛️ 核心双表 DDL 与 Oracle ➔ Snowflake 架构推导哲学
+## 六、 🏛️ 核心双表 DDL 与 Oracle ➔ Snowflake 架构推导哲学
 
-以 `system` 账号连入 Oracle 后，在 SQL 编辑窗口执行以下标准双表 DDL（对应脚本 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
+以 `mitsui_src` 身份连入数据库后，在 SQL 编辑窗口执行以下标准双表 DDL，并授权给只读角色（对应脚本 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
 
-### 4.1 表 1：维度主表 `CUST_MASTER` (顧客基本台帳)
+### 6.1 表 1：维度主表 `CUST_MASTER` (顧客基本台帳)
 
 ```sql
 CREATE TABLE CUST_MASTER (
@@ -192,7 +298,7 @@ COMMENT ON TABLE CUST_MASTER IS '顧客基本台帳（Oracle 11g 核心客户维
 
 ---
 
-### 4.2 表 2：事实流水表 `CUST_TRADE_DETAIL` (顧客取引明細)
+### 6.2 表 2：事实流水表 `CUST_TRADE_DETAIL` (顧客取引明細)
 
 ```sql
 CREATE TABLE CUST_TRADE_DETAIL (
@@ -231,11 +337,17 @@ CREATE TABLE CUST_TRADE_DETAIL (
 );
 
 COMMENT ON TABLE CUST_TRADE_DETAIL IS '顧客取引明細（Oracle 11g 迁移源端设计）';
+
+-- ============================================================
+-- 授权金融只读抽取角色 (ROLE_MITSUI_READ)
+-- ============================================================
+GRANT SELECT ON CUST_MASTER TO ROLE_MITSUI_READ;
+GRANT SELECT ON CUST_TRADE_DETAIL TO ROLE_MITSUI_READ;
 ```
 
 ---
 
-### 4.3 🌟 核心知识点：Oracle ➔ Snowflake 字段映射与设计哲学对照
+### 6.3 🌟 核心知识点：Oracle ➔ Snowflake 字段映射与设计哲学对照
 
 | 字段类别 | Oracle 11g 源字段 | Snowflake 目标字段 | 架构设计推导哲学与转换考量 (Architecture Rationale) |
 | :--- | :--- | :--- | :--- |
@@ -252,15 +364,13 @@ COMMENT ON TABLE CUST_TRADE_DETAIL IS '顧客取引明細（Oracle 11g 迁移源
 
 ---
 
-## 五、 🧪 金融级双表测试数据集深度解析与批量注入
+## 七、 🧪 金融级双表测试数据集批量注入 (`02_seed_trades_data.sql`)
 
 我们设计了高覆盖率的双表测试数据集：
 1. **主表 `CUST_MASTER`（共 13 条）**：覆盖 11 名有交易客户、1 名新开户但无交易客户（`CU00008888` 松本 润，测试 LEFT JOIN 产生 NULL）、1 名状态存入 `''` 客户（`CU00009990` 井上 阳水，测试 Oracle 空串转 NULL）；
 2. **事实表 `CUST_TRADE_DETAIL`（共 11 条）**：覆盖国内股票、外汇、外国债券、全 9 极限值、全角百字边界、超微额汇率与跨年交易。
 
-### 批量注入完整 SQL 实操
-
-请复制以下完整脚本在 VSCode Database Client 或 Oracle 客户端中一次性执行（对应脚本 [`scripts/oracle/02_seed_trades_data.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/02_seed_trades_data.sql)）：
+请以 `mitsui_src` 用户执行以下完整插入脚本（对应脚本 [`scripts/oracle/02_seed_trades_data.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/02_seed_trades_data.sql)）：
 
 ```sql
 -- 清空历史数据
@@ -431,7 +541,100 @@ COMMIT;
 
 ---
 
-## 六、 🎯 实测验证：单表与跨表 JOIN“双轨黄金基准” (直通第 05 章)
+## 八、 🚀 本地自动化部署与实操测试执行记录 (Local Test Execution Log)
+
+为保证读者**100% 可复制、零踩坑**，本项目提供了本地一键自动化配置 Python 脚本。该脚本自动感知宿主机的容器运行时（优先使用微软原生 `wslc`，若无则平滑降级至 `docker`），并依次完成用户授权、DDL 部署与数据灌入。
+
+### 8.1 一键执行 Python 自动化部署脚本
+
+```bash
+# 在项目根目录下执行
+python scripts/oracle/setup_oracle_full.py
+```
+
+### 8.2 实测运行过程与执行输出（真实测试记录）
+
+以下是我们在本地宿主机中真实运行产出的测试输出记录：
+
+```text
+=== Starting Oracle 11g Enterprise Provisioning (Using wslc) ===
+[*] Executing 00_init_user_and_permissions.sql with system/Mitsui_Sec_2026...
+[+] 00_init_user_and_permissions.sql executed successfully.
+USERNAME                       ACCOUNT_STATUS                   DEFAULT_TABLESPACE             CREATED
+------------------------------ -------------------------------- ------------------------------ ---------
+MITSUI_SRC                     OPEN                             USERS                          17-OCT-26
+MITSUI_EXTRACTOR               OPEN                             USERS                          17-OCT-26
+
+[*] Executing 01_create_schema.sql with mitsui_src/Mitsui_Sec_2026...
+[+] 01_create_schema.sql executed successfully.
+
+[*] Executing 02_seed_trades_data.sql with mitsui_src/Mitsui_Sec_2026...
+[+] 02_seed_trades_data.sql executed successfully.
+
+=== Oracle 11g Provisioning Finished Successfully! ===
+```
+
+---
+
+### 8.3 🛡️ 金融安全实测：只读抽取账号权限攻防检验
+
+我们现场连接只读账号 `MITSUI_EXTRACTOR`，执行权限验证与只读安全防御实测：
+
+::: code-group
+```bash [wslc 实测执行]
+# 1. 验证只读查询权限 (SELECT)
+wslc exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+SELECT COUNT(*) AS MASTER_CNT FROM MITSUI_SRC.CUST_MASTER;
+SELECT COUNT(*) AS TRADE_CNT FROM MITSUI_SRC.CUST_TRADE_DETAIL;
+EXIT;
+EOF
+
+# 2. 验证越权写操作被强制拦截 (DELETE 防御)
+wslc exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+DELETE FROM MITSUI_SRC.CUST_MASTER;
+EXIT;
+EOF
+```
+
+```bash [docker 实测执行]
+# 1. 验证只读查询权限 (SELECT)
+docker exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+SELECT COUNT(*) AS MASTER_CNT FROM MITSUI_SRC.CUST_MASTER;
+SELECT COUNT(*) AS TRADE_CNT FROM MITSUI_SRC.CUST_TRADE_DETAIL;
+EXIT;
+EOF
+
+# 2. 验证越权写操作被强制拦截 (DELETE 防御)
+docker exec -i mitsui_oracle_11g sqlplus -S mitsui_extractor/Mitsui_Sec_2026@//localhost:1521/xe << 'EOF'
+DELETE FROM MITSUI_SRC.CUST_MASTER;
+EXIT;
+EOF
+```
+:::
+
+#### 终端真实实测输出：
+
+1. **只读查询验证成功**：
+   ```text
+   MASTER_CNT
+   ----------
+           13
+
+    TRADE_CNT
+   ----------
+           11
+   ```
+2. **写操作被 Oracle 内核强制拦截（安全防御生效）**：
+   ```text
+   ERROR at line 1:
+   ORA-01031: insufficient privileges
+   ```
+> [!NOTE]
+> 这证实了只读抽取账号 `MITSUI_EXTRACTOR` 完全受限于 `ROLE_MITSUI_READ`，在后续的迁移抽取中即使配置失误也绝对无法破坏源端业务数据！
+
+---
+
+## 九、 🎯 实测验证：单表与跨表 JOIN“双轨黄金基准” (直通第 05 章)
 
 数据插入完成后，在 Oracle 源端立即执行双轨基准测试查询，记录下源端的不可变输出：
 
@@ -495,9 +698,9 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 
 ---
 
-## 七、 本章小结与后续章节导航
+## 十、 本章小结与后续章节导航
 
-本章在本地环境中成功搭建起了 100% 高保真的 Oracle 11g 金融核心业务源库，创建了典型的 **`CUST_MASTER` 维度主表** 与 **`CUST_TRADE_DETAIL` 事实流水表**，灌入了高覆盖率的双表测试数据，并确立了字段转换哲学与跨表 JOIN 黄金基准。
+本章在本地环境中成功搭建起了 100% 高保真的 Oracle 11g 金融核心业务源库，创建了专属的 **`MITSUI_SRC` 模式属主** 与 **`MITSUI_EXTRACTOR` 只读抽取账号**，构建了典型的 **`CUST_MASTER` 维度主表** 与 **`CUST_TRADE_DETAIL` 事实流水表**，灌入了高覆盖率的双表测试数据，并通过自动化脚本完成了全流程实战测试。
 
 在接下来的章节中，我们将正式开启云端建设与迁移战役：
-- 👉 **[第 03 章：Snowflake 企业级 RBAC 权限设计与环境搭建实战](03_snowflake_rbac_setup.md)**：使用 `USERADMIN` 和 `SYSADMIN` 双轨角色，在 Snowflake 端严格落地三井证券三层业务角色体系，并根据本章确立的转换哲学创建 `MITSUI_STAGE` 以及目标双表 `CUST_MASTER` 与 `CUST_TRADE_DETAIL`！
+- 👉 **[第 03 章：Snowflake 企业级 RBAC 权限设计与环境搭建实战](03_snowflake_rbac_setup.md)**：使用 `USERADMIN` 和 `SYSADMIN` 双轨角色，在 Snowflake 端严格落地三井证券三层业务角色体系，并根据本章确立的转换哲学创建目标三段式命名空间 `MITSUI_SEC_DB.RAW_ORACLE` 下的双表！

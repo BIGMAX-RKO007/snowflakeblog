@@ -94,3 +94,10 @@ COMMENT ON COLUMN CUST_TRADE_DETAIL.REMARKS IS '摘要・備考：VARCHAR2(100 C
 COMMENT ON COLUMN CUST_TRADE_DETAIL.TRADE_DATE IS '約定日：DATE型。Snowflake移行時はVarchar(8) YYYYMMDD形式へ変換予定';
 COMMENT ON COLUMN CUST_TRADE_DETAIL.SETTLE_MONTH IS '決済対象月：DATE型（月初日で代表）。Snowflake移行時はVarchar(6) YYYYMM形式へ変換予定';
 COMMENT ON COLUMN CUST_TRADE_DETAIL.REG_DATETIME IS '登録日時：DATE型（秒まで）。Snowflake移行時はTimestamp_ntz(6)へ変換予定（小数秒は新規付与）';
+
+-- ============================================================
+-- 3. 授权金融只读抽取角色 (ROLE_MITSUI_READ)
+-- ============================================================
+GRANT SELECT ON CUST_MASTER TO ROLE_MITSUI_READ;
+GRANT SELECT ON CUST_TRADE_DETAIL TO ROLE_MITSUI_READ;
+
