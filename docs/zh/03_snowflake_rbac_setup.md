@@ -154,6 +154,8 @@ SHOW ROLES LIKE 'MITSUI_%';
 SHOW USERS LIKE 'MITSUI_%';
 ```
 
+![Snowsight 中三层业务角色与用户创建结果](../images/03_img_01.png)
+
 ---
 
 ### 阶段二：切换 `SYSADMIN`（分配计算资源与下发建库特权）
@@ -184,6 +186,8 @@ GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
 ```sql
 GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
 ```
+
+![Snowsight 虚拟计算仓库 MITSUI_WH 创建与建库特权委让验证](../images/03_img_02.png)
 
 ---
 
@@ -346,6 +350,8 @@ SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
 ```
 
+![Snowsight 暂存区 Stage 与目标双表构建及授权完成](../images/03_img_03.png)
+
 ---
 
 ## 四、 🔐 金融企业级业务用户首登、MFA 与连通性自检 (Onboarding & Sanity Check)
@@ -400,7 +406,23 @@ SELECT * FROM _SANITY_CHECK;
 
 -- 验证完毕后清理临时对象
 DROP TABLE IF EXISTS _SANITY_CHECK;
+
+-- 6. 切换为只读分析师角色，执行最小特权防御测试 (Least Privilege Verification)
+USE ROLE MITSUI_ANALYST;
+USE WAREHOUSE MITSUI_WH;
+USE DATABASE MITSUI_SEC_DB;
+USE SCHEMA RAW_ORACLE;
+
+-- 允许执行 SELECT 查询（返回空结果集，表明具备读取权限）
+SELECT * FROM CUST_MASTER;
+
+-- 越权写入立即被系统安全拦截
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, OPEN_DATE) 
+VALUES ('TEST0001', '不正書込テスト', CURRENT_DATE());
+-- 预期报错：SQL compilation error: Object 'CUST_MASTER' does not exist or not authorized.
 ```
+
+![Snowsight 只读角色 MITSUI_ANALYST 越权拦截安全防御验证](../images/03_img_04.png)
 
 ---
 

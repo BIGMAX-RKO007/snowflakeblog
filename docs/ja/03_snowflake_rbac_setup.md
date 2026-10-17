@@ -154,6 +154,8 @@ SHOW ROLES LIKE 'MITSUI_%';
 SHOW USERS LIKE 'MITSUI_%';
 ```
 
+![Snowsight での3層業務ロールおよびユーザー作成結果](../images/03_img_01.png)
+
 ---
 
 ### フェーズ 2：`SYSADMIN` によるコンピュート割当と DB 作成特権の委譲
@@ -184,6 +186,8 @@ GRANT USAGE ON WAREHOUSE MITSUI_WH TO ROLE MITSUI_ANALYST;
 ```sql
 GRANT CREATE DATABASE ON ACCOUNT TO ROLE MITSUI_ADMIN;
 ```
+
+![Snowsight 仮想ウェアハウス MITSUI_WH 作成と DB 作成特権委譲の検証](../images/03_img_02.png)
 
 ---
 
@@ -346,6 +350,8 @@ SHOW STAGES LIKE 'MITSUI_STAGE';
 SHOW TABLES IN SCHEMA MITSUI_SEC_DB.RAW_ORACLE;
 ```
 
+![Snowsight ステージ MITSUI_STAGE および移行対象2テーブル構築完了](../images/03_img_03.png)
+
 ---
 
 ## 四、 🔐 金融業務ユーザー初回ログイン、MFA 設定および接続検証 (Onboarding & Sanity Check)
@@ -400,7 +406,23 @@ SELECT * FROM _SANITY_CHECK;
 
 -- 検証後のクリーンアップ
 DROP TABLE IF EXISTS _SANITY_CHECK;
+
+-- 6. 読み取り専用アナリストロールへの切り替えと最小特権防御テスト (Least Privilege Verification)
+USE ROLE MITSUI_ANALYST;
+USE WAREHOUSE MITSUI_WH;
+USE DATABASE MITSUI_SEC_DB;
+USE SCHEMA RAW_ORACLE;
+
+-- SELECT 照会は正常実行可能（空レコードが返却され、権限の保持を確認）
+SELECT * FROM CUST_MASTER;
+
+-- 不正な書き込み（INSERT）はアクセス制御機構により即座に遮断
+INSERT INTO CUST_MASTER (CUST_ID, CUST_NAME_KANJI, OPEN_DATE) 
+VALUES ('TEST0001', '不正書込テスト', CURRENT_DATE());
+-- 期待されるエラー：SQL compilation error: Object 'CUST_MASTER' does not exist or not authorized.
 ```
+
+![Snowsight 参照専用ロール MITSUI_ANALYST による不正書込の遮断検証](../images/03_img_04.png)
 
 ---
 
