@@ -210,9 +210,9 @@ DATABASE IS READY TO USE!
 
 ---
 
-## 五、 🔐 企业级 Schema、用户与只读角色初始化 (`00_init_user_and_permissions.sql`)
+## 五、 🔐 企业级 Schema、用户与只读角色初始化
 
-使用管理员 `system` 连接成功后，打开 SQL 编辑窗口，执行以下权限与模式初始化脚本（对应仓库脚本 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
+使用管理员 `system` 连接成功后，打开 SQL 编辑窗口，执行以下权限与模式初始化脚本：
 
 ```sql
 -- ==============================================================================
@@ -265,9 +265,9 @@ COMMIT;
 
 ---
 
-## 六、 🏛️ 核心双表 DDL 与 Oracle ➔ Snowflake 架构推导哲学 (`01_create_schema.sql`)
+## 六、 🏛️ 核心双表 DDL 与 Oracle ➔ Snowflake 架构推导哲学
 
-切换至 **`mitsui_src`** 用户连入数据库后，执行以下核心双表 DDL（对应脚本 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
+切换至 **`mitsui_src`** 用户连入数据库后，执行以下核心双表 DDL：
 
 ### 6.1 表 1：维度主表 `CUST_MASTER` (顧客基本台帳)
 
@@ -371,13 +371,13 @@ GRANT SELECT ON CUST_TRADE_DETAIL TO ROLE_MITSUI_READ;
 
 ---
 
-## 七、 🧪 金融级双表测试数据集批量注入 (`02_seed_trades_data.sql`)
+## 七、 🧪 金融级双表测试数据集批量注入
 
 我们设计了高覆盖率的双表测试数据集：
 1. **主表 `CUST_MASTER`（共 13 条）**：覆盖 11 名有交易客户、1 名新开户但无交易客户（`CU00008888` 松本 润，测试 LEFT JOIN 产生 NULL）、1 名状态存入 `''` 客户（`CU00009990` 井上 阳水，测试 Oracle 空串转 NULL）；
 2. **事实表 `CUST_TRADE_DETAIL`（共 11 条）**：覆盖国内股票、外汇、外国债券、全 9 极限值、全角百字边界、超微额汇率与跨年交易。
 
-请以 `mitsui_src` 用户执行以下完整插入脚本（对应脚本 [`scripts/oracle/02_seed_trades_data.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/02_seed_trades_data.sql)）：
+请以 `mitsui_src` 用户执行以下完整插入脚本：
 
 ```sql
 -- 清空历史数据
@@ -554,7 +554,7 @@ COMMIT;
 * **分步精读路径（学习首选）**：如上文第 4 至 7 节所示，通过 VSCode/DBeaver 依次研读并手工执行各脚本；
 * **极速一键部署路径（高效首选）**：直接运行下述 Python 自动化脚本，10 秒内自动完成权限初始化、表结构部署与高覆盖率数据灌入！
 
-### 8.1 一键执行 Python 自动化部署脚本 (`setup_oracle_full.py`)
+### 8.1 一键执行 Python 自动化部署脚本
 
 脚本自动侦测宿主机当前可用的容器运行时（优先微软原生 `wslc`，若未安装则自动回退至 `docker`），并妥善处理 SQL*Plus 换行缓存机制，依次调度执行三大 SQL 脚本：
 

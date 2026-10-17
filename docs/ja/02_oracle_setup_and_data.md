@@ -209,9 +209,9 @@ VSCode の拡張機能マーケットプレイスで **Database Client** をイ�
 
 ---
 
-## 五、 🔐 企業級スキーマ・ユーザーと読み取り専用ロールの初期化 (`00_init_user_and_permissions.sql`)
+## 五、 🔐 企業級スキーマ・ユーザーと読み取り専用ロールの初期化
 
-管理者 `system` で接続後、SQL エディタを開いて以下の権限・スキーマ初期化スクリプトを実行します（リポジトリ内 [`scripts/oracle/00_init_user_and_permissions.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/00_init_user_and_permissions.sql)）：
+管理者 `system` で接続後、SQL エディタを開いて以下の権限・スキーマ初期化スクリプトを実行します：
 
 ```sql
 -- ==============================================================================
@@ -264,9 +264,9 @@ COMMIT;
 
 ---
 
-## 六、 🏛️ 中核 2 テーブル DDL と Oracle ➔ Snowflake 型設計哲学 (`01_create_schema.sql`)
+## 六、 🏛️ 中核 2 テーブル DDL と Oracle ➔ Snowflake 型設計哲学
 
-**`mitsui_src`** アカウントで接続を切り替え、以下のコア 2 テーブル DDL スクリプトを実行します（リポジトリ内 [`scripts/oracle/01_create_schema.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/01_create_schema.sql)）：
+**`mitsui_src`** アカウントで接続を切り替え、以下のコア 2 テーブル DDL スクリプトを実行します：
 
 ### 6.1 テーブル 1：マスター表 `CUST_MASTER` (顧客基本台帳)
 
@@ -370,13 +370,13 @@ GRANT SELECT ON CUST_TRADE_DETAIL TO ROLE_MITSUI_READ;
 
 ---
 
-## 七、 🧪 金融グレード 2 テーブルテストデータ投入 (`02_seed_trades_data.sql`)
+## 七、 🧪 金融グレード 2 テーブルテストデータ投入
 
 高い検証カバレッジを持つ 2 テーブルのテストデータセットを用意しました：
 1. **マスター表 `CUST_MASTER`（全 13 件）**：約定実績ありの 11 名、新規開設で取引のない顧客（`CU00008888` 松本 潤：LEFT JOIN 時の NULL 生成検証用）、状態コードに `''` を投入した顧客（`CU00009990` 井上 陽水：Oracle 空文字 ➔ NULL 変換検証用）；
 2. **トランザクション表 `CUST_TRADE_DETAIL`（全 11 件）**：国内株式、外国株式（USD）、外国債券（EUR）、全 9 境界値、全角 100 文字限界値、微細為替レート、年末最終営業日取引。
 
-`mitsui_src` アカウントで以下のスクリプトを実行します（リポジトリ内 [`scripts/oracle/02_seed_trades_data.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/02_seed_trades_data.sql)）：
+`mitsui_src` アカウントで以下のスクリプトを実行します：
 
 ```sql
 -- 既存データの初期化
@@ -553,7 +553,7 @@ COMMIT;
 * **ステップ精読ルート（学習推奨）**：上記第 4 〜 7 節の通り、VSCode や DBeaver から各 SQL を順次実行・理解するルート；
 * **高速一括自動化ルート（効率推奨）**：後述の Python 自動化スクリプトを実行し、権限初期化・DDL・データ投入を約 10 秒で全自動デプロイするルート。
 
-### 8.1 一括自動実行 Python スクリプト (`setup_oracle_full.py`)
+### 8.1 一括自動実行 Python スクリプト
 
 ホスト上のコンテナランタイム（マイクロソフト純正 `wslc` を最優先、未検出時は `docker` へ自動フォールバック）を自動検知し、SQL*Plus の改行バッファを制御して 3 つの SQL スクリプトを順次自動実行します：
 
