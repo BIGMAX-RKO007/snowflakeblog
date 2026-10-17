@@ -263,4 +263,83 @@ Snowflake 具备极其强大的企业级透明度审计体系，每一条执行�
 
 ---
 
-完成上述从界面按钮到架构内核的全面拆解后，您已完整掌握了 Snowflake 核心交互环境。接下来我们将进入后续章节，正式开展本地 Oracle 环境搭建及三井证券企业级 RBAC 生产体系的构建实战！
+## 六、🌐 账号定位标识体系与客户端连接生态 (Account Identifier & Ecosystem)
+
+完成 Web 端的初步体验后，在进入自动化脚本开发、CI/CD 运维流水线或第三方企业客户端（如 SnowSQL、DBeaver、Python、Airflow）之前，理解 Snowflake 的**全局账号标识符（Account Identifier）**是至关重要的基石。
+
+### 6.1 账号定位符的两种表示法
+
+在企业网络拓扑中，Snowflake 支持两种格式的账号定位：
+
+| 格式分类 | 标准规范 | 示例（以本项目为例） | 适用场景 |
+| :--- | :--- | :--- | :--- |
+| **组织账号定位法 (推荐)** | `<组织名>-<账号名>` | `prqilyp-he58274` | 生产标准、跨云迁移、多区域统一纳管、DBeaver/SnowSQL 接入 |
+| **传统定位符定位法 (Legacy)** | `<定位符>.<区域>.<云厂商>` | `he58274.ap-northeast-1.aws` | 旧版驱动兼容、专用私有云链接 (AWS PrivateLink) |
+
+### 6.2 在 Snowsight 中一键提取账号 URL
+
+在 Snowsight 控制台界面中，可以极其便捷地提取全局唯一的连接 URL：
+
+![账号定位标识与URL提取](../images/01_img_21.png)
+
+1. 点击左下角当前登录用户的个人资料卡片；
+2. 鼠标悬停在当前激活的账号项（例如 `HE58274 - ap-northeast-1.aws`）；
+3. 在弹出的二级浮窗中，清晰标明了组织编号（`PRQILYP`）、账号标识（`HE58274`）及物理机房（`AWS - Asia Pacific (Tokyo) - ap-northeast-1`）；
+4. 点击 **「アカウントURLをコピー (Copy Account URL)」** 按钮，即可将连接基址复制到剪贴板：
+   ```text
+   https://prqilyp-he58274.snowflakecomputing.com
+   ```
+
+### 6.3 跨平台客户端连接生态全景
+
+获取账号 URL 与定位符后，后续章节将串联起完整的金融工程开发链路：
+
+```mermaid
+flowchart TD
+    ACC["Snowflake 全局账号<br/>https://prqilyp-he58274.snowflakecomputing.com"]
+    
+    ACC --> CLI["终端开发工具: SnowSQL CLI<br/>snowsql -a prqilyp-he58274 -u USERADMIN"]
+    ACC --> GUI["企业可视化客户端: DBeaver / DataGrip<br/>JDBC: jdbc:snowflake://prqilyp-he58274.snowflakecomputing.com"]
+    ACC --> CODE["编程与数据工程: Python / Snowpark<br/>snowflake-connector-python & pandas"]
+    ACC --> ETL["异构数据同步流水线: Oracle Gateway<br/>按计划将本地交易库导入 Snowflake"]
+    
+    style ACC fill:#0369a1,stroke:#38bdf8,stroke-width:2px,color:#ffffff
+    style CLI fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#f8fafc
+    style GUI fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#f8fafc
+    style CODE fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#f8fafc
+    style ETL fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#f8fafc
+```
+
+---
+
+## 七、🎬 HyperFrames 教学视频工程规范与分镜映射 (Video Production Guide)
+
+为了将本项目打造为业界顶尖的多媒体技术课程，本教程配套采用了 **HeyGen 开源的 HyperFrames 现代代码级视频渲染引擎**（位于项目根目录 `video_ch1/`）。通过 Web 技术（HTML/CSS/GSAP）驱动，实现工业级 60FPS 丝滑高保真动效视频输出。
+
+### 7.1 画面构图标准与 16:9 画幅规范
+
+| 工程维度 | 规范参数 | 关键设计要求 |
+| :--- | :--- | :--- |
+| **原生画幅分辨率** | **1920 × 1080 (16:9 Landscape)** | 符合现代 4K/1080p 显示器全屏比例，严禁非等比拉伸。 |
+| **界面暗色美学** | 背景色 `#0A0F1D`，卡片 `#0F172A` | 结合玻璃拟态（Glassmorphism）与极光光晕（Glow Orbs），科技感强且护眼。 |
+| **文字与代码排版** | `Inter` + `JetBrains Mono` | 代码关键词高亮，行高设为 `1.6 ~ 1.8`，保证视频观看时字符清晰辨识。 |
+| **数字人避让安全区** | **右下角 420 × 540 px 保留区** | HeyGen 虚拟播报数字人通常置于画面右下角或底部，**核心架构图或 SQL 输出绝对不可放置于此区域**，必须居中或居左编排。 |
+
+### 7.2 第一章 HyperFrames 分镜与教材资产映射矩阵
+
+在 `hyperframes preview video_ch1 --port=3002` 视频生成流中，各幕（Act）与本篇教程图文资源的对应关系如下：
+
+| 幕次 (Act) | 视频标题与核心主题 | 对应教材章节 | 核心截图 / 视觉动效物料 | GSAP 运镜与焦点区域 |
+| :--- | :--- | :--- | :--- | :--- |
+| **ACT 01** | **业务背景与金融数字化转型挑战** | 第一节 (背景概述) | 挑战卡片 (单体瓶颈/跑批延迟/扩展困境) | 视口平移依次聚焦 3 大痛点卡片 |
+| **ACT 02** | **Snowflake 现代云原生三大技术底座** | 第三节 (三层架构) | 存算分离架构卡片与层级关系 | 纵向推镜头：底座存储 ➔ 计算引擎 ➔ 云服务层 |
+| **ACT 03** | **核心计费体系与月度 $508 成本仿真** | 第二节 (成本控制) | [01_img_07](../images/01_img_07.png) 试用期额度看板 | 缩放聚焦于额度告警与自动休眠策略 |
+| **ACT 04** | **端到端安全迁移拓扑与流水线架构** | 第五节 (架构映射) | [01_img_20](../images/01_img_20.png) 对象树、数据加载拓扑 | 左右双列对比：本地 Oracle 源端 ➔ Snowflake 目标端 |
+| **ACT 05** | **8 大功能矩阵与现代化操作台全览** | 第五节 (5.2 矩阵) | [01_cat_01 ~ 08 系列](../images/01_cat_01_ingestion.png) | 轮播切换 8 大模块，左侧微动效聚焦 |
+| **ACT 06** | **SQL 工作区实操与多维分析引擎** | 第五节 (5.3 ~ 5.5) | [01_img_15](../images/01_img_15.png), [01_img_18](../images/01_img_18.png), [01_img_17](../images/01_img_17.png) | 视口先聚焦上下文选择器，再平滑拉镜头至图表与 Query Profile |
+| **ACT 07** | **账号定位提取与金融客户端生态** | 第六节 (账号与生态) | [01_img_21](../images/01_img_21.png) 账号 URL 提取弹窗 | 弹出卡片浮显，高亮复制 URL 与组织名，展示客户端互联拓扑 |
+
+---
+
+完成上述从界面按钮、架构内核、账号标识到多媒体视频工程的全面拆解后，您已完整掌握了 Snowflake 企业级核心交互基石。接下来我们将进入后续章节，正式开展本地 Oracle 环境搭建及三井证券企业级 RBAC 生产体系的构建实战！
+
