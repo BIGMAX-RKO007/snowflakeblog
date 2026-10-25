@@ -2,13 +2,13 @@
 
 日本の金融 IT プロジェクト（メガバンク・大手証券）において、新旧システム移行フェーズの成否を決する最大の関門が **「新旧データ突合検証 (Reconciliation & Validation)」** です。これは本番稼働判定（Go-Live Sign-off）を取得するための最も厳格な品質防線となります。
 
-勘定系・市場系データにおいては、単に「テーブル件数が一致している」だけでは不十分です。為替レート換算の端数丸め誤差、浮動小数点精度の欠落、全角・半角混在による文字数切り捨て、外部キー欠落による孤児レコード、および Oracle 空文字の暗黙 NULL 評価差異など、微小な不整合が重大な金融事故や帳尻不一致を引き起こします。
+勘定系・市場系データにおいては、単に「テーブル件数が一致している」だけでは不十分です。為替レート換算の端数丸め誤差、浮動小数点精度の欠落、全角・半角混在による文字数切り捨て、外部キー欠落による孤児レコード、Oracle 空文字の暗黙 NULL 評価差異、および改行コードや文字コード体系の変異など、微小な不整合が重大な金融事故や帳尻不一致を引き起こします。
 
-本章では、日本の金融 IT 業界標準である **「4階梯 厳格突合検証体系 (4-Tier Reconciliation Architecture)」** に則り、監査・分析専属ロール `MITSUI_ANALYST` によって、異機種間（Oracle 11g 源泉庫 vs Snowflake ターゲットクラウド基盤）の双発エンジン基準比較実演を行います。
+本章では、日本の金融 IT 業界標準である **「5階梯 厳格突合検証体系 (5-Tier Reconciliation Architecture)」** に則り、監査・分析専属ロール `MITSUI_ANALYST` によって、異機種間（Oracle 11g 源泉庫 vs Snowflake ターゲットクラウド基盤）の双発エンジン基準比較実演を実施し、さらに日系プロジェクト現場で必須とされる **WinMerge による物理ファイル差分検証・エビデンス保全** を完遂します。
 
 ---
 
-## 突合アーキテクチャ設計：4階梯 厳格突合体系
+## 突合アーキテクチャ設計：5階梯 厳格突合体系
 
 ```mermaid
 flowchart TD
@@ -35,7 +35,11 @@ flowchart TD
         R4["全行・全列無順序ハッシュ指紋検証<br/>HASH_AGG = -3405770010579799674<br/>数学的証明によるビット単位の改ざん・欠落ゼロ保証"]
     end
 
-    S0 --> T1 --> T2 --> T3 --> T4
+    subgraph T5["第五階梯：WinMerge 物理ファイル突合 (Visual Diff)"]
+        R5["双発対称 CSV 物理ファイルの直接ビジュアル比較<br/>WinMerge 画面エビデンス採取 (Binary Match & Identical)<br/>業務部・品質保証部門 (QA) への最終提出エビデンス"]
+    end
+
+    S0 --> T1 --> T2 --> T3 --> T4 --> T5
 ```
 
 ---
@@ -333,13 +337,91 @@ GLOBAL_TABLE_HASH: -3405770010579799674
 
 ---
 
-## 5. ローカル自動化検証スクリプト
+## 第五階梯：WinMerge による物理ファイル直接突合とエビデンス保全 (Physical File Reconciliation)
 
-本章のすべての SQL と Python 自動化ツールは、プロジェクトのリポジトリに保存されています：
+日本の金融機関や大手 SIer におけるシステム移行検収では、データベース内部のクエリ実行ログのみならず、**「WinMerge による新旧ファイル直接比較エビデンス」** の提出が品質管理部門（QA）および監査法人から強く要求されます。
+
+### 1. なぜ日系プロジェクトで WinMerge が不可欠なのか？
+* **非技術意思決定層への直感的説明責任**：業務部や監査担当者に対し、左右ペイン（左：現行 Oracle / 右：次世代 Snowflake）に全レコードが並び、差分ハイライトが一切ない純白状態、およびステータスバーの `Identical` や `Selected files are identical (binary match)` のポップアップを提示することで、受入合意を即座に形成できます。
+* **物理ファイル層の文字コード・改行コード監査**：WinMerge 画面下部にエンコーディング（`UTF-8`）および改行コード（`Win / CRLF` または `UNIX / LF`）が常時明示され、文字化けや改行コード混在の事故を物理レベルで防止します。
+* **固定長 CHAR 空白パディングの透過検証**：`CHAR(10)` などの末尾空白が意図せずトリムされたり過剰付与されていないかを透過的に目視確認できます。
+
+### 2. 双発物理 CSV エクスポートの準備
+
+自動化スクリプト `scripts/validation/export_snowflake_for_winmerge.py` を実行し、Oracle 側と Snowflake 側から同一のソート順・精度フォーマットで CSV ファイルを出力します：
+
+```powershell
+# 双発物理 CSV エクスポートの実行
+python scripts/validation/export_snowflake_for_winmerge.py
+```
+
+* Oracle 側基準ファイル：`data/exports/oracle_cust_master.csv` / `oracle_cust_trade_detail.csv`
+* Snowflake 側実測ファイル：`data/exports/snowflake_cust_master.csv` / `snowflake_cust_trade_detail.csv`
+
+---
+
+### 3. 顧客マスタ (CUST_MASTER) WinMerge 実機比較
+
+WinMerge を起動し、双発の顧客基本台帳 CSV を比較：
+
+```cmd
+"C:\Program Files\WinMerge\WinMergeU.exe" data\exports\oracle_cust_master.csv data\exports\snowflake_cust_master.csv
+```
+
+実機比較エビデンス（**Selected files are identical (binary match)** の完全一致ポップアップ）：
+
+![WinMerge CUST_MASTER 比較エビデンス](../images/05_step_06_winmerge_master_diff.png)
+
+#### 監査ポイント解説：
+1. **バイナリ一致ポップアップ**：中央ダイアログに `Selected files are identical (binary match).` と明示され、バイト単位での 100% 完全同等性が証明されています。
+2. **全角漢字・半角カナの完全保持**：`三井 証券機構`、`ミツイ ショウケンキコウ`、`佐藤 太郎` 等のマルチバイト文字が一切の欠落なく保持されています。
+3. **固定長末尾空白の維持**：`CUST_RANK_CD` カラムの `'S '`、`'A '`、`'C '` の末尾半角スペースが完全に維持されています。
+4. **空文字 NULL の表現整合性**：`CU00009990`（井上 陽水）のステータス空文字が、Snowflake 側でも同一の空フィールドとして出力され、カンマ位置が完全に合致しています。
+
+---
+
+### 4. 顧客取引明細 (CUST_TRADE_DETAIL) WinMerge 実機比較
+
+WinMerge で金融取引明細 CSV を直接比較：
+
+```cmd
+"C:\Program Files\WinMerge\WinMergeU.exe" data\exports\oracle_cust_trade_detail.csv data\exports\snowflake_cust_trade_detail.csv
+```
+
+実機比較エビデンス（左：Oracle 源泉側、右：Snowflake 移行先側）：
+
+![WinMerge CUST_TRADE_DETAIL 比較エビデンス](../images/05_step_05_winmerge_trade_diff.png)
+
+#### 監査ポイント解説：
+1. **右下ステータスバー判定**：明確に **`Identical`**（完全同一）と判定され、左右ペインともに `UTF-8` / `Win`（CRLF）で統一されています。
+2. **左端 Location Pane（差分ロケーションバー）**：全体バーが完全な均一グレー（差分ゼロ）であり、**黄色（差分行）や赤色（欠落行）が 1 箇所も存在しません**。
+3. **1000兆円極大トランザクションと小数第3位精度**：2行目 `CU00000001` の `999999999999999.999` が、指数表記化することなく左右完全に合致しています。
+4. **全角100文字極限備考の検証**：7行目 `CU00004445` の `全角文字百桁境界値検証用摘要欄全全全全全全全全全...` が一文字の欠落もなく左右対照されています。
+
+---
+
+### 5. 金融現場における WinMerge 推奨設定ガイド
+
+プロジェクトの受入検収基準として WinMerge を採用する際は、メニュー **「編集」➔「設定」➔「比較」** にて以下の標準パラメータを設定することが推奨されます：
+
+| 設定項目 (UI 表示) | 推奨設定値 | 金融プロジェクトにおける理由 |
+| :--- | :---: | :--- |
+| **空白** | **すべて比較** | 固定長 `CHAR` の末尾スペース欠落や想定外の余白混入を厳密に検知するため |
+| **改行コードの違いを無視する** | **チェック ON** | Linux 側（LF）と Windows クライアント側（CRLF）の偽差分を排除するため |
+| **文字コード自動判定** | **UTF-8 (BOM なし)** | クラウド DWH 標準に合わせ、BOM 混入による先頭カラム破損を防止するため |
+| **プラグイン** | **Prediffer / CSV 表形式** | 項目数が多いファクトテーブルにおいてカラム単位のズレを目視確認するため |
+
+---
+
+## 6. ローカル自動化検証スクリプト
+
+本章のすべての SQL、Python 自動化ツール、および WinMerge 自動連携スクリプトは、プロジェクトのリポジトリに保存されています：
 
 1. **Snowflake 突合マスタースクリプト**：`scripts/validation/05_reconciliation_master.sql`
 2. **Oracle 11g ローカルベンチマークスクリプト**：`scripts/oracle/05_oracle_reconcile.py`
 3. **Snowflake Python 自動検証ツール**：`scripts/validation/05_snowflake_reconcile_verify.py`
+4. **WinMerge 双発 CSV エクスポートツール**：`scripts/validation/export_snowflake_for_winmerge.py`
+5. **WinMerge エビデンス画面取得ツール**：`scripts/validation/grab_winmerge.py`
 
 ターミナルからのワンクリック実行コマンド：
 
@@ -349,11 +431,15 @@ python scripts/oracle/05_oracle_reconcile.py
 
 # 2. Snowflake 移行先側の自動突合検証の実行
 python scripts/validation/05_snowflake_reconcile_verify.py
+
+# 3. 物理 CSV の出力と WinMerge によるビジュアル比較
+python scripts/validation/export_snowflake_for_winmerge.py
+& "C:\Program Files\WinMerge\WinMergeU.exe" data\exports\oracle_cust_trade_detail.csv data\exports\snowflake_cust_trade_detail.csv
 ```
 
 ---
 
-## 6. 金融 IT 突合検収サインオフ報告書（公式テンプレート）
+## 7. 金融 IT 突合検収サインオフ報告書（公式テンプレート）
 
 日本の大手金融機関におけるプロジェクト納品時、品質管理部門（QA）およびシステムオーナーに提出する公式検収書フォーマットです：
 
@@ -365,6 +451,7 @@ python scripts/validation/05_snowflake_reconcile_verify.py
 検証実行者     : MITSUI_ANALYST (監査分析担当)
 検証実施日     : 2026-10-25
 総合監査判定   : 合格 (PASS / 本番カットオーバー承認)
+添付エビデンス : WinMerge 物理差分比較画像 (05_step_05_winmerge_trade_diff.png / 05_step_06_winmerge_master_diff.png)
 ================================================================================
 ```
 
@@ -386,5 +473,7 @@ python scripts/validation/05_snowflake_reconcile_verify.py
 | **Tier 3** | 日本語全角極限文字数 (CU00004445) | 50 文字 / 150 バイト | 50 文字 / 150 バイト | 0 欠落 | **PASS** |
 | **Tier 3** | Oracle 空文字 NULL 判定 (CU00009990) | `NULL` | `NULL` | 0 齟齬 | **PASS** |
 | **Tier 4** | テーブル全体暗号ハッシュ指紋 (`HASH_AGG`) | `-3405770010579799674` | `-3405770010579799674` | 0 bit | **PASS** |
+| **Tier 5** | WinMerge 物理 CSV 直接突合 (CUST_MASTER) | 完全一致 (Binary Match) | 完全一致 (Binary Match) | 0 bit | **PASS** |
+| **Tier 5** | WinMerge 物理 CSV 直接突合 (CUST_TRADE_DETAIL) | 完全一致 (Identical) | 完全一致 (Identical) | 0 bit | **PASS** |
 
-**結論**：三井証券勘定系 Oracle 11g から Snowflake 次世代データ基盤への全データ移行突合において、一切の誤差・欠落・破損が認められず、本番稼働承認（Go-Live Approval）の全基準を充足したことを証明します。
+**結論**：三井証券勘定系 Oracle 11g から Snowflake 次世代データ基盤への全データ移行突合において、論理集計・関係整合性・暗号ハッシュ・および WinMerge 物理ファイル直接突合の全階梯で差異ゼロが実証され、本番稼働承認（Go-Live Approval）の全基準を充足したことを証明します。
