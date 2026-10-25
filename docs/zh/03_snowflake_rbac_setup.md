@@ -89,7 +89,7 @@ graph TD
 
 本节严格按照日本金融机构（FISC 安全基线）标准建设流水线展开实操。在本实战演练中，**所有 SQL 语句均完整保留于工作区脚本中，代码格式规范、逐段配备详尽的设计理由注释**，让每一位学习者具备 100% 的可复现能力。
 
-* **配套全量生产级脚本**：[`scripts/snowflake/03_rbac_and_env_master.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/03_rbac_and_env_master.sql)
+* **配套全量生产级脚本**：`scripts/snowflake/03_rbac_and_env_master.sql`
 
 ---
 

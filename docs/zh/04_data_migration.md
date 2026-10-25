@@ -56,7 +56,7 @@
 4. **带宽与传输优化**：金融数据体积庞大，导出同时直接利用 `gzip` 压缩为 `.csv.gz`，体积缩减 70%~90%，极大降低网络 I/O 成本。
 
 ### 导出脚本实现
-在项目 `scripts/oracle/` 目录下提供了自动化导出脚本 [export_to_csv.py](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/export_to_csv.py)：
+在项目 `scripts/oracle/` 目录下提供了自动化导出脚本 `scripts/oracle/export_to_csv.py`：
 
 ```bash
 # 执行 Oracle 端双表自动化导出与 Gzip 压缩
@@ -99,7 +99,7 @@ Destination Folder: data/exports
 ---
 
 ### 方式 B（生产工程化）：Python / PUT 命令自动化上传
-在实际生产自动化流水线（Airflow / CI-CD）中，通常使用脚本自动化上传。项目中提供了脚本 [upload_to_stage.py](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/upload_to_stage.py)：
+在实际生产自动化流水线（Airflow / CI-CD）中，通常使用脚本自动化上传。项目中提供了脚本 `scripts/snowflake/upload_to_stage.py`：
 
 ```python
 import snowflake.connector
@@ -128,7 +128,7 @@ cur.execute("PUT file://C:/path/to/cust_trade_detail.csv.gz @MITSUI_STAGE AUTO_C
 
 ## 阶段三：执行生产级 COPY INTO 批量数据导入
 
-进入 Snowflake SQL Worksheet 工作区（已命名为 `04_data_migration_and_reconciliation.sql`），按技术步骤依序执行以下脚本（完整脚本见 [04_data_migration_master.sql](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/04_data_migration_master.sql)）。
+进入 Snowflake SQL Worksheet 工作区（已命名为 `04_data_migration_and_reconciliation.sql`），按技术步骤依序执行以下脚本（完整脚本见 `scripts/snowflake/04_data_migration_master.sql`）。
 
 ---
 

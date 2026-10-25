@@ -89,7 +89,7 @@ graph TD
 
 本節では、金融庁および FISC 安全対策基準に準拠した厳格な構築パイプラインに沿って実機検証を進めます。本実習において、**実行されたすべての SQL スクリプトはワークシート上に履歴として完全保持され、フォーマットの統一およびステップごとの設計理由コメントを網羅**しています。
 
-* **本章対応プロダクションスクリプト**：[`scripts/snowflake/03_rbac_and_env_master.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/03_rbac_and_env_master.sql)
+* **本章対応プロダクションスクリプト**：`scripts/snowflake/03_rbac_and_env_master.sql`
 
 ---
 

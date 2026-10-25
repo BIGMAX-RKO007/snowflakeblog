@@ -56,7 +56,7 @@ Snowflake の3層 RBAC 権限モデルおよび `RAW_ORACLE` 移行先スキー�
 4. **ネットワーク転送コストの最小化**：金融データは膨大であるため、抽出と同時に `gzip` 圧縮を施すことで転送量を 70%〜90% 削減します。
 
 ### 抽出スクリプトの実行
-プロジェクト内 [scripts/oracle/export_to_csv.py](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/oracle/export_to_csv.py) を実行します：
+プロジェクト内 `scripts/oracle/export_to_csv.py` を実行します：
 
 ```bash
 # Oracle 11g 側での自動抽出および Gzip 圧縮
@@ -99,7 +99,7 @@ Snowflake へのデータロードに先立ち、ファイルを内部ステー�
 ---
 
 ### 方法 B（本番エンジニアリング）：Python / PUT コマンド自動化
-本番 CI/CD パイプラインでは、Python Snowflake Connector 経由で PUT コマンドを発行します（スクリプト：[upload_to_stage.py](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/upload_to_stage.py)）：
+本番 CI/CD パイプラインでは、Python Snowflake Connector 経由で PUT コマンドを発行します（スクリプト：`scripts/snowflake/upload_to_stage.py`）：
 
 ```python
 import snowflake.connector
@@ -128,7 +128,7 @@ cur.execute("PUT file://C:/path/to/cust_trade_detail.csv.gz @MITSUI_STAGE AUTO_C
 
 ## フェーズ3：COPY INTO による本番一括ロードとデータ型変換
 
-Snowflake SQL ワークシート（ワークシート名：`04_data_migration_and_reconciliation.sql`）を開き、以下のステップを順次実行します（完全版スクリプト：[04_data_migration_master.sql](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/04_data_migration_master.sql)）。
+Snowflake SQL ワークシート（ワークシート名：`04_data_migration_and_reconciliation.sql`）を開き、以下のステップを順次実行します（完全版スクリプト：`scripts/snowflake/04_data_migration_master.sql`）。
 
 ---
 
