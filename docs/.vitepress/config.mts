@@ -3,6 +3,7 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(
   defineConfig({
+    base: '/snowflakeblog/',
     title: '銀行証券DX：Oracle to Snowflake',
     description: '銀行証券コア取引データにおける Oracle から Snowflake への企業級データ移行実務',
     lastUpdated: true,
