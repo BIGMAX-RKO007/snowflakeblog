@@ -26,6 +26,7 @@
   "author": "fanxiao",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "debug": "^4.4.3",
     "mermaid": "^11.4.1",
     "vitepress": "^1.6.3",

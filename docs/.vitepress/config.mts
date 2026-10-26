@@ -1,9 +1,10 @@
+import process from 'node:process'
 import { defineConfig } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(
   defineConfig({
-    base: '/snowflakeblog/',
+    base: process.env.BASE_PATH || (process.env.CF_PAGES ? '/' : (process.env.GITHUB_ACTIONS ? '/snowflakeblog/' : '/')),
     title: '銀行証券DX：Oracle to Snowflake',
     description: '銀行証券コア取引データにおける Oracle から Snowflake への企業級データ移行実務',
     lastUpdated: true,
