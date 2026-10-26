@@ -29,6 +29,7 @@ export default withMermaid(
                 { text: '04. データ移行実務 (COPY INTO)', link: '/04_data_migration' },
                 { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                 { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
+                { text: '07. Snowflake Openflow による Box 連携と Cortex 検索', link: '/07_openflow_box_integration' },
               ]
             }
           ],
@@ -43,6 +44,7 @@ export default withMermaid(
                 { text: '04. データ移行実務（抽出・ステージ・取込）', link: '/04_data_migration' },
                 { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                 { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
+                { text: '07. Snowflake Openflow による Box 連携と Cortex 検索', link: '/07_openflow_box_integration' },
               ]
             }
           ],
@@ -72,6 +74,7 @@ export default withMermaid(
                 { text: '04. 数据迁移实战', link: '/zh/04_data_migration' },
                 { text: '05. 数据突合对账', link: '/zh/05_data_reconciliation' },
                 { text: '06. 生产避坑指南', link: '/zh/06_troubleshooting_tips' },
+                { text: '07. Openflow 接入 Box 与 Cortex 知识检索', link: '/zh/07_openflow_box_integration' },
               ]
             }
           ],
@@ -86,6 +89,7 @@ export default withMermaid(
                 { text: '04. 数据迁移：Stage 与 COPY INTO', link: '/zh/04_data_migration' },
                 { text: '05. 迁移后两方数据差异突合对账', link: '/zh/05_data_reconciliation' },
                 { text: '06. 生产避坑指南与解决方案', link: '/zh/06_troubleshooting_tips' },
+                { text: '07. Snowflake Openflow 接入 Box 与 Cortex 知识检索', link: '/zh/07_openflow_box_integration' },
               ]
             }
           ],
