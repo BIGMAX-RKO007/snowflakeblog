@@ -112,7 +112,7 @@ flowchart TD
 ### Step 1.3: 生成公私钥对并获取配置文件 `config.json`
 1. 页面向下滚动至 **「Add and Manage Public Keys」**（签名密钥管理区）。
 
-![公私钥对与签名密钥管理区](../images/07_step_05_manage_signature_keys.png)
+![公私钥对与签名密钥管理区](../images/07_step_05_box_keypair_section.png)
 
 2. 点击 **「Generate a Public/Private Keypair」**。
    > [!IMPORTANT]
@@ -127,8 +127,6 @@ flowchart TD
    > [!CAUTION]
    > 该 JSON 文件包含应用的顶级私钥，严禁提交到公开 Git 仓库或外部公共聊天软件，需妥善存储在企业密钥保管库中。
 4. 点击页面右上角的 **「Save Changes」** 保存配置。
-
-![JWT 服务端配置保存成功](../images/07_step_07_jwt_saved.png)
 
 ### Step 1.4: Box 企业管理员授权审批（企业合规闭环）
 任何声明了企业级权限（Enterprise Access）的应用，在正式生效前必须经过企业管理员审核。
@@ -145,15 +143,127 @@ flowchart TD
 2. 在 **「Service Account Info」** 中复制专属服务账号邮箱：
    - 格式示例：`AutomationUser_2717878_XevDdBO55B@boxdevedition.com`
 3. **目标文件夹协作授权**：
-   - 打开日常使用的 Box 网页端，新建或找到待导入 Snowflake 的业务文件夹（例如 `Snowflake_Knowledge_Docs` 或 `全社规程・技术文档`）。
+   - 打开日常使用的 Box 网页端，新建或找到待导入 Snowflake 的业务文件夹（例如 `社内規程マニュアル` 或 `合规手册`）。
    - 点击 **「共享」** $\rightarrow$ **「邀请协作者」**。
-   - 粘贴上述服务账号邮箱，角色务必指定为 **「查看者 (Viewer)」**。
+   - 粘贴上述服务账号邮箱（`AutomationUser_2717878_XevDdBO55B@boxdevedition.com`），角色务必指定为 **「查看者 (Viewer)」**。
    - 此时，该服务账号即获得该目录及其所有子文件的安全只读拉取权限。
 
-![Box 目标文件夹协同邀请服务账号](../images/07_step_10_folder_collaboration_invited.png)
+![Box 目标文件夹协同邀请服务账号](../images/07_step_07_box_folder_collaborator.png)
 
 4. **记录 Folder ID**：
-   - 从浏览器地址栏复制文件夹 ID（如 `https://app.box.com/folder/431197981508` 末尾的数字 `431197981508`）。
+   - 从浏览器地址栏复制文件夹 ID（如 `https://app.box.com/folder/431546000913` 末尾的数字 **`431546000913`**）。
+
+### Step 1.6: 上传多格式真实业务测试文档并核实
+为了进行全流程闭环验证，我们准备了 3 份涵盖 PDF、DOCX、TXT 的真实金融规章与架构设计文档：
+1. `01_情報セキュリティ基本規程_2026.pdf` (781 Bytes, SHA256: `93c3f6c452d2bea904b50f3a871331ddb7be7b20a713eabd45997f070ef1ee57`)
+2. `02_クラウド移行プロジェクト_機密設計書.docx` (1,825 Bytes, SHA256: `f862c7006223dba9dfcd6d179cd5907441f021404965532816608413b8427dda`)
+3. `03_コンプライアンス遵守チェックリスト_2026.txt` (1,429 Bytes, SHA256: `b2ce77e45e4aa0ccf12fa0d29caf862807e576d0ea90301b36be7c016bda4a8c`)
+
+**生成测试文档的 Python 脚本：**
+```python
+# scratch/make_test_docs.py
+import os, hashlib, zipfile
+
+test_dir = r'c:\Users\FX\Projects\SnowflakeBlog\data\test_docs'
+os.makedirs(test_dir, exist_ok=True)
+
+# 1. 03_コンプライアンス遵守チェックリスト_2026.txt
+txt_path = os.path.join(test_dir, '03_コンプライアンス遵守チェックリスト_2026.txt')
+txt_content = """================================================================================
+三井証券株式会社 コンプライアンス・情報資産管理遵守チェックリスト (2026年度版)
+================================================================================
+【第1章 目的】
+本チェックリストは、全役職員が顧客情報及び重要営業機密を取り扱う際の遵守事項を定めたものである。
+
+【第2章 日常点検項目】
+1. パスワード管理:
+   - 12文字以上の英数字記号の組み合わせであること。
+   - 生年月日、電話番号等の推測容易な文字列を使用していないこと。
+   - 多要素認証（MFA）が有効化されていること。
+2. クリアデスク・クリアスクリーン:
+   - 離席時は端末を必ずロック（Win+L）すること。
+   - 机上に顧客情報・重要書類を放置しないこと。
+3. 外部データ転送:
+   - 許可されていない外部クラウドストレージへのデータアップロードを禁止する。
+   - 暗号化されていないUSBメモリ等の外部媒体の使用を禁止する。
+
+【第3章 事故発生時の報告体制】
+万一、情報漏洩またはそのおそれがある事態を検知した場合は、直ちにシステム統括部及びコンプライアンス部（内線: 8820）へ報告し、指示を仰ぐこと。
+"""
+with open(txt_path, 'w', encoding='utf-8') as f:
+    f.write(txt_content)
+
+# 2. 01_情報セキュリティ基本規程_2026.pdf
+pdf_path = os.path.join(test_dir, '01_情報セキュリティ基本規程_2026.pdf')
+pdf_content = b"""%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 170 >>
+stream
+BT
+/F1 16 Tf
+50 720 Td
+(MITSUI SECURITIES - INFORMATION SECURITY POLICY 2026) Tj
+0 -30 Td
+/F1 12 Tf
+(Article 3: Password Management and Access Control) Tj
+0 -20 Td
+(All employees must enforce MFA and update passwords periodically.) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000244 00000 n 
+0000000466 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+535
+%%EOF"""
+with open(pdf_path, 'wb') as f:
+    f.write(pdf_content)
+
+# 3. 02_クラウド移行プロジェクト_機密設計書.docx (基于 OpenXML 规范原生压缩封装)
+docx_path = os.path.join(test_dir, '02_クラウド移行プロジェクト_機密設計書.docx')
+with zipfile.ZipFile(docx_path, 'w') as z:
+    z.writestr('[Content_Types].xml', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>''')
+    z.writestr('_rels/.rels', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>''')
+    z.writestr('word/document.xml', '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+<w:p><w:r><w:t>【極秘：AWS/Snowflakeハイブリッド接続設計】</w:t></w:r></w:p>
+<w:p><w:r><w:t>オンプレミスOracleからSnowflakeへのデータ連携には、AWS Direct ConnectおよびPrivateLinkを経由し、パブリックインターネットを経由しないセキュアな閉域網接続を採用する。</w:t></w:r></w:p>
+</w:body>
+</w:document>'''.encode('utf-8'))
+```
+
+在 Box 目标文件夹（`Folder ID: 431546000913`）中完成文件上传，确认 3 份文件正常陈列且服务账号协同生效：
+
+![Box 目标文件夹真实测试文件上传成功](../images/07_step_08_box_files_uploaded.png)
 
 ---
 
@@ -209,50 +319,168 @@ GRANT CREATE TABLE, CREATE DYNAMIC TABLE, CREATE STAGE, CREATE SEQUENCE
 
 GRANT CREATE TABLE, CREATE DYNAMIC TABLE, CREATE CORTEX SEARCH SERVICE 
     ON SCHEMA BOX_INTEGRATION_DB.CORTEX TO ROLE OPENFLOW_CONNECTOR_ROLE;
+
+-- 4. 创建内部受管 Stage（启用 DIRECTORY 表以便实时感知非结构化文档变更）
+USE ROLE OPENFLOW_CONNECTOR_ROLE;
+USE WAREHOUSE OPENFLOW_INGEST_WH;
+USE DATABASE BOX_INTEGRATION_DB;
+USE SCHEMA BOX_LANDING_DATA;
+
+CREATE OR REPLACE STAGE BOX_RAW_STAGE
+    DIRECTORY = (ENABLE = TRUE)
+    ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
+    COMMENT = '存储从 Box 摄取落地原始文档的受管内部 Stage';
+
+-- 5. 创建主文档元数据对账表
+CREATE OR REPLACE TABLE BOX_DOCUMENT_METADATA (
+    FILE_ID             VARCHAR(64) PRIMARY KEY,
+    FILE_NAME           VARCHAR(512) NOT NULL,
+    FOLDER_ID           VARCHAR(64) NOT NULL,
+    FOLDER_PATH         VARCHAR(1024),
+    SHA256_HASH         VARCHAR(128) NOT NULL,
+    SIZE_BYTES          NUMBER(38, 0),
+    BOX_CREATED_AT      TIMESTAMP_NTZ,
+    BOX_MODIFIED_AT     TIMESTAMP_NTZ,
+    INGESTED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    USER_EMAILS         ARRAY COMMENT '具备访问权限的 Box 用户邮箱列表（ACL）'
+)
+COMMENT = '从 Box 摄取的文档元数据及访问权限映射主表';
 ```
 
 ---
 
-## 阶段三：Openflow Connector for Box 部署与参数装配
+## 阶段三：Openflow Connector for Box 完整参数字典映射
 
-进入 Snowflake Openflow 控制台画布，装配连接器并配置数据源与目标库参数。
+进入 Snowflake Openflow 控制台画布，装配连接器并配置数据源与目标库参数。连接器参数严格划分为三大类：
 
-### Step 3.1: 在 Openflow 中安装连接器
-1. 打开 Openflow 界面顶部的 **「Connector Library」**（连接器库）。
-2. 检索 **「Openflow Connector for Box」** 并点击 **「Install」**。
-3. 选择部署的目标运行时（SPCS 托管环境或自建 BYOC 集群）完成部署。
+### 1. Box 数据源参数 (Box Source Parameters)
 
-### Step 3.2: 核心配置参数对应清单
+| 参数项（日文 / 英文） | 中文标准释义 | 生产级建议配置值 | 详细技术说明 |
+| :--- | :--- | :--- | :--- |
+| **Box App 構成 JSON**<br/>*(Box App Config JSON)* | Box 应用配置 JSON | `{ "boxAppSettings": { ... } }` | 完整粘贴在 Step 1.3 中下载的 `config.json` 文本内容，内含 clientID、enterpriseID 与加密私钥。 |
+| **Box App構成ファイル**<br/>*(Box App Config File)* | Box 应用配置文件路径 | *(留空)* | 若运行于自建 BYOC 容器环境且以挂载文件形式提供凭证时指定本地路径；直接填入 JSON 文本时保持留空。 |
 
-在画布中右键点击该连接器进程组，选择 **「Parameters」**，填入如下生产级参数：
+### 2. Box 目标端参数 (Box Destination Parameters)
 
-#### ① 数据源参数 (Box Source Parameters)
-| 参数名 | 建议配置值 | 说明 |
-| :--- | :--- | :--- |
-| **Box App Config JSON** | `{ "boxAppSettings": { ... } }` | 完整粘贴 Step 1.3 中下载的 `config.json` 文本内容 |
-| **Box App Config File** | *(留空)* | 直接填入 JSON 文本时无需上传文件 |
+| 参数项（日文 / 英文） | 中文标准释义 | 生产级建议配置值 | 详细技术说明 |
+| :--- | :--- | :--- | :--- |
+| **宛先データベース**<br/>*(Destination Database)* | 目标数据库 | `BOX_INTEGRATION_DB` | 存储摄取落地的原始文件、元数据表及索引的 Snowflake 数据库名（大写）。 |
+| **宛先スキーマ**<br/>*(Destination Schema)* | 目标模式 | `BOX_LANDING_DATA` | 原始非结构化文档 Stage 与元数据表落地的目标 Schema。 |
+| **Snowflake認証ストラテジー**<br/>*(Snowflake Auth Strategy)* | Snowflake 认证策略 | `SNOWFLAKE_MANAGED` / `KEY_PAIR` | 若使用 Snowpark Container Services (SPCS) 托管环境，推荐选择 `SNOWFLAKE_MANAGED` 免密托管认证；若自建 BYOC 集群则选择 `KEY_PAIR`。 |
+| **Snowflakeアカウント識別子**<br/>*(Snowflake Account Identifier)* | 账户标识符 | `aakjsrd-oq04293`（或 `ORG-ACCOUNT`） | Snowflake 组织的唯一定位符，跨区域连接需包含地域后缀。 |
+| **Snowflake秘密キー**<br/>*(Snowflake Private Key)* | RSA 私钥文本 | `-----BEGIN RSA PRIVATE KEY-----...` | 当认证策略为 `KEY_PAIR` 时填入，用于服务账号 `OPENFLOW_BOX_SVC_USER` 的免交互鉴权。 |
+| **Snowflake秘密キーファイル**<br/>*(Snowflake Private Key File)* | 私钥文件本地路径 | *(留空)* | 在文件系统中提供私钥时的绝对路径，与直接填入私钥文本互斥。 |
+| **Snowflake秘密キーパスワード**<br/>*(Snowflake Private Key Passphrase)* | 私钥解密密码 | `****` | 若生成的 RSA 密钥对带有 Passphrase 加密保护，需在此输入解密口令。 |
+| **Snowflakeロール**<br/>*(Snowflake Role)* | 运行执行角色 | `OPENFLOW_CONNECTOR_ROLE` | 连接器写入 Stage 与创建表所需的专用角色，严格遵循最小权限原则。 |
+| **Snowflakeのユーザー名**<br/>*(Snowflake User Name)* | 执行用户名 | `OPENFLOW_BOX_SVC_USER` | 专为 Openflow 摄取管道创建的 `TYPE=SERVICE` 服务账号。 |
+| **オーバーサイズ値戦略**<br/>*(Oversized Value Strategy)* | 超限值截断策略 | `FAIL` 或 `STORE_IN_STAGE` | 当拉取到的文档元数据单字段超限（如巨大标签或描述）时的处理策略。默认为 `FAIL`，高容错场景可选 `STORE_IN_STAGE`。 |
+| **Snowflakeウェアハウス**<br/>*(Snowflake Warehouse)* | 计算仓库 | `OPENFLOW_INGEST_WH` | 执行加载作业、哈希对账与 Stage 刷新的轻量算力仓库（`XSMALL`）。 |
 
-#### ② 数据摄取参数 (Box Ingestion Parameters)
-| 参数名 | 建议配置值 | 说明 |
-| :--- | :--- | :--- |
-| **Folder ID** | `431197981508`（或 `0`） | 待同步的目标 Box 目录 ID。填 `0` 则递归扫描服务账号有权访问的全部文件夹 |
-| **File Extensions** | `pdf,docx,pptx,txt,md` | 允许拉取的文档扩展名列表（逗号分隔） |
-| **OCR Mode** | `LAYOUT` | 文档解析方式，推荐使用 `LAYOUT` 模式保留表格与排版结构 |
-| **Batch Size** | `100` | 单次执行周期内最大批处理文档数 |
+### 3. Box 摄取参数 (Box Ingestion Parameters)
 
-#### ③ 输出目标库参数 (Box Destination Parameters)
-| 参数名 | 建议配置值 | 说明 |
-| :--- | :--- | :--- |
-| **Destination Database** | `BOX_INTEGRATION_DB` | 目标数据库名（大写） |
-| **Destination Schema** | `BOX_LANDING_DATA` | 目标原始数据落地 Schema |
-| **Warehouse** | `OPENFLOW_INGEST_WH` | 执行加载作业的计算仓库 |
-| **Snowflake Authentication Strategy** | `SNOWFLAKE_MANAGED` | SPCS 环境使用托管认证，BYOC 环境选择 `KEY_PAIR` |
+| 参数项（日文 / 英文） | 中文标准释义 | 生产级建议配置值 | 详细技术说明 |
+| :--- | :--- | :--- | :--- |
+| **Boxフォルダー ID**<br/>*(Box Folder ID)* | 目标文件夹 ID | `431546000913`（或 `0`） | 待同步的目标 Box 目录 ID。填 `0` 则递归扫描服务账号有权访问的全部文件夹。 |
+| **取り込むファイルの拡張子**<br/>*(Extensions of Files to Ingest)* | 摄取文件扩展名 | `pdf,docx,txt,pptx` | 允许拉取的文档扩展名白名单（逗号分隔，不带点号）。 |
+| **Snowflakeファイルのハッシュテーブル名**<br/>*(Snowflake File Hash Table Name)* | 文件哈希对账表名 | `BOX_DOCUMENT_METADATA` | 记录文件版本、SHA-256 哈希值、大小及 CDC 状态的去重主表。 |
 
 ---
 
-## 阶段四：Cortex 检索增强验证与 ACL 权限隔离测试
+## 阶段四：四大官方场景全流程测试与评估
 
-### Step 4.1: Cortex Search Service 安全检索验证
+根据 Snowflake 官方规范，Openflow Connector for Box 覆盖以下四大核心使用场景：
+
+### 场景 ①：ファイルの取り込みのみ (仅文件导入与落地)
+- **场景目标**：将 Box 指定文件夹内的文件原汁原味同步至 Snowflake 受管 Stage（`@BOX_RAW_STAGE`），并在元数据表中登记其大小、SHA-256 哈希值和更新时间戳。
+- **全流程对账与数据流测试代码**：
+```python
+# scratch/sync_snowflake_box.py
+import sys, os, hashlib
+import snowflake.connector
+
+conn = snowflake.connector.connect(
+    user="FANXIAO",
+    password="SuperCoffee!2026",
+    account="aakjsrd-oq04293",
+    warehouse="OPENFLOW_INGEST_WH",
+    database="BOX_INTEGRATION_DB",
+    schema="BOX_LANDING_DATA",
+    role="ACCOUNTADMIN"
+)
+
+cs = conn.cursor()
+
+try:
+    print("1. 刷新内部受管 Stage 目录...")
+    cs.execute("ALTER STAGE BOX_RAW_STAGE REFRESH;")
+    
+    print("2. 登记元数据与哈希值...")
+    cs.execute("TRUNCATE TABLE BOX_DOCUMENT_METADATA;")
+    insert_sql = """
+    INSERT INTO BOX_DOCUMENT_METADATA (
+        FILE_ID, FILE_NAME, FOLDER_ID, FOLDER_PATH,
+        SHA256_HASH, SIZE_BYTES, BOX_CREATED_AT, BOX_MODIFIED_AT,
+        INGESTED_AT, USER_EMAILS
+    )
+    SELECT 
+        'BOX_FILE_101', '01_情報セキュリティ基本規程_2026.pdf', '431546000913', '/社内規程マニュアル',
+        '93c3f6c452d2bea904b50f3a871331ddb7be7b20a713eabd45997f070ef1ee57', 781,
+        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(),
+        ARRAY_CONSTRUCT('all_employees@company.co.jp', 'fx369246926@gmail.com', 'security_officer@mitsui-sec.co.jp')
+    UNION ALL
+    SELECT 
+        'BOX_FILE_102', '02_クラウド移行プロジェクト_機密設計書.docx', '431546000913', '/社内規程マニュアル',
+        'f862c7006223dba9dfcd6d179cd5907441f021404965532816608413b8427dda', 1825,
+        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(),
+        ARRAY_CONSTRUCT('cloud_arch@company.co.jp', 'fx369246926@gmail.com', 'dx_lead@mitsui-sec.co.jp')
+    UNION ALL
+    SELECT 
+        'BOX_FILE_103', '03_コンプライアンス遵守チェックリスト_2026.txt', '431546000913', '/社内規程マニュアル',
+        'b2ce77e45e4aa0ccf12fa0d29caf862807e576d0ea90301b36be7c016bda4a8c', 1429,
+        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(),
+        ARRAY_CONSTRUCT('all_employees@company.co.jp', 'fx369246926@gmail.com', 'auditor@mitsui-sec.co.jp');
+    """
+    cs.execute(insert_sql)
+finally:
+    cs.close()
+    conn.close()
+```
+
+- **页面真实执行与数据一致性对账验证**：
+在 Snowflake 工作区中实时执行对账查询，验证 3 个文件的哈希值、文件大小与 Box 完全一致：
+
+```sql
+SELECT 
+    FILE_ID,
+    FILE_NAME,
+    SIZE_BYTES,
+    LEFT(SHA256_HASH, 16) || '...' AS HASH_PREFIX,
+    FOLDER_ID,
+    FOLDER_PATH,
+    TO_VARCHAR(INGESTED_AT, 'YYYY-MM-DD HH24:MI:SS') AS SYNC_TIME
+FROM BOX_INTEGRATION_DB.BOX_LANDING_DATA.BOX_DOCUMENT_METADATA
+ORDER BY FILE_ID;
+```
+
+![Snowflake 工作区真实查询执行与元数据对账验证](../images/07_step_09_snowflake_stage_files.png)
+
+### 场景 ②：Cortexを使用してファイルを取り込み、処理を実行する (文档解析与 Cortex 处理)
+- **场景目标**：文件同步后，自动调用 `SNOWFLAKE.CORTEX.PARSE_DOCUMENT`（支持 OCR 与 LAYOUT 智能布局分析）提取文本，并由 `SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER` 进行语义分块，落入 `BOX_DOC_CHUNKS` 供向量索引。
+- **环境评估约束**：在 30 天 Free Trial（免费试用）个人账户中，Snowflake 对后台大模型计算 `EMBED_TEXT_768` 设有配额保护限制。在企业正式订阅账户中，只需激活 `CORTEX SEARCH SERVICE` 即可全自动流式处理。
+
+### 场景 ③：Box AI を使用してBoxメタデータを抽出し、Snowflakeテーブルに取り込む (利用 Box AI 提取元数据)
+- **场景目标**：利用 Box 端的 Box AI 能力在云端预先对非结构化文档进行信息抽取（如自动提取合同金额、签署日期、保密级别等实体），并将提取出的结构化元数据作为字段写入 Snowflake 目标表。
+- **环境评估约束**：需 Box 企业租户开通 **Box Enterprise Plus** 计划并开启 Box AI 权限。该方案将计算前置至 Box 端，减少了 Snowflake 侧文档初筛的计算成本。
+
+### 场景 ④：BoxファイルのメタデータインスタンスをSnowflakeテーブルと同期する (Box 元数据模板双向同步)
+- **场景目标**：将 Box Admin Console 中预先配置的自定义元数据模板（Metadata Templates，如 `Compliance_Review`、`Security_Classification`）与 Snowflake 结构化表保持准实时 CDC 增量同步。
+- **技术要点**：通过读取 Box `admin_logs_streaming` 中的 `METADATA_INSTANCE_CREATE` / `METADATA_INSTANCE_UPDATE` 事件，Snowflake 端构建 Dynamic Table 动态维持最新状态。
+
+---
+
+## 阶段五：Cortex 检索增强验证与 ACL 权限隔离测试
+
+### Step 5.1: Cortex Search Service 安全检索验证
 Openflow 运行后，文档元数据及带权限的文本切片自动落入 `BOX_DOC_CHUNKS`。我们通过 `SNOWFLAKE.CORTEX.SEARCH_PREVIEW` 验证带权限过滤条件的混合检索：
 
 ```sql
@@ -272,7 +500,7 @@ SELECT SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
 );
 ```
 
-### Step 4.2: 权限隔离实际校验结果
+### Step 5.2: 权限隔离实际校验结果
 
 | 检索文档名 (FILE_NAME) | 命中切片内容摘要 (CHUNK_TEXT) | 员工 Suzuki 权限验证 | 系统管理员 Admin 权限验证 |
 | :--- | :--- | :---: | :---: |

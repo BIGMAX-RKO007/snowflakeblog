@@ -46,3 +46,4 @@ oradata/
 upd/
 .backup/
 docs/images/.backup/
+*_backup.xlsx
