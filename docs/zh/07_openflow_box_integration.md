@@ -464,6 +464,72 @@ ORDER BY FILE_ID;
 
 ![Snowflake 工作区真实查询执行与元数据对账验证](../images/07_step_09_snowflake_stage_files.png)
 
+#### 进阶实操：文件真实正文数据直接查询（Stage Query 与 Chunks 检索）
+
+> [!TIP] **核心概念辨析：元数据表 vs 文件真实数据**
+> - **元数据表（`BOX_DOCUMENT_METADATA`）**：存放文件的“台账与档案卡”（文件名、文件大小、SHA-256 哈希值、文件夹路径、ACL 访问邮箱列表等），用于完整性对账和增量治理。
+> - **文件真实正文数据**：实际的物理文件完整保存在 Snowflake 内部暂存区（`@BOX_RAW_STAGE`）以及解析切块表（`BOX_DOC_CHUNKS`）中，**完全可以在 Snowflake 中通过 SQL 直接查询读取**！
+
+##### 实测 1：直接用 SQL 读取 Stage 中文本文件（TXT/CSV）真实正文
+
+在 Snowflake Worksheets 中，如果直接在路径中书写非 ASCII（如日文字符）`@BOX_RAW_STAGE/compliance/03_コンプライアンス...`，词法解析器会报语法错误（`unexpected 'コン'`）。正确的生产实践是**创建单列纯文本读取格式**，并通过带有单引号包裹的 Stage 路径或 `PATTERN` 正则匹配读取：
+
+```sql
+USE DATABASE BOX_INTEGRATION_DB;
+USE SCHEMA BOX_LANDING_DATA;
+
+-- 1. 创建单列纯文本解析格式
+CREATE OR REPLACE FILE FORMAT BOX_INTEGRATION_DB.BOX_LANDING_DATA.TXT_FORMAT 
+    TYPE = 'CSV' 
+    FIELD_DELIMITER = NONE 
+    RECORD_DELIMITER = '\n';
+
+-- 2. 直接查询 Stage 中 03_コンプライアンス遵守チェックリスト_2026.txt 的真实正文数据
+SELECT $1 AS FILE_CONTENT 
+FROM '@BOX_INTEGRATION_DB.BOX_LANDING_DATA.BOX_RAW_STAGE/compliance/' 
+(FILE_FORMAT => 'BOX_INTEGRATION_DB.BOX_LANDING_DATA.TXT_FORMAT', PATTERN => '.*03.*txt');
+```
+
+- **Snowflake 浏览器端真实执行截图与结果**：
+在 Snowflake 工作区中执行该语句，耗时仅 145ms，直接完整返回了 Stage 中《合规与信息资产管理遵守清单》的 20 行真实条款正文：
+
+![Snowflake Stage 文件真实正文直接查询执行结果](../images/07_step_10_stage_file_content_query.png)
+
+##### 实测 2：查询切片解析入库的 PDF 与 Word 真实条款内容（`CORTEX.BOX_DOC_CHUNKS`）
+
+对于 PDF 与 Word DOCX 等复杂非结构化文件，在实际生产流式管道中，文件落入 Stage 后会经由切片管道将正文条款解析为细粒度文本块并打上 ACL 权限标签存入 `BOX_DOC_CHUNKS` 表中，业务端可直接像普通数据表一样用 SQL 检索其真实内容：
+
+```sql
+-- 查询已切片解析入库的 PDF 与 Word 真实文档条款内容
+SELECT 
+    FILE_NAME,
+    CHUNK_INDEX,
+    CHUNK_TEXT
+FROM BOX_INTEGRATION_DB.CORTEX.BOX_DOC_CHUNKS
+ORDER BY FILE_ID, CHUNK_INDEX;
+```
+
+- **Snowflake 浏览器端真实执行截图与结果**：
+直接在 Worksheets 中查询出《01_情報セキュリティ基本規程_2026.pdf》的密码管理条款以及《02_クラウド移行プロジェクト_機密設計書.docx》的闭域网专线架构等真实正文内容：
+
+![Snowflake Cortex 文档切片真实正文查询执行结果](../images/07_step_11_doc_chunks_content_query.png)
+
+##### 实测 3：原生文件安全预览与下载临时链接（Scoped URL）
+
+若业务需要在前端系统或浏览器直接打开原版 PDF/Word，可使用 Snowflake 内置函数生成带时效签名的安全预览链接：
+
+```sql
+SELECT 
+    RELATIVE_PATH,
+    SIZE,
+    BUILD_SCOPED_FILE_URL(@BOX_RAW_STAGE, RELATIVE_PATH) AS DIRECT_BROWSER_URL
+FROM DIRECTORY(@BOX_RAW_STAGE);
+```
+
+> [!WARNING] **Trial 试用账户与生产企业账户的 Cortex 函数策略差异**
+> 在较新的 Snowflake 账户中，原旧版函数前缀 `SNOWFLAKE.CORTEX.PARSE_DOCUMENT` / `SNOWFLAKE.CORTEX.SUMMARIZE` 已迁移升级为顶层 SQL 函数 `AI_PARSE_DOCUMENT` 与 `AI_SUMMARIZE`。  
+> 此外，由于文档多模态 OCR 属于高算力消耗功能，Snowflake 官方在 **30 天 Free Trial（免费试用）个人账户中全局限制了 `AI_PARSE_DOCUMENT`**（系统提示 `AI function _AI_PARSE_DOCUMENT is not available for trial accounts`）。在生产付费账户中即可无缝开启全自动文档 OCR 解析；在试用环境中，则可通过上文实测的 **Stage 文本直读、Snowpark Python UDF 二进制流读取（`SnowflakeFile.open`）以及 `BOX_DOC_CHUNKS` 表**进行全流程开发与验证。
+
 ### 场景 ②：Cortexを使用してファイルを取り込み、処理を実行する (文档解析与 Cortex 处理)
 - **场景目标**：文件同步后，自动调用 `SNOWFLAKE.CORTEX.PARSE_DOCUMENT`（支持 OCR 与 LAYOUT 智能布局分析）提取文本，并由 `SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER` 进行语义分块，落入 `BOX_DOC_CHUNKS` 供向量索引。
 - **环境评估约束**：在 30 天 Free Trial（免费试用）个人账户中，Snowflake 对后台大模型计算 `EMBED_TEXT_768` 设有配额保护限制。在企业正式订阅账户中，只需激活 `CORTEX SEARCH SERVICE` 即可全自动流式处理。

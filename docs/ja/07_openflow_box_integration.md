@@ -463,6 +463,72 @@ ORDER BY FILE_ID;
 
 ![Snowflake ワークシート画面でのリアルメタデータ突合検証結果](../images/07_step_09_snowflake_stage_files.png)
 
+#### 応用実機検証：ファイル本文の実データ直接クエリ（Stage Query と Chunks 検索）
+
+> [!TIP] **コア概念の整理：メタデータ管理テーブル vs ファイル実データ**
+> - **メタデータ管理テーブル（`BOX_DOCUMENT_METADATA`）**：ファイルの台帳情報（ファイル名、サイズ、SHA-256 ハッシュ値、フォルダパス、権限付与メールアドレスリスト等）を保持し、データの一貫性突合と CDC 増量制御を担います。
+> - **ファイル実データ**：実際のバイナリおよびテキスト実体は、Snowflake 内部ステージ（`@BOX_RAW_STAGE`）およびチャンク格納テーブル（`BOX_DOC_CHUNKS`）に安全に保存されており、**Snowflake SQL から直接クエリ・閲覧することが完全に可能**です！
+
+##### 検証 ①：SQL によるステージ内テキストファイル（TXT/CSV）実データの直接読み込み
+
+Snowflake の Worksheets 上で、ステージパスに直接非 ASCII（日本語など）の文字を `@BOX_RAW_STAGE/compliance/03_コンプライアンス...` と記述した場合、SQL レキサーが非 ASCII 文字を識別できず構文エラー（`unexpected 'コン'`）が発生します。本番ベストプラクティスとしては、**単一列プレーンテキスト用のファイルフォーマットを定義**し、シングルクォーテーションで括ったパスまたは `PATTERN` 正規表現を用いて読み出します：
+
+```sql
+USE DATABASE BOX_INTEGRATION_DB;
+USE SCHEMA BOX_LANDING_DATA;
+
+-- 1. 単一列テキスト読み込み用ファイルフォーマットの作成
+CREATE OR REPLACE FILE FORMAT BOX_INTEGRATION_DB.BOX_LANDING_DATA.TXT_FORMAT 
+    TYPE = 'CSV' 
+    FIELD_DELIMITER = NONE 
+    RECORD_DELIMITER = '\n';
+
+-- 2. ステージ上の 03_コンプライアンス遵守チェックリスト_2026.txt の実本文データを直接クエリ
+SELECT $1 AS FILE_CONTENT 
+FROM '@BOX_INTEGRATION_DB.BOX_LANDING_DATA.BOX_RAW_STAGE/compliance/' 
+(FILE_FORMAT => 'BOX_INTEGRATION_DB.BOX_LANDING_DATA.TXT_FORMAT', PATTERN => '.*03.*txt');
+```
+
+- **Snowflake ブラウザ実行画面と実データ結果**：
+ワークシート上で実行した結果、わずか 145ms でステージ内の規程テキストファイルから 20 行の実際の規程条文データがダイレクトに出力されました：
+
+![Snowflake Stage ファイル本文データの直接クエリ実行結果](../images/07_step_10_stage_file_content_query.png)
+
+##### 検証 ②：解析・チャンク化済み PDF / Word 文書の実条文データ検索（`CORTEX.BOX_DOC_CHUNKS`）
+
+PDF や Word（DOCX）などの非構造化ファイルは、取り込みパイプラインによって条文単位にチャンク分割され、ACL 権限タグとともに `BOX_DOC_CHUNKS` テーブルへ格納されます。業務クエリやダウンストリームのアプリケーションからは、通常のテーブルと同様に SQL で実本文を抽出・検索できます：
+
+```sql
+-- チャンク化・インデックス化された PDF / Word の実文書条文データを検索
+SELECT 
+    FILE_NAME,
+    CHUNK_INDEX,
+    CHUNK_TEXT
+FROM BOX_INTEGRATION_DB.CORTEX.BOX_DOC_CHUNKS
+ORDER BY FILE_ID, CHUNK_INDEX;
+```
+
+- **Snowflake ブラウザ実行画面と実データ結果**：
+『01_情報セキュリティ基本規程_2026.pdf』のパスワード管理条文や『02_クラウド移行プロジェクト_機密設計書.docx』の閉域網接続設計といった実際の内容が確認できます：
+
+![Snowflake Cortex 文書チャンク実データ検索結果](../images/07_step_11_doc_chunks_content_query.png)
+
+##### 検証 ③：原本ファイルのセキュアプレビュー・ダウンロード用 URL（Scoped URL）
+
+フロントエンド画面やブラウザから原本の PDF や Word を直接プレビュー・ダウンロードさせたい場合は、Snowflake 組み込みの `BUILD_SCOPED_FILE_URL` 関数を使用して時限付き認証 URL を生成します：
+
+```sql
+SELECT 
+    RELATIVE_PATH,
+    SIZE,
+    BUILD_SCOPED_FILE_URL(@BOX_RAW_STAGE, RELATIVE_PATH) AS DIRECT_BROWSER_URL
+FROM DIRECTORY(@BOX_RAW_STAGE);
+```
+
+> [!WARNING] **Trial（無料試用）アカウントと本番エンタープライズの Cortex 関数仕様の差異**
+> 最近の Snowflake アカウントでは、旧来の `SNOWFLAKE.CORTEX.PARSE_DOCUMENT` や `SUMMARIZE` はトップレベル関数 `AI_PARSE_DOCUMENT` / `AI_SUMMARIZE` へ統合されています。  
+> また、高負荷な GPU 計算を伴うドキュメント OCR 解析（`AI_PARSE_DOCUMENT`）は、**30 日間の Free Trial（試用環境）では一律制限されています**（エラーメッセージ：`AI function _AI_PARSE_DOCUMENT is not available for trial accounts`）。有償本番環境では即座にフルオートメーションの OCR 解析が稼働し、試用環境においては上記で実証した**ステージ直接読み出し、Snowpark Python UDF（`SnowflakeFile.open`）によるバイナリ読み出し、およびチャンクテーブル**を活用して開発・検証を完結させることが可能です。
+
 ### ユースケース ②：Cortexを使用してファイルを取り込み、処理を実行する (Ingest files and perform processing with Cortex)
 - **概要**：ステージへのファイル配置をトリガーに、`SNOWFLAKE.CORTEX.PARSE_DOCUMENT`（LAYOUT / OCR モード）でレイアウト解析を実施し、`SPLIT_TEXT_RECURSIVE_CHARACTER` でチャンク化した上で `CORTEX SEARCH SERVICE` へ自動インデックス化する。
 - **検証環境での考慮点**：30 日間の Free Trial（無料試用アカウント）では、Arctic ベクトル埋め込み関数 `EMBED_TEXT_768` に対するクォータ制限が存在します。有償本番環境では、`TARGET_LAG = '1 hour'` を指定することでニアリアルタイムな自動ベクトル化が常時稼働します。
