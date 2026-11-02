@@ -24,29 +24,48 @@
 
 ## 8.2 Content Management 19 大模块 CRUD 矩阵沙盘
 
-下表为 Content Management 全部 19 个模块的能力全景矩阵。通过 HTTP 动词（GET / POST / PUT / DELETE）直观呈现各模块的技术特征与操作权限边界。
+下表为 Content Management 全部 19 个模块的能力全景矩阵。通过 HTTP 动词（GET / POST / PUT / DEL）直观呈现各模块的技术特征与操作权限边界。
 
-| 序号 | 模块名称 (Module) | 官方定位 (Official Description) | 中文直观定位 | 核心作用域 (Scope) | GET | POST | PUT | DELETE | 快速跳转 |
-| :---: | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **01** | **Files** | Core file operations and management | 文件元数据 CRUD、复制与移动 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_01-files) |
-| **02** | **Folders** | Organizing and structuring content | 目录树创建、遍历、移动与管理 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_02-folders) |
-| **03** | **File versions** | Version history and recovery | 文件历史版本追溯、提升与永久销毁 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_03-file-versions) |
-| **04** | **File requests** | Secure file collection workflows | 免登录文件投递箱/收集链接配置 | `manage_file_requests` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_04-file-requests) |
-| **05** | **Uploads** | Direct standard file ingestion | 小文件标准直传 (< 50MB) 与预检 | `root_readwrite` | ❌ | ✅ | ❌ | ❌ | [直达详述](#_05-uploads) |
-| **06** | **Uploads (Chunked)** | Large file multipart sessions | 大文件切片并行断点续传 (≥ 50MB) | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_06-uploads-chunked) |
-| **07** | **Downloads** | Binary content streaming | 二进制文件流获取与 302 临时重定向 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达详述](#_07-downloads) |
-| **08** | **Zip Downloads** | Multi-item batch packaging | 多文件/多目录异步压缩包一键下载 | `root_readonly` | ✅ | ✅ | ❌ | ❌ | [直达详述](#_08-zip-downloads) |
-| **09** | **Folder Locks** | Concurrency and mutation freeze | 目录并发变更锁（防删除与防移动） | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达详述](#_09-folder-locks) |
-| **10** | **Collections** | Tagging and virtual grouping | 收藏夹与跨目录虚拟资源聚合列表 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达详述](#_10-collections) |
-| **11** | **Recent items** | Audit and access recency stream | 最近访问与交互时间线查询 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达详述](#_11-recent-items) |
-| **12** | **Transfer folders** | Content ownership migration | 组织成员根目录资产全量所有权过户 | `manage_users` | ❌ | ❌ | ✅ | ❌ | [直达详述](#_12-transfer-folders) |
-| **13** | **Web links** | External URL pointers in directory | 目录内外部网址快捷方式挂载 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_13-web-links) |
-| **14** | **App item associations** | Third-party app binding relations | 第三方扩展应用与文件/目录双向关联 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达详述](#_14-app-item-associations) |
-| **15** | **Trashed files** | Soft-deleted file lifecycle | 已移入回收站文件的查阅、恢复与硬删除 | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达详述](#_15-trashed-files) |
-| **16** | **Trashed folders** | Soft-deleted directory lifecycle | 已移入回收站目录的查阅、恢复与硬删除 | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达详述](#_16-trashed-folders) |
-| **17** | **Trashed items** | Global recycle bin indexing | 全局回收站混合清单分页遍历 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达详述](#_17-trashed-items) |
-| **18** | **Trashed web links** | Soft-deleted pointer recovery | 已移入回收站 Web Link 的恢复与粉碎 | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达详述](#_18-trashed-web-links) |
-| **19** | **Archives** | Long-term cold data lifecycle | 冷数据自动化归档策略与归档包管理 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达详述](#_19-archives) |
+<style>
+.crud-matrix-wrapper table {
+  width: 100% !important;
+  display: table !important;
+  font-size: 0.82rem;
+}
+.crud-matrix-wrapper th, .crud-matrix-wrapper td {
+  padding: 6px 5px !important;
+}
+.crud-matrix-wrapper td code {
+  font-size: 0.72rem !important;
+  padding: 1px 3px !important;
+}
+</style>
+
+<div class="crud-matrix-wrapper">
+
+| 序号 | 模块 (Module) | 官方定位与中文功能说明 | 核心作用域 (Scope) | GET | POST | PUT | DEL | 快速跳转 |
+| :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **01** | **Files** | **文件元数据 CRUD、复制与移动**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Core file operations and management</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达](#_01-files) |
+| **02** | **Folders** | **目录树创建、遍历、移动与管理**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Organizing and structuring content</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达](#_02-folders) |
+| **03** | **File versions** | **文件历史版本追溯、提升与永久销毁**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Version history and recovery</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达](#_03-file-versions) |
+| **04** | **File requests** | **免登录文件投递箱/收集链接配置**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Secure file collection workflows</span> | `manage_file_requests` | ✅ | ✅ | ✅ | ✅ | [直达](#_04-file-requests) |
+| **05** | **Uploads** | **小文件标准直传 (< 50MB) 与预检**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Direct standard file ingestion</span> | `root_readwrite` | ❌ | ✅ | ❌ | ❌ | [直达](#_05-uploads) |
+| **06** | **Uploads (Chunked)** | **大文件切片并行断点续传 (≥ 50MB)**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Large file multipart sessions</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达](#_06-uploads-chunked) |
+| **07** | **Downloads** | **二进制文件流获取与 302 临时重定向**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Binary content streaming</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达](#_07-downloads) |
+| **08** | **Zip Downloads** | **多文件/多目录异步压缩包一键下载**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Multi-item batch packaging</span> | `root_readonly` | ✅ | ✅ | ❌ | ❌ | [直达](#_08-zip-downloads) |
+| **09** | **Folder Locks** | **目录并发变更锁（防删除与防移动）**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Concurrency and mutation freeze</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达](#_09-folder-locks) |
+| **10** | **Collections** | **收藏夹与跨目录虚拟资源聚合列表**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Tagging and virtual grouping</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达](#_10-collections) |
+| **11** | **Recent items** | **最近访问与交互时间线查询**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Audit and access recency stream</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达](#_11-recent-items) |
+| **12** | **Transfer folders** | **组织成员根目录资产全量所有权过户**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Content ownership migration</span> | `manage_users` | ❌ | ❌ | ✅ | ❌ | [直达](#_12-transfer-folders) |
+| **13** | **Web links** | **目录内外部网址快捷方式挂载**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">External URL pointers in directory</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达](#_13-web-links) |
+| **14** | **App item associations** | **第三方扩展应用与文件/目录双向关联**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Third-party app binding relations</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达](#_14-app-item-associations) |
+| **15** | **Trashed files** | **已移入回收站文件的查阅、恢复与硬删除**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Soft-deleted file lifecycle</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达](#_15-trashed-files) |
+| **16** | **Trashed folders** | **已移入回收站目录的查阅、恢复与硬删除**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Soft-deleted directory lifecycle</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达](#_16-trashed-folders) |
+| **17** | **Trashed items** | **全局回收站混合清单分页遍历**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Global recycle bin indexing</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [直达](#_17-trashed-items) |
+| **18** | **Trashed web links** | **已移入回收站 Web Link 的恢复与粉碎**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Soft-deleted pointer recovery</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [直达](#_18-trashed-web-links) |
+| **19** | **Archives** | **冷数据自动化归档策略与归档包管理**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Long-term cold data lifecycle</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [直达](#_19-archives) |
+
+</div>
 
 ---
 

@@ -24,29 +24,48 @@ Box 公式開発者ポータル（`developer.box.com/reference`）を直接検�
 
 ## 8.2 Content Management 19大モジュール CRUD マトリックス
 
-下表は Content Management 全 19 モジュールの機能全景マトリックスです。各モジュールの HTTP メソッド（GET / POST / PUT / DELETE）対応状況および権限境界を一目で確認できます。
+下表は Content Management 全 19 モジュールの機能全景マトリックスです。各モジュールの HTTP メソッド（GET / POST / PUT / DEL）対応状況および権限境界を一目で確認できます。
 
-| 番号 | モジュール名 (Module) | 公式定義 (Official Description) | 日本語直感定義 | コアスコープ (Scope) | GET | POST | PUT | DELETE | クイックジャンプ |
-| :---: | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **01** | **Files** | Core file operations and management | ファイルメタデータ CRUD・複製・移動 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_01-files) |
-| **02** | **Folders** | Organizing and structuring content | ディレクトリ階層の作成・探索・移動 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_02-folders) |
-| **03** | **File versions** | Version history and recovery | 過去バージョンの復元・昇格・完全削除 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_03-file-versions) |
-| **04** | **File requests** | Secure file collection workflows | ログイン不要のファイル提出リンク設定 | `manage_file_requests` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_04-file-requests) |
-| **05** | **Uploads** | Direct standard file ingestion | 小容量ファイル単一アップロード (< 50MB) | `root_readwrite` | ❌ | ✅ | ❌ | ❌ | [詳細解説へ](#_05-uploads) |
-| **06** | **Uploads (Chunked)** | Large file multipart sessions | 大容量ファイル分割・並列アップロード (≥ 50MB) | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_06-uploads-chunked) |
-| **07** | **Downloads** | Binary content streaming | バイナリストリーム取得と 302 リダイレクト | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_07-downloads) |
-| **08** | **Zip Downloads** | Multi-item batch packaging | 複数ファイル・フォルダの一括 Zip 圧縮ダウンロード | `root_readonly` | ✅ | ✅ | ❌ | ❌ | [詳細解説へ](#_08-zip-downloads) |
-| **09** | **Folder Locks** | Concurrency and mutation freeze | フォルダ削除・移動防止ロック | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_09-folder-locks) |
-| **10** | **Collections** | Tagging and virtual grouping | お気に入り等の仮想グルーピング管理 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_10-collections) |
-| **11** | **Recent items** | Audit and access recency stream | 最近アクセスしたアイテムの履歴照会 | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_11-recent-items) |
-| **12** | **Transfer folders** | Content ownership migration | ユーザー所有ルートディレクトリの完全移譲 | `manage_users` | ❌ | ❌ | ✅ | ❌ | [詳細解説へ](#_12-transfer-folders) |
-| **13** | **Web links** | External URL pointers in directory | フォルダ内への外部リンク配置・管理 | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_13-web-links) |
-| **14** | **App item associations** | Third-party app binding relations | サードパーティアプリとファイル/フォルダの紐付け | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_14-app-item-associations) |
-| **15** | **Trashed files** | Soft-deleted file lifecycle | ごみ箱内ファイルの確認・復元・完全消去 | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_15-trashed-files) |
-| **16** | **Trashed folders** | Soft-deleted directory lifecycle | ごみ箱内フォルダの確認・復元・完全消去 | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_16-trashed-folders) |
-| **17** | **Trashed items** | Global recycle bin indexing | ごみ箱内アイテムの一覧取得・ページング | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_17-trashed-items) |
-| **18** | **Trashed web links** | Soft-deleted pointer recovery | ごみ箱内外部リンクの復元・完全消去 | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_18-trashed-web-links) |
-| **19** | **Archives** | Long-term cold data lifecycle | コールドデータ自動アーカイブ管理 (v2025.0) | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_19-archives) |
+<style>
+.crud-matrix-wrapper table {
+  width: 100% !important;
+  display: table !important;
+  font-size: 0.82rem;
+}
+.crud-matrix-wrapper th, .crud-matrix-wrapper td {
+  padding: 6px 5px !important;
+}
+.crud-matrix-wrapper td code {
+  font-size: 0.72rem !important;
+  padding: 1px 3px !important;
+}
+</style>
+
+<div class="crud-matrix-wrapper">
+
+| 番号 | モジュール (Module) | 公式定義と日本語機能説明 | コアスコープ (Scope) | GET | POST | PUT | DEL | クイックジャンプ |
+| :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **01** | **Files** | **ファイルメタデータ CRUD・複製・移動**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Core file operations and management</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_01-files) |
+| **02** | **Folders** | **ディレクトリ階層の作成・探索・移動**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Organizing and structuring content</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_02-folders) |
+| **03** | **File versions** | **過去バージョンの復元・昇格・完全削除**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Version history and recovery</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_03-file-versions) |
+| **04** | **File requests** | **ログイン不要のファイル提出リンク設定**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Secure file collection workflows</span> | `manage_file_requests` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_04-file-requests) |
+| **05** | **Uploads** | **小容量ファイル単一アップロード (< 50MB)**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Direct standard file ingestion</span> | `root_readwrite` | ❌ | ✅ | ❌ | ❌ | [詳細解説へ](#_05-uploads) |
+| **06** | **Uploads (Chunked)** | **大容量ファイル分割・並列アップロード (≥ 50MB)**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Large file multipart sessions</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_06-uploads-chunked) |
+| **07** | **Downloads** | **バイナリストリーム取得と 302 リダイレクト**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Binary content streaming</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_07-downloads) |
+| **08** | **Zip Downloads** | **複数ファイル・フォルダの一括 Zip 圧縮ダウンロード**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Multi-item batch packaging</span> | `root_readonly` | ✅ | ✅ | ❌ | ❌ | [詳細解説へ](#_08-zip-downloads) |
+| **09** | **Folder Locks** | **フォルダ削除・移動防止ロック**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Concurrency and mutation freeze</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_09-folder-locks) |
+| **10** | **Collections** | **お気に入り等の仮想グルーピング管理**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Tagging and virtual grouping</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_10-collections) |
+| **11** | **Recent items** | **最近アクセスしたアイテムの履歴照会**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Audit and access recency stream</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_11-recent-items) |
+| **12** | **Transfer folders** | **ユーザー所有ルートディレクトリの完全移譲**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Content ownership migration</span> | `manage_users` | ❌ | ❌ | ✅ | ❌ | [詳細解説へ](#_12-transfer-folders) |
+| **13** | **Web links** | **フォルダ内への外部リンク配置・管理**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">External URL pointers in directory</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_13-web-links) |
+| **14** | **App item associations** | **サードパーティアプリとファイル/フォルダの紐付け**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Third-party app binding relations</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_14-app-item-associations) |
+| **15** | **Trashed files** | **ごみ箱内ファイルの確認・復元・完全消去**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Soft-deleted file lifecycle</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_15-trashed-files) |
+| **16** | **Trashed folders** | **ごみ箱内フォルダの確認・復元・完全消去**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Soft-deleted directory lifecycle</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_16-trashed-folders) |
+| **17** | **Trashed items** | **ごみ箱内アイテムの一覧取得・ページング**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Global recycle bin indexing</span> | `root_readonly` | ✅ | ❌ | ❌ | ❌ | [詳細解説へ](#_17-trashed-items) |
+| **18** | **Trashed web links** | **ごみ箱内外部リンクの復元・完全消去**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Soft-deleted pointer recovery</span> | `root_readwrite` | ✅ | ✅ | ❌ | ✅ | [詳細解説へ](#_18-trashed-web-links) |
+| **19** | **Archives** | **コールドデータ自動アーカイブ管理 (v2025.0)**<br><span style="font-size:0.75rem;color:var(--vp-c-text-2)">Long-term cold data lifecycle</span> | `root_readwrite` | ✅ | ✅ | ✅ | ✅ | [詳細解説へ](#_19-archives) |
+
+</div>
 
 ---
 
