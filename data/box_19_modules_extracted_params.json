@@ -1,0 +1,2294 @@
+{
+  "Files": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/files/{file_id}",
+        "operationId": "get_files_id",
+        "summary": "Get file information",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures an item is only returned if it has changed.\n\nPass in the item's last observed `etag` value\ninto this header and "
+          },
+          {
+            "in": "header",
+            "name": "boxapi",
+            "type": "string",
+            "required": false,
+            "description": "The URL, and optional password, for the shared link of this item.\n\nThis header can be used to access items that have not"
+          },
+          {
+            "in": "header",
+            "name": "x-rep-hints",
+            "type": "string",
+            "required": false,
+            "description": "A header required to request specific `representations`\nof a file. Use this in combination with the `fields` query\nparam"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/files/{file_id}",
+        "operationId": "put_files_id",
+        "summary": "Update file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "An optional different name for the file. This can be used to\nrename the file.\n\nFile names must be unique within their pa"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "required": false,
+            "description": "The description for a file. This can be seen in the right-hand sidebar panel\nwhen viewing a file in the Box web app. Add"
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "shared_link",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "lock",
+            "type": "object",
+            "required": false,
+            "description": "Defines a lock on an item. This prevents the item from being\nmoved, renamed, or otherwise changed by anyone other than t"
+          },
+          {
+            "name": "disposition_at",
+            "type": "string",
+            "required": false,
+            "description": "The retention expiration timestamp for the given file. This\ndate cannot be shortened once set on a file."
+          },
+          {
+            "name": "permissions",
+            "type": "object",
+            "required": false,
+            "description": "Defines who can download a file."
+          },
+          {
+            "name": "collections",
+            "type": "array",
+            "required": false,
+            "description": "An array of collections to make this file\na member of. Currently\nwe only support the `favorites` collection.\n\nTo get the"
+          },
+          {
+            "name": "tags",
+            "type": "array",
+            "required": false,
+            "description": "The tags for this item. These tags are shown in\nthe Box web app and mobile apps next to an item.\n\nTo add or remove a tag"
+          }
+        ]
+      },
+      {
+        "method": "DELETE",
+        "path": "/files/{file_id}",
+        "operationId": "delete_files_id",
+        "summary": "Delete file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "OPTIONS",
+        "path": "/files/content",
+        "operationId": "options_files_content",
+        "summary": "Preflight check before upload",
+        "parameters": [],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "The name for the file."
+          },
+          {
+            "name": "size",
+            "type": "integer",
+            "required": false,
+            "description": "The size of the file in bytes."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/{file_id}/copy",
+        "operationId": "post_files_id_copy",
+        "summary": "Copy file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "An optional new name for the copied file.\n\nThere are some restrictions to the file name. Names containing\nnon-printable "
+          },
+          {
+            "name": "version",
+            "type": "string",
+            "required": false,
+            "description": "An optional ID of the specific file version to copy."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": true,
+            "description": "The destination folder to copy the file to."
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/files/{file_id}/thumbnail.{extension}",
+        "operationId": "get_files_id_thumbnail_id",
+        "summary": "Get file thumbnail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "path",
+            "name": "extension",
+            "type": "string",
+            "required": true,
+            "description": "The file format for the thumbnail."
+          },
+          {
+            "in": "query",
+            "name": "min_height",
+            "type": "integer",
+            "required": false,
+            "description": "The minimum height of the thumbnail."
+          },
+          {
+            "in": "query",
+            "name": "min_width",
+            "type": "integer",
+            "required": false,
+            "description": "The minimum width of the thumbnail."
+          },
+          {
+            "in": "query",
+            "name": "max_height",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum height of the thumbnail."
+          },
+          {
+            "in": "query",
+            "name": "max_width",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum width of the thumbnail."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Folders": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/folders/{folder_id}",
+        "operationId": "get_folders_id",
+        "summary": "Get folder information",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures an item is only returned if it has changed.\n\nPass in the item's last observed `etag` value\ninto this header and "
+          },
+          {
+            "in": "header",
+            "name": "boxapi",
+            "type": "string",
+            "required": false,
+            "description": "The URL, and optional password, for the shared link of this item.\n\nThis header can be used to access items that have not"
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "type": "string",
+            "required": false,
+            "description": "Defines the **second** attribute by which items\nare sorted.\n\nThe folder type affects the way the items\nare sorted:\n\n  * "
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "type": "string",
+            "required": false,
+            "description": "The direction to sort results in. This can be either in alphabetical ascending\n(`ASC`) or descending (`DESC`) order."
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nOffset-based pagination is not guaranteed to work reliably for h"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/folders/{folder_id}",
+        "operationId": "put_folders_id",
+        "summary": "Update folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "The optional new name for this folder.\n\nThe following restrictions to folder names apply: names containing\nnon-printable"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "required": false,
+            "description": "The optional description of this folder."
+          },
+          {
+            "name": "sync_state",
+            "type": "string",
+            "required": false,
+            "description": "Specifies whether a folder should be synced to a\nuser's device or not. This is used by Box Sync\n(discontinued) and is no"
+          },
+          {
+            "name": "can_non_owners_invite",
+            "type": "boolean",
+            "required": false,
+            "description": "Specifies if users who are not the owner\nof the folder can invite new collaborators to the folder."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "shared_link",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "folder_upload_email",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "tags",
+            "type": "array",
+            "required": false,
+            "description": "The tags for this item. These tags are shown in\nthe Box web app and mobile apps next to an item.\n\nTo add or remove a tag"
+          },
+          {
+            "name": "is_collaboration_restricted_to_enterprise",
+            "type": "boolean",
+            "required": false,
+            "description": "Specifies if new invites to this folder are restricted to users\nwithin the enterprise. This does not affect existing\ncol"
+          },
+          {
+            "name": "collections",
+            "type": "array",
+            "required": false,
+            "description": "An array of collections to make this folder\na member of. Currently\nwe only support the `favorites` collection.\n\nTo get t"
+          },
+          {
+            "name": "can_non_owners_view_collaborators",
+            "type": "boolean",
+            "required": false,
+            "description": "Restricts collaborators who are not the owner of\nthis folder from viewing other collaborations on\nthis folder.\n\nIt also "
+          }
+        ]
+      },
+      {
+        "method": "DELETE",
+        "path": "/folders/{folder_id}",
+        "operationId": "delete_folders_id",
+        "summary": "Delete folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          },
+          {
+            "in": "query",
+            "name": "recursive",
+            "type": "boolean",
+            "required": false,
+            "description": "Delete a folder that is not empty by recursively deleting the\nfolder and all of its content."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/folders/{folder_id}/items",
+        "operationId": "get_folders_id_items",
+        "summary": "List items in folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "usemarker",
+            "type": "boolean",
+            "required": false,
+            "description": "Specifies whether to use marker-based pagination instead of\noffset-based pagination. Only one pagination method can\nbe u"
+          },
+          {
+            "in": "query",
+            "name": "marker",
+            "type": "string",
+            "required": false,
+            "description": "Defines the position marker at which to begin returning results. This is\nused when paginating using marker-based paginat"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nOffset-based pagination is not guaranteed to work reliably for h"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          },
+          {
+            "in": "header",
+            "name": "boxapi",
+            "type": "string",
+            "required": false,
+            "description": "The URL, and optional password, for the shared link of this item.\n\nThis header can be used to access items that have not"
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "type": "string",
+            "required": false,
+            "description": "Defines the **second** attribute by which items\nare sorted.\n\nThe folder type affects the way the items\nare sorted:\n\n  * "
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "type": "string",
+            "required": false,
+            "description": "The direction to sort results in. This can be either in alphabetical ascending\n(`ASC`) or descending (`DESC`) order."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/folders",
+        "operationId": "post_folders",
+        "summary": "Create folder",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": true,
+            "description": "The name for the new folder.\n\nThe following restrictions to folder names apply: names containing\nnon-printable ASCII cha"
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": true,
+            "description": "The parent folder to create the new folder within."
+          },
+          {
+            "name": "folder_upload_email",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "sync_state",
+            "type": "string",
+            "required": false,
+            "description": "Specifies whether a folder should be synced to a\nuser's device or not. This is used by Box Sync\n(discontinued) and is no"
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/folders/{folder_id}/copy",
+        "operationId": "post_folders_id_copy",
+        "summary": "Copy folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier of the folder to copy.\n\nThe ID for any folder can be determined\nby visiting this folder in the web"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "An optional new name for the copied folder.\n\nThere are some restrictions to the file name. Names containing\nnon-printabl"
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": true,
+            "description": "The destination folder to copy the folder to."
+          }
+        ]
+      }
+    ],
+    "core_parameters": []
+  },
+  "File versions": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/files/{file_id}/versions",
+        "operationId": "get_files_id_versions",
+        "summary": "List all file versions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nQueries with offset parameter value\nexceeding 10000 will be reje"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/files/{file_id}/versions/{file_version_id}",
+        "operationId": "get_files_id_versions_id",
+        "summary": "Get file version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "path",
+            "name": "file_version_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the file version."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/files/{file_id}/versions/{file_version_id}",
+        "operationId": "delete_files_id_versions_id",
+        "summary": "Remove file version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "path",
+            "name": "file_version_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the file version."
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/files/{file_id}/versions/{file_version_id}",
+        "operationId": "put_files_id_versions_id",
+        "summary": "Restore file version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "path",
+            "name": "file_version_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the file version."
+          }
+        ],
+        "body": [
+          {
+            "name": "trashed_at",
+            "type": "string",
+            "required": false,
+            "description": "Set this to `null` to clear\nthe date and restore the file."
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/{file_id}/versions/current",
+        "operationId": "post_files_id_versions_current",
+        "summary": "Promote file version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "id",
+            "type": "string",
+            "required": false,
+            "description": "The file version ID."
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "required": false,
+            "description": "The type to promote."
+          }
+        ]
+      }
+    ],
+    "core_parameters": []
+  },
+  "File requests": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/file_requests/{file_request_id}",
+        "operationId": "get_file_requests_id",
+        "summary": "Get file request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_request_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a file request.\n\nThe ID for any file request can be determined\nby visiting a file r"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/file_requests/{file_request_id}",
+        "operationId": "put_file_requests_id",
+        "summary": "Update file request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_request_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a file request.\n\nThe ID for any file request can be determined\nby visiting a file r"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/file_requests/{file_request_id}",
+        "operationId": "delete_file_requests_id",
+        "summary": "Delete file request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_request_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a file request.\n\nThe ID for any file request can be determined\nby visiting a file r"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/file_requests/{file_request_id}/copy",
+        "operationId": "post_file_requests_id_copy",
+        "summary": "Copy file request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_request_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a file request.\n\nThe ID for any file request can be determined\nby visiting a file r"
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Uploads": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/files/{file_id}/content",
+        "operationId": "post_files_id_content",
+        "summary": "Upload file version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "content-md5",
+            "type": "string",
+            "required": false,
+            "description": "An optional header containing the SHA1 hash of the file to\nensure that the file was not corrupted in transit."
+          }
+        ],
+        "body": [
+          {
+            "name": "attributes",
+            "type": "object",
+            "required": true,
+            "description": "The additional attributes of the file being uploaded. Mainly the\nname and the parent folder. These attributes are part o"
+          },
+          {
+            "name": "file",
+            "type": "string",
+            "required": true,
+            "description": "The content of the file to upload to Box.\n\n<Message warning>\n\n  The `attributes` part of the body must come **before** t"
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/content",
+        "operationId": "post_files_content",
+        "summary": "Upload file",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "content-md5",
+            "type": "string",
+            "required": false,
+            "description": "An optional header containing the SHA1 hash of the file to\nensure that the file was not corrupted in transit."
+          }
+        ],
+        "body": [
+          {
+            "name": "attributes",
+            "type": "object",
+            "required": true,
+            "description": "The additional attributes of the file being uploaded. Mainly the\nname and the parent folder. These attributes are part o"
+          },
+          {
+            "name": "file",
+            "type": "string",
+            "required": true,
+            "description": "The content of the file to upload to Box.\n\n<Message warning>\n\n  The `attributes` part of the body must come **before** t"
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/upload_sessions",
+        "operationId": "post_files_upload_sessions",
+        "summary": "Create upload session",
+        "parameters": [],
+        "body": [
+          {
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the folder to upload the new file to."
+          },
+          {
+            "name": "file_size",
+            "type": "integer",
+            "required": true,
+            "description": "The total number of bytes of the file to be uploaded."
+          },
+          {
+            "name": "file_name",
+            "type": "string",
+            "required": true,
+            "description": "The name of new file."
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/{file_id}/upload_sessions",
+        "operationId": "post_files_id_upload_sessions",
+        "summary": "Create upload session for existing file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          }
+        ],
+        "body": [
+          {
+            "name": "file_size",
+            "type": "integer",
+            "required": true,
+            "description": "The total number of bytes of the file to be uploaded."
+          },
+          {
+            "name": "file_name",
+            "type": "string",
+            "required": false,
+            "description": "The optional new name of new file."
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/files/upload_sessions/{upload_session_id}",
+        "operationId": "get_files_upload_sessions_id",
+        "summary": "Get upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/files/upload_sessions/{upload_session_id}",
+        "operationId": "put_files_upload_sessions_id",
+        "summary": "Upload part of file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          },
+          {
+            "in": "header",
+            "name": "digest",
+            "type": "string",
+            "required": true,
+            "description": "The [RFC3230][1] message digest of the chunk uploaded.\n\n`SHA-1` and `SHA-512` ([RFC5843][2]) are supported. The digest m"
+          },
+          {
+            "in": "header",
+            "name": "content-range",
+            "type": "string",
+            "required": true,
+            "description": "The byte range of the chunk.\n\nMust not overlap with the range of a part already\nuploaded this session. Each part’s size "
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/files/upload_sessions/{upload_session_id}",
+        "operationId": "delete_files_upload_sessions_id",
+        "summary": "Remove upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/files/upload_sessions/{upload_session_id}/parts",
+        "operationId": "get_files_upload_sessions_id_parts",
+        "summary": "List parts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nQueries with offset parameter value\nexceeding 10000 will be reje"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/files/upload_sessions/{upload_session_id}/plan",
+        "operationId": "post_files_upload_sessions_id_plan",
+        "summary": "Plan upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/files/upload_sessions/{upload_session_id}/commit",
+        "operationId": "post_files_upload_sessions_id_commit",
+        "summary": "Commit upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          },
+          {
+            "in": "header",
+            "name": "digest",
+            "type": "string",
+            "required": true,
+            "description": "The [RFC3230][1] message digest of the whole file.\n\nOnly SHA1 is supported. The SHA1 digest must be Base64\nencoded. The "
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures an item is only returned if it has changed.\n\nPass in the item's last observed `etag` value\ninto this header and "
+          }
+        ],
+        "body": [
+          {
+            "name": "parts",
+            "type": "array",
+            "required": true,
+            "description": "The list details for the uploaded parts.\n\nEach entry can include `sha1` or `sha512`. Include `sha512`\non every entry or "
+          }
+        ]
+      }
+    ],
+    "core_parameters": []
+  },
+  "Uploads (Chunked)": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/files/{file_id}/content",
+        "operationId": "post_files_id_content",
+        "summary": "Upload file version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "content-md5",
+            "type": "string",
+            "required": false,
+            "description": "An optional header containing the SHA1 hash of the file to\nensure that the file was not corrupted in transit."
+          }
+        ],
+        "body": [
+          {
+            "name": "attributes",
+            "type": "object",
+            "required": true,
+            "description": "The additional attributes of the file being uploaded. Mainly the\nname and the parent folder. These attributes are part o"
+          },
+          {
+            "name": "file",
+            "type": "string",
+            "required": true,
+            "description": "The content of the file to upload to Box.\n\n<Message warning>\n\n  The `attributes` part of the body must come **before** t"
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/content",
+        "operationId": "post_files_content",
+        "summary": "Upload file",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "header",
+            "name": "content-md5",
+            "type": "string",
+            "required": false,
+            "description": "An optional header containing the SHA1 hash of the file to\nensure that the file was not corrupted in transit."
+          }
+        ],
+        "body": [
+          {
+            "name": "attributes",
+            "type": "object",
+            "required": true,
+            "description": "The additional attributes of the file being uploaded. Mainly the\nname and the parent folder. These attributes are part o"
+          },
+          {
+            "name": "file",
+            "type": "string",
+            "required": true,
+            "description": "The content of the file to upload to Box.\n\n<Message warning>\n\n  The `attributes` part of the body must come **before** t"
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/upload_sessions",
+        "operationId": "post_files_upload_sessions",
+        "summary": "Create upload session",
+        "parameters": [],
+        "body": [
+          {
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the folder to upload the new file to."
+          },
+          {
+            "name": "file_size",
+            "type": "integer",
+            "required": true,
+            "description": "The total number of bytes of the file to be uploaded."
+          },
+          {
+            "name": "file_name",
+            "type": "string",
+            "required": true,
+            "description": "The name of new file."
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/files/{file_id}/upload_sessions",
+        "operationId": "post_files_id_upload_sessions",
+        "summary": "Create upload session for existing file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          }
+        ],
+        "body": [
+          {
+            "name": "file_size",
+            "type": "integer",
+            "required": true,
+            "description": "The total number of bytes of the file to be uploaded."
+          },
+          {
+            "name": "file_name",
+            "type": "string",
+            "required": false,
+            "description": "The optional new name of new file."
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/files/upload_sessions/{upload_session_id}",
+        "operationId": "get_files_upload_sessions_id",
+        "summary": "Get upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/files/upload_sessions/{upload_session_id}",
+        "operationId": "put_files_upload_sessions_id",
+        "summary": "Upload part of file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          },
+          {
+            "in": "header",
+            "name": "digest",
+            "type": "string",
+            "required": true,
+            "description": "The [RFC3230][1] message digest of the chunk uploaded.\n\n`SHA-1` and `SHA-512` ([RFC5843][2]) are supported. The digest m"
+          },
+          {
+            "in": "header",
+            "name": "content-range",
+            "type": "string",
+            "required": true,
+            "description": "The byte range of the chunk.\n\nMust not overlap with the range of a part already\nuploaded this session. Each part’s size "
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/files/upload_sessions/{upload_session_id}",
+        "operationId": "delete_files_upload_sessions_id",
+        "summary": "Remove upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/files/upload_sessions/{upload_session_id}/parts",
+        "operationId": "get_files_upload_sessions_id_parts",
+        "summary": "List parts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nQueries with offset parameter value\nexceeding 10000 will be reje"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/files/upload_sessions/{upload_session_id}/plan",
+        "operationId": "post_files_upload_sessions_id_plan",
+        "summary": "Plan upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/files/upload_sessions/{upload_session_id}/commit",
+        "operationId": "post_files_upload_sessions_id_commit",
+        "summary": "Commit upload session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "upload_session_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the upload session."
+          },
+          {
+            "in": "header",
+            "name": "digest",
+            "type": "string",
+            "required": true,
+            "description": "The [RFC3230][1] message digest of the whole file.\n\nOnly SHA1 is supported. The SHA1 digest must be Base64\nencoded. The "
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures this item hasn't recently changed before\nmaking changes.\n\nPass in the item's last observed `etag` value\ninto thi"
+          },
+          {
+            "in": "header",
+            "name": "if-none-match",
+            "type": "string",
+            "required": false,
+            "description": "Ensures an item is only returned if it has changed.\n\nPass in the item's last observed `etag` value\ninto this header and "
+          }
+        ],
+        "body": [
+          {
+            "name": "parts",
+            "type": "array",
+            "required": true,
+            "description": "The list details for the uploaded parts.\n\nEach entry can include `sha1` or `sha512`. Include `sha512`\non every entry or "
+          }
+        ]
+      }
+    ],
+    "core_parameters": []
+  },
+  "Downloads": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/files/{file_id}/content",
+        "operationId": "get_files_id_content",
+        "summary": "Download file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "header",
+            "name": "range",
+            "type": "string",
+            "required": false,
+            "description": "The byte range of the content to download.\n\nThe format `bytes={start_byte}-{end_byte}` can be used to specify\nwhat secti"
+          },
+          {
+            "in": "header",
+            "name": "boxapi",
+            "type": "string",
+            "required": false,
+            "description": "The URL, and optional password, for the shared link of this item.\n\nThis header can be used to access items that have not"
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "type": "string",
+            "required": false,
+            "description": "The file version to download."
+          },
+          {
+            "in": "query",
+            "name": "access_token",
+            "type": "string",
+            "required": false,
+            "description": "An optional access token that can be used to pre-authenticate this request, which means that a download link can be shar"
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Zip Downloads": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/zip_downloads",
+        "operationId": "post_zip_downloads",
+        "summary": "Create zip download",
+        "parameters": [],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/zip_downloads/{zip_download_id}/content",
+        "operationId": "get_zip_downloads_id_content",
+        "summary": "Download zip archive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zip_download_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent this `zip` archive."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/zip_downloads/{zip_download_id}/status",
+        "operationId": "get_zip_downloads_id_status",
+        "summary": "Get zip download status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zip_download_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent this `zip` archive."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Folder Locks": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/folder_locks",
+        "operationId": "get_folder_locks",
+        "summary": "List folder locks",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "POST",
+        "path": "/folder_locks",
+        "operationId": "post_folder_locks",
+        "summary": "Create folder lock",
+        "parameters": [],
+        "body": [
+          {
+            "name": "locked_operations",
+            "type": "object",
+            "required": false,
+            "description": "The operations to lock for the folder. If `locked_operations` is\nincluded in the request, both `move` and `delete` must "
+          },
+          {
+            "name": "folder",
+            "type": "object",
+            "required": true,
+            "description": "The folder to apply the lock to."
+          }
+        ]
+      },
+      {
+        "method": "DELETE",
+        "path": "/folder_locks/{folder_lock_id}",
+        "operationId": "delete_folder_locks_id",
+        "summary": "Delete folder lock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_lock_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the folder lock."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Collections": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/collections",
+        "operationId": "get_collections",
+        "summary": "List all collections",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nQueries with offset parameter value\nexceeding 10000 will be reje"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/collections/{collection_id}/items",
+        "operationId": "get_collections_id_items",
+        "summary": "List collection items",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the collection."
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nQueries with offset parameter value\nexceeding 10000 will be reje"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/collections/{collection_id}",
+        "operationId": "get_collections_id",
+        "summary": "Get collection by ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "collection_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the collection."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Recent items": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/recent_items",
+        "operationId": "get_recent_items",
+        "summary": "List recently accessed items",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          },
+          {
+            "in": "query",
+            "name": "marker",
+            "type": "string",
+            "required": false,
+            "description": "Defines the position marker at which to begin returning results. This is\nused when paginating using marker-based paginat"
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Transfer folders": {
+    "endpoints": [
+      {
+        "method": "PUT",
+        "path": "/users/{user_id}/folders/0",
+        "operationId": "put_users_id_folders_0",
+        "summary": "Transfer owned folders",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the user."
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "notify",
+            "type": "boolean",
+            "required": false,
+            "description": "Determines if users should receive email notification\nfor the action performed."
+          }
+        ],
+        "body": [
+          {
+            "name": "owned_by",
+            "type": "object",
+            "required": true,
+            "description": "The user who the folder will be transferred to."
+          }
+        ]
+      }
+    ],
+    "core_parameters": []
+  },
+  "Web links": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/web_links",
+        "operationId": "post_web_links",
+        "summary": "Create web link",
+        "parameters": [],
+        "body": [
+          {
+            "name": "url",
+            "type": "string",
+            "required": true,
+            "description": "The URL that this web link links to. Must start with\n`\"http://\"` or `\"https://\"`."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": true,
+            "description": "The parent folder to create the web link within."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "Name of the web link. Defaults to the URL if not set."
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "required": false,
+            "description": "Description of the web link."
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/web_links/{web_link_id}",
+        "operationId": "get_web_links_id",
+        "summary": "Get web link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "web_link_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the web link."
+          },
+          {
+            "in": "header",
+            "name": "boxapi",
+            "type": "string",
+            "required": false,
+            "description": "The URL, and optional password, for the shared link of this item.\n\nThis header can be used to access items that have not"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "PUT",
+        "path": "/web_links/{web_link_id}",
+        "operationId": "put_web_links_id",
+        "summary": "Update web link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "web_link_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the web link."
+          }
+        ],
+        "body": [
+          {
+            "name": "url",
+            "type": "string",
+            "required": false,
+            "description": "The new URL that the web link links to. Must start with\n`\"http://\"` or `\"https://\"`."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "A new name for the web link. Defaults to the URL if not set."
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "required": false,
+            "description": "A new description of the web link."
+          },
+          {
+            "name": "shared_link",
+            "type": "object",
+            "required": false,
+            "description": "The settings for the shared link to update."
+          }
+        ]
+      },
+      {
+        "method": "DELETE",
+        "path": "/web_links/{web_link_id}",
+        "operationId": "delete_web_links_id",
+        "summary": "Remove web link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "web_link_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the web link."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "App item associations": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/files/{file_id}/app_item_associations",
+        "operationId": "get_files_id_app_item_associations",
+        "summary": "List file app item associations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          },
+          {
+            "in": "query",
+            "name": "marker",
+            "type": "string",
+            "required": false,
+            "description": "Defines the position marker at which to begin returning results. This is\nused when paginating using marker-based paginat"
+          },
+          {
+            "in": "query",
+            "name": "application_type",
+            "type": "string",
+            "required": false,
+            "description": "If given, only return app items for this application type."
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "GET",
+        "path": "/folders/{folder_id}/app_item_associations",
+        "operationId": "get_folders_id_app_item_associations",
+        "summary": "List folder app item associations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          },
+          {
+            "in": "query",
+            "name": "marker",
+            "type": "string",
+            "required": false,
+            "description": "Defines the position marker at which to begin returning results. This is\nused when paginating using marker-based paginat"
+          },
+          {
+            "in": "query",
+            "name": "application_type",
+            "type": "string",
+            "required": false,
+            "description": "If given, returns only app items for this application type."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Trashed files": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/files/{file_id}",
+        "operationId": "post_files_id",
+        "summary": "Restore file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "An optional new name for the file."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/files/{file_id}/trash",
+        "operationId": "get_files_id_trash",
+        "summary": "Get trashed file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/files/{file_id}/trash",
+        "operationId": "delete_files_id_trash",
+        "summary": "Permanently remove file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represents a file.\n\nThe ID for any file can be determined\nby visiting a file in the web appli"
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Trashed folders": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/folders/{folder_id}",
+        "operationId": "post_folders_id",
+        "summary": "Restore folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "An optional new name for the folder."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/folders/{folder_id}/trash",
+        "operationId": "get_folders_id_trash",
+        "summary": "Get trashed folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/folders/{folder_id}/trash",
+        "operationId": "delete_folders_id_trash",
+        "summary": "Permanently remove folder",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "folder_id",
+            "type": "string",
+            "required": true,
+            "description": "The unique identifier that represent a folder.\n\nThe ID for any folder can be determined\nby visiting this folder in the w"
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Trashed items": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/folders/trash/items",
+        "operationId": "get_folders_trash_items",
+        "summary": "List trashed items",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "required": false,
+            "description": "The maximum number of items to return per page."
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "required": false,
+            "description": "The offset of the item at which to begin the response.\n\nQueries with offset parameter value\nexceeding 10000 will be reje"
+          },
+          {
+            "in": "query",
+            "name": "usemarker",
+            "type": "boolean",
+            "required": false,
+            "description": "Specifies whether to use marker-based pagination instead of\noffset-based pagination. Only one pagination method can\nbe u"
+          },
+          {
+            "in": "query",
+            "name": "marker",
+            "type": "string",
+            "required": false,
+            "description": "Defines the position marker at which to begin returning results. This is\nused when paginating using marker-based paginat"
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "type": "string",
+            "required": false,
+            "description": "The direction to sort results in. This can be either in alphabetical ascending\n(`ASC`) or descending (`DESC`) order."
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "type": "string",
+            "required": false,
+            "description": "Defines the **second** attribute by which items\nare sorted.\n\nItems are always sorted by their `type` first, with\nfolders"
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Trashed web links": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/web_links/{web_link_id}",
+        "operationId": "post_web_links_id",
+        "summary": "Restore web link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "web_link_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the web link."
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": [
+          {
+            "name": "name",
+            "type": "string",
+            "required": false,
+            "description": "An optional new name for the web link."
+          },
+          {
+            "name": "parent",
+            "type": "object",
+            "required": false,
+            "description": ""
+          }
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/web_links/{web_link_id}/trash",
+        "operationId": "get_web_links_id_trash",
+        "summary": "Get trashed web link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "web_link_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the web link."
+          },
+          {
+            "in": "query",
+            "name": "fields",
+            "type": "array",
+            "required": false,
+            "description": "A comma-separated list of attributes to include in the\nresponse. This can be used to request fields that are\nnot normall"
+          }
+        ],
+        "body": []
+      },
+      {
+        "method": "DELETE",
+        "path": "/web_links/{web_link_id}/trash",
+        "operationId": "delete_web_links_id_trash",
+        "summary": "Permanently remove web link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "web_link_id",
+            "type": "string",
+            "required": true,
+            "description": "The ID of the web link."
+          }
+        ],
+        "body": []
+      }
+    ],
+    "core_parameters": []
+  },
+  "Archives": {
+    "endpoints": [],
+    "core_parameters": []
+  }
+}

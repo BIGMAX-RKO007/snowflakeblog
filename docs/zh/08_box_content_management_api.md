@@ -6,7 +6,7 @@
 >
 > 在 Box 开放平台体系中，**Content Management（内容管理）** 是绝对的核心枢纽。无论上层对接的是自动化流转引擎、数据同步中间件，还是自定义客户端应用，所有关于文件创建、切片断点续传、目录遍历、版本追溯、加锁防并发冲突以及软硬删除生命周期的操作，全部归口于该类目。
 >
-> 本章节抛开任何业务虚词与场景假设，**纯技术视角**拆解 Content Management 下全部 **19 个官方模块**。通过「CRUD 全景沙盘矩阵」与「API 四要素卡片」，帮助开发者建立全景心智模型，掌握最严谨的生产级 API 交互规范。
+> 本章节抛开任何业务虚词与场景假设，**纯技术视角**拆解 Content Management 下全部 **19 个官方模块**。通过「CRUD 全景沙盘矩阵」与「API 要素拓扑卡片」，帮助开发者建立全景心智模型，掌握最严谨的生产级 API 交互规范。
 
 ---
 
@@ -64,7 +64,7 @@
 
 ---
 
-## 8.4 单个 API 模块项目四要素全景实操
+## 8.4 单个 API 模块五要素深度实操
 
 ---
 
@@ -82,10 +82,20 @@ Files 模块管理 Box 存储体系中所有文件的**元数据对象**（非�
 | 更新文件元数据 / 移动 | `PUT` | `/files/{file_id}` | [Official Spec](https://developer.box.com/reference/put-files-id) |
 | 删除文件 (进回收站) | `DELETE` | `/files/{file_id}` | [Official Spec](https://developer.box.com/reference/delete-files-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `file_id` | `string` | **是** | 文件的唯一标识符（如 `"123456789"`） |
+| **Header** | `If-Match` | `string` | 否 | 用于并发防冲突的 ETag 校验串（如 `"3"`） |
+| **Query** | `fields` | `string[]` | 否 | 响应字段过滤器（逗号分隔，如 `name,size,sha1,path_collection`） |
+| **Body (PUT)** | `name` | `string` | 否 | 新文件名（包含扩展名，如 `"renamed.parquet"`） |
+| **Body (PUT)** | `parent.id` | `string` | 否 | 移动目标父目录 ID（根目录填 `"0"`） |
+| **Body (PUT)** | `description` | `string` | 否 | 文件说明描述（最大长度 255 字符） |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 查询元数据]
-curl -s -X GET "https://api.box.com/2.0/files/123456789" \
+curl -s -X GET "https://api.box.com/2.0/files/123456789?fields=name,size,sha1,path_collection" \
      -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
@@ -102,6 +112,7 @@ curl -s -X POST "https://api.box.com/2.0/files/123456789/copy" \
 ```bash [PUT 重命名/移动]
 curl -s -X PUT "https://api.box.com/2.0/files/123456789" \
      -H "Authorization: Bearer <ACCESS_TOKEN>" \
+     -H "If-Match: \"3\"" \
      -H "Content-Type: application/json" \
      -d '{
        "name": "renamed_data.parquet",
@@ -115,7 +126,7 @@ curl -s -X DELETE "https://api.box.com/2.0/files/123456789" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!CAUTION] **并发修改冲突 (412 Precondition Failed)**
 > 更新文件元数据（PUT）时，多线程或分布式调度程序容易发生更新覆盖。
 > **解法**：在 GET 获取元数据时提取响应头中的 `ETag`，并在发起 PUT 请求时附加请求头 `If-Match: "3"`。若 ETag 已被其他进程递增，Box 会直接响应 `412 Precondition Failed`，阻止脏写。
@@ -137,7 +148,18 @@ Folders 模块承载 Box 的**虚拟树状目录层级系统**。它负责物理
 | 更新/重命名/移动目录 | `PUT` | `/folders/{folder_id}` | [Official Spec](https://developer.box.com/reference/put-folders-id) |
 | 删除目录树 | `DELETE` | `/folders/{folder_id}?recursive=true` | [Official Spec](https://developer.box.com/reference/delete-folders-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `folder_id` | `string` | **是** | 目标目录 ID（根目录严格为 `"0"`） |
+| **Query** | `usemarker` | `boolean` | 否 | 是否启用游标分页（大数据量必须传 `true`） |
+| **Query** | `marker` | `string` | 否 | 上一页返回的 `next_marker` 游标定位串 |
+| **Query** | `limit` | `integer` | 否 | 每次拉取的条目数上限（默认 100，最大 1000） |
+| **Query (DEL)** | `recursive` | `boolean` | 否 | 非空目录删除时必须指定为 `true`，否则返回 400 |
+| **Body (POST)** | `name` | `string` | **是** | 新建目录名称（不得包含斜杠 `/` 或首尾空格） |
+| **Body (POST)** | `parent.id` | `string` | **是** | 父目录 ID（在根目录下建文件夹填 `"0"`） |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 创建目录]
 curl -s -X POST "https://api.box.com/2.0/folders" \
@@ -170,7 +192,7 @@ curl -s -X DELETE "https://api.box.com/2.0/folders/987654321?recursive=true" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!WARNING] **分页遍历陷阱：Offset 模式在大数据量下的深度退化**
 > Box 默认的 `offset` 分页在目录项超过 10,000 时性能急剧劣化且容易丢项。
 > **解法**：生产环境必须强制附加 URL 参数 `usemarker=true`，启用游标分页机制。通过响应体中的 `next_marker` 循环迭代，直至 `next_marker` 为空。
@@ -191,7 +213,16 @@ Box 对同一文件路径采取**单文件多版本指针链**管理机制。当
 | 还原特定版本 | `PUT` | `/files/{file_id}/versions/{version_id}` | [Official Spec](https://developer.box.com/reference/put-files-id-versions-id) |
 | 物理删除特定版本 | `DELETE` | `/files/{file_id}/versions/{version_id}` | [Official Spec](https://developer.box.com/reference/delete-files-id-versions-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `file_id` | `string` | **是** | 文件唯一 ID |
+| **Path** | `version_id` | `string` | **是** | 历史版本 ID（通过 GET versions 获取） |
+| **Body (POST)** | `type` | `string` | **是** | 固定枚举值 `"file_version"` |
+| **Body (POST)** | `id` | `string` | **是** | 需要提升为当前版本的历史版本 ID |
+| **Body (PUT)** | `trashed_at` | `null` | 否 | 传 `null` 表示将已回收的版本恢复为可用状态 |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 版本链查询]
 curl -s -X GET "https://api.box.com/2.0/files/123456789/versions" \
@@ -214,7 +245,7 @@ curl -s -X DELETE "https://api.box.com/2.0/files/123456789/versions/5566778899" 
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!NOTE] **Current 版本不可通过 DELETE 端点移除**
 > DELETE 端点只能删除次级历史版本。若试图删除当前正在生效的 Active 版本，Box 会直接响应 `400 Bad Request`。必须先执行 `POST /versions/current` 将另一版本置顶，才能安全剔除目标版本。
 
@@ -233,7 +264,17 @@ File requests（文件收集请求）是一种**受限反向写入通道**。它
 | 更新收集标题/状态 | `PUT` | `/file_requests/{file_request_id}` | [Official Spec](https://developer.box.com/reference/put-file-requests-id) |
 | 删除文件收集通道 | `DELETE` | `/file_requests/{file_request_id}` | [Official Spec](https://developer.box.com/reference/delete-file-requests-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `file_request_id` | `string` | **是** | 文件收集请求 ID |
+| **Body (PUT)** | `title` | `string` | 否 | 上传页面展示的大标题（如 `"数据采集专用通道"`） |
+| **Body (PUT)** | `status` | `string` | 否 | 状态枚举：`"active"`（启用）或 `"inactive"`（禁用） |
+| **Body (PUT)** | `is_email_required` | `boolean` | 否 | 投递者是否必须填写其邮箱地址 |
+| **Body (PUT)** | `is_description_required` | `boolean` | 否 | 投递者是否必须填写文件用途说明 |
+| **Body (PUT)** | `expires_at` | `string` | 否 | 收集页面失效时间（ISO 8601 时间戳） |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 详情检查]
 curl -s -X GET "https://api.box.com/2.0/file_requests/123456" \
@@ -257,7 +298,7 @@ curl -s -X DELETE "https://api.box.com/2.0/file_requests/123456" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!WARNING] **目标目录必须存在且处于未锁定状态**
 > 文件收集通道必须绑定一个真实有效的 `folder_id`。若目标目录被删除至回收站或被 Folder Lock 锁定，外部上传动作将直接失败。
 
@@ -275,7 +316,16 @@ Uploads 模块为标准的**小文件单连接直接上传**协议。采用 `mul
 | 直接上传新文件 | `POST` | `https://upload.box.com/api/2.0/files/content` | [Official Spec](https://developer.box.com/reference/post-files-content) |
 | 上传已有文件新版本 | `POST` | `https://upload.box.com/api/2.0/files/{file_id}/content` | [Official Spec](https://developer.box.com/reference/post-files-id-content) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **URL** | `upload.box.com` | `host` | **是** | 必须发往 upload 专用网关，不能是 `api.box.com` |
+| **Form-Data** | `attributes` | `string(JSON)` | **是** | 元数据 JSON：`{"name":"...", "parent":{"id":"0"}}` |
+| **Form-Data** | `file` | `binary` | **是** | 文件二进制字节流内容 |
+| **Header** | `Content-MD5` | `string` | 否 | 上传内容的 MD5 散列（Box 校验防网络乱序坏包） |
+| **Path (新版)** | `file_id` | `string` | **是** | 更新版本时，指定目标文件的 ID |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 单文件直传]
 curl -s -X POST "https://upload.box.com/api/2.0/files/content" \
@@ -302,7 +352,7 @@ curl -s -X OPTIONS "https://upload.box.com/api/2.0/files/content" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!IMPORTANT] **域名隔离暗坑：严禁使用 `api.box.com` 发送上传请求**
 > 上传流量是纯流式吞吐，Box 将其完全路由到专门优化的网络基础设施。所有 Uploads 请求的 Base URL 必须使用 `https://upload.box.com/api/2.0`。若错误发往 `api.box.com`，服务器会直接拒绝请求。
 
@@ -324,7 +374,18 @@ curl -s -X OPTIONS "https://upload.box.com/api/2.0/files/content" \
 | 最终提交与拼装 | `POST` | `https://upload.box.com/api/2.0/files/upload_sessions/{session_id}/commit` | [Official Spec](https://developer.box.com/reference/post-files-upload-sessions-id-commit) |
 | 终止/废弃分块会话 | `DELETE` | `https://upload.box.com/api/2.0/files/upload_sessions/{session_id}` | [Official Spec](https://developer.box.com/reference/delete-files-upload-sessions-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Body (Init)** | `folder_id` | `string` | **是** | 存放的目标目录 ID |
+| **Body (Init)** | `file_size` | `int64` | **是** | 待上传文件的总体严格字节数 |
+| **Body (Init)** | `file_name` | `string` | **是** | 上传后保存的完整文件名 |
+| **Header (PUT)** | `Content-Range` | `string` | **是** | 切片区间头：`bytes {start}-{end}/{total_size}` |
+| **Header (PUT)** | `Digest` | `string` | **是** | 单切片哈希头：`sha={base64_sha1}` |
+| **Body (Commit)** | `parts` | `array` | **是** | 各切片结构数组：`[{"part_id","offset","size","sha1"}]` |
+| **Header (Commit)**| `Digest` | `string` | **是** | 整个完整文件的总 SHA-1 校验散列串 |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 1. 创建会话]
 curl -s -X POST "https://upload.box.com/api/2.0/files/upload_sessions" \
@@ -364,7 +425,7 @@ curl -s -X DELETE "https://upload.box.com/api/2.0/files/upload_sessions/D3A1B2C3
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!CAUTION] **核心暗坑：Part 大小严格一致性校验与 Digest 计算**
 > 1. Box 握手返回的 Session 明确指定了 `part_size`（通常为 8MB 的整数倍）。除了最后一个分块大小可小于 `part_size` 外，其余所有前置分块的字节数必须**严格等于**协商的 `part_size`，否则直接返回 `400 Bad Request`。
 > 2. 每个分块必须带 `Digest: sha=<Base64编码的SHA1>`，Commit 时还需提交全量文件的 SHA1 校验码。
@@ -381,7 +442,15 @@ Downloads 模块负责从存储集群中提取文件的**真实二进制字节�
 | :--- | :---: | :--- | :--- |
 | 下载文件完整字节流 | `GET` | `/files/{file_id}/content` | [Official Spec](https://developer.box.com/reference/get-files-id-content) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `file_id` | `string` | **是** | 待下载文件的唯一 ID |
+| **Header** | `Range` | `string` | 否 | 支持断点分段下载（格式如 `bytes=0-1048575`） |
+| **Query** | `version` | `string` | 否 | 下载历史指定版本的 ID（缺省下载最新当前版） |
+| **Response** | `Location` | `header` | **是** | HTTP 302 重定向的目标预签名下载 URL |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 自动跟随重定向下载]
 curl -L -X GET "https://api.box.com/2.0/files/123456789/content" \
@@ -395,7 +464,7 @@ curl -s -i -X GET "https://api.box.com/2.0/files/123456789/content" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!WARNING] **重定向安全泄漏：跟随重定向时严禁泄漏 Bearer Token**
 > 在使用通用 HTTP 客户端库（如 Python requests、Go http.Client 或 cURL）时，请务必注意：重定向的目标地址为预签名的临时 CDN 存储桶 URL。**切勿**将 Box 的 `Authorization: Bearer` 请求头透传给 CDN 域名，现代客户端默认会在跨域时自动剥离 Authorization 头以确保凭证安全。
 
@@ -413,7 +482,15 @@ curl -s -i -X GET "https://api.box.com/2.0/files/123456789/content" \
 | 轮询打包状态进度 | `GET` | `/zip_downloads/{id}/status` | [Official Spec](https://developer.box.com/reference/get-zip-downloads-id-status) |
 | 流式下载打包文件 | `GET` | `https://dl.boxcloud.com/2.0/zip_downloads/{id}/content` | [Official Spec](https://developer.box.com/reference/get-zip-downloads-id-content) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Body (POST)** | `download_file_name` | `string` | **是** | 压缩包保存名称（必须以 `.zip` 结尾） |
+| **Body (POST)** | `items` | `object[]` | **是** | 待压缩清单：`[{"type":"file|folder", "id":"..."}]` |
+| **Path (Poll)** | `id` | `string` | **是** | Zip 下载会话 ID |
+| **Status 返回**| `state` | `string` | - | 状态枚举：`"in_progress"`、`"succeeded"`、`"failed"` |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 1. 创建打包任务]
 curl -s -X POST "https://api.box.com/2.0/zip_downloads" \
@@ -440,7 +517,7 @@ curl -L -X GET "https://dl.boxcloud.com/2.0/zip_downloads/z1a2b3/content" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!CAUTION] **单包上限阈值：10,000 个文件或 32GB**
 > Zip Downloads 具有硬性边界限制：单个压缩包内包含的文件总数不得超过 10,000 个，未压缩前总字节数不得超过 32GB。若超标，接口在创建阶段将直接失败并抛出超出阈值异常。
 
@@ -458,7 +535,17 @@ curl -L -X GET "https://dl.boxcloud.com/2.0/zip_downloads/z1a2b3/content" \
 | 对指定目录施加锁 | `POST` | `/folder_locks` | [Official Spec](https://developer.box.com/reference/post-folder-locks) |
 | 解除并删除目录锁 | `DELETE` | `/folder_locks/{folder_lock_id}` | [Official Spec](https://developer.box.com/reference/delete-folder-locks-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Query (GET)** | `folder_id` | `string` | **是** | 待检查锁的目录 ID |
+| **Body (POST)** | `folder.type` | `string` | **是** | 固定枚举值 `"folder"` |
+| **Body (POST)** | `folder.id` | `string` | **是** | 锁定目标目录 ID |
+| **Body (POST)** | `locked_operations.move` | `boolean` | 否 | 是否禁止移动该目录（默认 `true`） |
+| **Body (POST)** | `locked_operations.delete`| `boolean` | 否 | 是否禁止删除该目录（默认 `true`） |
+| **Path (DEL)** | `folder_lock_id` | `string` | **是** | 待释放的锁记录 ID |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 加锁]
 curl -s -X POST "https://api.box.com/2.0/folder_locks" \
@@ -487,7 +574,7 @@ curl -s -X DELETE "https://api.box.com/2.0/folder_locks/889900" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!IMPORTANT] **解铃还须系铃人：锁所有权与权限要求**
 > Folder Lock 具有严格的权限绑定。若当前 API 调用主体非该锁的创建者或不具备企业管理员超级权限，直接调用 DELETE 释放锁将触发 `403 Access Denied`。
 
@@ -505,7 +592,15 @@ Collections 模块是 Box 中的**虚拟分类标签机制**（如系统预设�
 | 获取指定集合详情 | `GET` | `/collections/{collection_id}` | [Official Spec](https://developer.box.com/reference/get-collections-id) |
 | 分页检索集合内条目 | `GET` | `/collections/{collection_id}/items` | [Official Spec](https://developer.box.com/reference/get-collections-id-items) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `collection_id` | `string` | **是** | 集合唯一 ID（通过 GET `/collections` 发现） |
+| **Query** | `limit` | `integer` | 否 | 分页条目上限（默认 100） |
+| **Query** | `offset` | `integer` | 否 | 分页起始偏移量 |
+| **Query** | `fields` | `string[]` | 否 | 指定条目返回的属性字段列表 |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 列出所有集合]
 curl -s -X GET "https://api.box.com/2.0/collections" \
@@ -518,7 +613,7 @@ curl -s -X GET "https://api.box.com/2.0/collections/12345/items?limit=50" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!NOTE] **只读端点性质：集合的新增条目归口于目标对象的 PUT 请求**
 > Collections 自身只有 GET 端点！如果想将某个文件放入收藏夹，并不是向 `/collections` 发起 POST，而是向该文件发起 `PUT /files/{file_id}`，并在请求体中修改 `collections: [{"id": "12345"}]`。
 
@@ -534,7 +629,15 @@ Recent items 模块提供当前调用身份在 Box 平台上**按时间倒序排
 | :--- | :---: | :--- | :--- |
 | 获取最近访问清单 | `GET` | `/recent_items` | [Official Spec](https://developer.box.com/reference/get-recent-items) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Query** | `limit` | `integer` | 否 | 返回条目数量限制（最大 1000） |
+| **Query** | `marker` | `string` | 否 | 游标分页标记 |
+| **Query** | `fields` | `string[]` | 否 | 额外返回的资源字段 |
+| **条目属性** | `interaction_type` | `enum` | - | 动作类型：`item_preview` / `item_modify` / `item_open` |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 轮询最近变动]
 curl -s -X GET "https://api.box.com/2.0/recent_items?limit=20" \
@@ -542,7 +645,7 @@ curl -s -X GET "https://api.box.com/2.0/recent_items?limit=20" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!WARNING] **事件准实时延迟与不可作为硬性审计基准**
 > Recent items 的索引建立存在数秒至数分钟的准实时缓存窗口。如果系统对事件的严密性与零丢失有硬性要求，应使用 Enterprise Events 流，而非依赖 Recent items。
 
@@ -558,7 +661,15 @@ curl -s -X GET "https://api.box.com/2.0/recent_items?limit=20" \
 | :--- | :---: | :--- | :--- |
 | 过户用户根目录所有权 | `PUT` | `/users/{user_id}/folders/0` | [Official Spec](https://developer.box.com/reference/put-users-id-folders-0) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `user_id` | `string` | **是** | 待交出资产的原始用户 ID |
+| **Path** | `folder_id` | `string` | **是** | 必须严格为根目录 `"0"` |
+| **Query** | `notify` | `boolean` | 否 | 是否向交接双方发送邮件提醒（默认 `false`） |
+| **Body (PUT)** | `owned_by.id` | `string` | **是** | 接收资产的目标用户 ID |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [PUT 资产所有权整树过户]
 curl -s -X PUT "https://api.box.com/2.0/users/11223344/folders/0" \
@@ -572,7 +683,7 @@ curl -s -X PUT "https://api.box.com/2.0/users/11223344/folders/0" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!CAUTION] **高危单向动作：必须具备企业管理级权限**
 > 1. 此操作为**不可逆**资产移交，调用方必须具备企业管理员或 `manage_users` 核心权限。
 > 2. 目标接收用户的存储配额必须足以容纳被过户用户的总数据量，否则请求将在排队执行时失败。
@@ -592,7 +703,16 @@ Web links 模块允许在常规的 Box 目录树中创建**指向外部网络资
 | 更新链接地址或名称 | `PUT` | `/web_links/{web_link_id}` | [Official Spec](https://developer.box.com/reference/put-web-links-id) |
 | 删除外部链接 | `DELETE` | `/web_links/{web_link_id}` | [Official Spec](https://developer.box.com/reference/delete-web-links-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `web_link_id` | `string` | **是** | 网页链接条目 ID |
+| **Body (POST)** | `url` | `string(URL)`| **是** | 目标外部网址（必须带 `https://` 协议前缀） |
+| **Body (POST)** | `parent.id` | `string` | **是** | 存放该快捷方式的目录 ID（根目录填 `"0"`） |
+| **Body (POST)** | `name` | `string` | 否 | 链接展示标题 |
+| **Body (POST)** | `description` | `string` | 否 | 链接用途简述 |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 创建链接]
 curl -s -X POST "https://api.box.com/2.0/web_links" \
@@ -626,7 +746,7 @@ curl -s -X DELETE "https://api.box.com/2.0/web_links/778899" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!NOTE] **协议头完整性校验**
 > 提交的 URL 字段必须带标准网络协议方案头（如 `https://` 或 `http://`），否则接口会拒绝创建并返回 `400 Invalid URL format`。
 
@@ -643,7 +763,15 @@ curl -s -X DELETE "https://api.box.com/2.0/web_links/778899" \
 | 查询文件关联的外部应用 | `GET` | `/files/{file_id}/app_item_associations` | [Official Spec](https://developer.box.com/reference/get-files-id-app-item-associations) |
 | 查询目录关联的外部应用 | `GET` | `/folders/{folder_id}/app_item_associations` | [Official Spec](https://developer.box.com/reference/get-folders-id-app-item-associations) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `file_id` / `folder_id` | `string` | **是** | 目标资源对象的唯一标识符 |
+| **Query** | `limit` | `integer` | 否 | 分页条目数量（默认 100） |
+| **Query** | `marker` | `string` | 否 | 游标标识 |
+| **返回字段** | `app_item.application_type`| `string` | - | 关联的应用系统标识（如 `"slack"`, `"jira"`） |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 查询文件级应用关联]
 curl -s -X GET "https://api.box.com/2.0/files/123456789/app_item_associations" \
@@ -656,7 +784,7 @@ curl -s -X GET "https://api.box.com/2.0/folders/987654321/app_item_associations"
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!WARNING] **应用集成授权前置依赖**
 > 若未在 Box Admin Console 中开通并授权对应的外部集成应用（App Item），调用该端点将始终返回空条目数组 `[]`。
 
@@ -674,7 +802,15 @@ curl -s -X GET "https://api.box.com/2.0/folders/987654321/app_item_associations"
 | 从回收站恢复文件 | `POST` | `/files/{file_id}` | [Official Spec](https://developer.box.com/reference/post-files-id) |
 | 永久硬删除文件 (粉碎) | `DELETE` | `/files/{file_id}/trash` | [Official Spec](https://developer.box.com/reference/delete-files-id-trash) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `file_id` | `string` | **是** | 处于回收站中的文件 ID |
+| **Body (POST)** | `name` | `string` | 否 | 恢复时重命名的文件名（用于解决同名冲突） |
+| **Body (POST)** | `parent.id` | `string` | 否 | 恢复到的目标父目录 ID（若原父目录已毁） |
+| **Query (GET)** | `fields` | `string[]` | 否 | 包含属性（如 `trashed_at`, `purged_at`） |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 查看垃圾箱详情]
 curl -s -X GET "https://api.box.com/2.0/files/123456789/trash" \
@@ -694,7 +830,7 @@ curl -s -X DELETE "https://api.box.com/2.0/files/123456789/trash" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!CAUTION] **恢复冲突 (409 Conflict) 与原父目录丢失**
 > 1. 若文件被删除期间，原父目录中又创建了同名文件，恢复请求将返回 `409 Item with the same name already exists`。必须在 POST 请求体中指定新的 `parent` ID 或新的 `name`。
 > 2. 若原父目录已被移入垃圾箱，文件将无法直接还原，需显式指定还原的目标父目录。
@@ -713,7 +849,14 @@ curl -s -X DELETE "https://api.box.com/2.0/files/123456789/trash" \
 | 从回收站还原目录树 | `POST` | `/folders/{folder_id}` | [Official Spec](https://developer.box.com/reference/post-folders-id) |
 | 永久硬删除目录树 | `DELETE` | `/folders/{folder_id}/trash` | [Official Spec](https://developer.box.com/reference/delete-folders-id-trash) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `folder_id` | `string` | **是** | 处于回收站中的目录 ID |
+| **Body (POST)** | `name` | `string` | 否 | 恢复时指定新目录名 |
+| **Body (POST)** | `parent.id` | `string` | 否 | 恢复时指定新父目录 ID |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 查看垃圾箱目录]
 curl -s -X GET "https://api.box.com/2.0/folders/987654321/trash" \
@@ -733,7 +876,7 @@ curl -s -X DELETE "https://api.box.com/2.0/folders/987654321/trash" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!WARNING] **异步清理延迟**
 > 永久硬删除深层大目录时，Box 后台执行异步递归垃圾回收。在接口响应 `204 No Content` 后的数秒内，若立即创建同名目录可能短暂遭遇命名冲突。
 
@@ -749,7 +892,16 @@ curl -s -X DELETE "https://api.box.com/2.0/folders/987654321/trash" \
 | :--- | :---: | :--- | :--- |
 | 全局分页拉取回收站清单 | `GET` | `/folders/trash/items` | [Official Spec](https://developer.box.com/reference/get-folders-trash-items) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Query** | `limit` | `integer` | 否 | 每次拉取条目数上限（默认 100，最大 1000） |
+| **Query** | `offset` | `integer` | 否 | 分页偏移量 |
+| **Query** | `sort` | `string` | 否 | 排序字段（`name`, `date`, `size`） |
+| **Query** | `direction` | `string` | 否 | 排序顺序（`ASC` 或 `DESC`） |
+| **条目属性** | `purged_at` | `date-time` | - | 预计被系统物理抹除的过期时间戳 |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 分页检索回收站]
 curl -s -X GET "https://api.box.com/2.0/folders/trash/items?limit=100&offset=0" \
@@ -757,7 +909,7 @@ curl -s -X GET "https://api.box.com/2.0/folders/trash/items?limit=100&offset=0" 
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!NOTE] **生命周期到期自动清理**
 > 企业管理员可配置回收站保留周期（如 30 天或 90 天）。过期条目将被 Box 巡检后台物理清除，不再出现于 `/folders/trash/items` 列表中。
 
@@ -775,7 +927,14 @@ curl -s -X GET "https://api.box.com/2.0/folders/trash/items?limit=100&offset=0" 
 | 从回收站还原 Web Link | `POST` | `/web_links/{web_link_id}` | [Official Spec](https://developer.box.com/reference/post-web-links-id) |
 | 永久硬删除 Web Link | `DELETE` | `/web_links/{web_link_id}/trash` | [Official Spec](https://developer.box.com/reference/delete-web-links-id-trash) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Path** | `web_link_id` | `string` | **是** | 待还原或销毁的 Web Link ID |
+| **Body (POST)** | `name` | `string` | 否 | 还原时重命名的新标题 |
+| **Body (POST)** | `parent.id` | `string` | 否 | 还原到的目标父目录 ID |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [GET 查看]
 curl -s -X GET "https://api.box.com/2.0/web_links/778899/trash" \
@@ -795,7 +954,7 @@ curl -s -X DELETE "https://api.box.com/2.0/web_links/778899/trash" \
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!NOTE] **轻量元数据节点恢复无副作用**
 > Web Link 恢复仅涉及纯元数据指向，无物理存储块搬运开销，恢复成功率极高，主要需注意原目录是否存在。
 
@@ -814,26 +973,40 @@ Box 最新推出的 **Archives（冷数据归档）** 模块（基于官方 v202
 | 更新归档配置或锁定状态 | `PUT` | `/archives/{archive_id}` | [Official Spec](https://developer.box.com/reference/v2025.0/put-archives-id) |
 | 删除/注销归档任务 | `DELETE` | `/archives/{archive_id}` | [Official Spec](https://developer.box.com/reference/v2025.0/delete-archives-id) |
 
-#### 要素三：尚硅谷三板斧实操 (cURL)
+#### 要素三：核心请求参数与 Payload 字段拓扑
+| 字段位置 | 字段名称 (Field) | 类型 (Type) | 必填 | 规范定义与说明 |
+| :--- | :--- | :---: | :---: | :--- |
+| **Header** | `box-version` | `string` | **是** | 必须严格携带版本头：`2025.0` |
+| **Query (GET)** | `limit` | `integer` | 否 | 每次返回上限（最大 1000） |
+| **Query (GET)** | `marker` | `string` | 否 | 游标标识 |
+| **Body (POST)** | `name` | `string` | **是** | 归档名称（1-100 字符，禁包含 `/` 与 `\`） |
+| **Body (POST)** | `description` | `string` | 否 | 归档说明（最大 255 字符） |
+| **Body (POST)** | `storage_policy_id` | `string` | 否 | 绑定的底层存储策略 ID |
+
+#### 要素四：尚硅谷三板斧实操 (cURL)
 ::: code-group
 ```bash [POST 创建归档策略]
 curl -s -X POST "https://api.box.com/2.0/archives" \
      -H "Authorization: Bearer <ACCESS_TOKEN>" \
+     -H "box-version: 2025.0" \
      -H "Content-Type: application/json" \
      -d '{
        "name": "Cold_Tier_Backup_2026",
-       "source_folder_id": "987654321"
+       "description": "Important cold tier storage archive",
+       "storage_policy_id": "100001"
      }'
 ```
 
 ```bash [GET 查询归档清单]
 curl -s -X GET "https://api.box.com/2.0/archives" \
-     -H "Authorization: Bearer <ACCESS_TOKEN>"
+     -H "Authorization: Bearer <ACCESS_TOKEN>" \
+     -H "box-version: 2025.0"
 ```
 
 ```bash [PUT 更新归档配置]
 curl -s -X PUT "https://api.box.com/2.0/archives/arc_12345" \
      -H "Authorization: Bearer <ACCESS_TOKEN>" \
+     -H "box-version: 2025.0" \
      -H "Content-Type: application/json" \
      -d '{
        "name": "Locked_Cold_Tier_Backup_2026"
@@ -842,14 +1015,15 @@ curl -s -X PUT "https://api.box.com/2.0/archives/arc_12345" \
 
 ```bash [DELETE 移除归档]
 curl -s -X DELETE "https://api.box.com/2.0/archives/arc_12345" \
-     -H "Authorization: Bearer <ACCESS_TOKEN>"
+     -H "Authorization: Bearer <ACCESS_TOKEN>" \
+     -H "box-version: 2025.0"
 ```
 :::
 
-#### 要素四：实战暗坑与避坑指南
+#### 要素五：实战暗坑与避坑指南
 > [!CAUTION] **版本协议头与企业级许可门槛**
-> 1. Archives 属于 v2025.0+ 引入的最新合规特性，调用时建议显式附带 API 版本头。
-> 2. 该能力依赖企业高级归档合规订阅，在普通开发者个人沙箱环境中调用可能返回 `403 Feature Not Enabled`。
+> 1. Archives 属于 v2025.0+ 引入的最新合规特性，调用时必须显式附带 `box-version: 2025.0` 请求头，否则将响应 `400 Bad Request`。
+> 2. 该能力依赖企业高级归档合规订阅（GCM Scope），在普通开发者沙箱环境中调用可能返回 `403 Feature Not Enabled`。
 
 ---
 
@@ -869,4 +1043,3 @@ curl -s -X DELETE "https://api.box.com/2.0/archives/arc_12345" \
 │ [ ] 6. 软删两阶段: 清楚区分 DELETE(入回收站) 与 /trash 永久销毁边界
 └──────────────────────────────────────────────────────────────┘
 ```
-
