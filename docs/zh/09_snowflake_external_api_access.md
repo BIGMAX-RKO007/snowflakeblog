@@ -57,6 +57,12 @@
 | **测试数据库与 Schema** | 具备读写权限的库（本教程使用 `DEV_DEMO_DB.API_INTEGRATION`） | 存放网络规则、密钥凭据及数据落表 |
 | **外网 API 目标** | 标准 HTTPS 接口（如 `api.box.com` 或公网测试端点 `httpbin.org`） | 验证出网连通性与 JSON 解析结果 |
 
+> **步骤操作抓图：Box 开发者控制台获取 Developer Token**
+>
+> 登录 [Box 开发者平台 (https://app.box.com/developers/console)](https://app.box.com/developers/console)，进入自定义应用（Custom App）配置面板，在 Configuration 页面中生成并复制 1 小时有效的临时 Developer Token 或服务凭证：
+>
+> ![Box Developer Console 获取 Developer Token](../images/09_step_01_box_developer_token.png)
+
 ---
 
 ## 二、技术架构与数据流向
@@ -128,7 +134,13 @@ flowchart TD
 
 ### Step 1: 创建测试库表环境与出网白名单规则
 
-以 `ACCOUNTADMIN` 身份登录并执行：
+以 `ACCOUNTADMIN` 身份登录并进入 Snowsight Workspaces SQL 编辑器：
+
+> **步骤操作抓图：Snowflake Workspaces SQL Worksheet 编辑环境准备**
+>
+> 切换当前上下文角色为 `ACCOUNTADMIN`，计算仓库指定为 `COMPUTE_WH`，右侧确认数据库与 Schema：
+>
+> ![Snowflake Workspaces SQL Worksheet 工作区准备](../images/09_step_02_snowflake_worksheet_setup.png)
 
 ```sql
 -- 1. 创建技术演示库与 Schema
@@ -162,10 +174,12 @@ CREATE OR REPLACE SECRET dev_demo_api_secret
   SECRET_STRING = 'demo_token_xyz_98765';
 ```
 
-> **控制台真实回显**：
+> **控制台真实回显与操作截图**：
 > ```text
 > Secret DEV_DEMO_API_SECRET successfully created.
 > ```
+>
+> ![Snowflake 创建 Network Rule 与 Secret 执行结果](../images/09_step_03_create_network_rule_secret.png)
 
 > [!TIP]
 > **安全验证**：执行 `SELECT * FROM DEV_DEMO_API_SECRET;` 会直接报错，执行 `SHOW SECRETS;` 也只会显示元数据，任何人都无法通过 SQL 逆向读出你的明文 Token！
@@ -287,6 +301,11 @@ SELECT call_external_api_demo() AS api_response;
   SQL compilation error: External access is not supported for trial accounts. 
   (request_id=74e8aae5-7093-4b1e-8f55-f02422d1bbd6, sfqid=01c82546-0205-255b-0005-a222000ee1ae)
   ```
+
+> **真机报错实况截图**：
+>
+> ![Snowflake 试用账号创建 External Access Integration 报错 509009 实况](../images/09_step_04_trial_error_509009.png)
+
 - **根因深度分析**：
   Snowflake 为了防止黑客利用 30 天无门槛试用账号创建大量虚假计算集群对外发起 DDoS 攻击或端口扫描，在底层全局内核中对所有试用租户硬编码封禁了 `EXTERNAL ACCESS INTEGRATION` 的创建能力。
 - **工业级标准避险解法（双轨架构）**：
@@ -355,6 +374,12 @@ if __name__ == "__main__":
 > 最新落盘记录: ('https://httpbin.org/get?project=SnowflakeBlog&module=API_Ingestion', '153.242.193.2', 'python-requests/2.34.2', datetime.datetime(2026, 11, 3, 1, 42, 16, 654235))
 > ```
 
+> **数仓落盘查询验证截图**：
+>
+> 在 Snowflake SQL Worksheet 中执行 `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.API_INGESTION_LOG ORDER BY FETCH_TIME DESC;` 验证数据写入结果：
+>
+> ![Snowflake 查询 API 摄取数据表入库结果](../images/09_step_05_api_ingestion_log_query.png)
+
 ---
 
 ### `[!WARNING]` 【避坑 2】：本地 IDE 运行报错 `ModuleNotFoundError: No module named '_snowflake'`
@@ -392,3 +417,4 @@ if __name__ == "__main__":
 1. **四层解耦安全模型**：通过 `NETWORK RULE` 管出网、`SECRET` 管凭据、`INTEGRATION` 管授权、`UDF/SP` 管执行，实现了云端数仓访问外网的最高级别安全隔离；
 2. **凭据零泄露原则**：明文 Token 由密钥柜内部保管，UDF 运行时内存按需调取，审计历史日志中绝无痕迹；
 3. **商业化环境识别**：牢记试用账号无法创建 EAI 的限制，在非商业版环境下平滑采用客户端管道模式完成同等数据摄取任务。
+

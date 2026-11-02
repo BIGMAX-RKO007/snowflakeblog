@@ -131,11 +131,15 @@ INSERT INTO test_sales_metrics VALUES
   ('2026-10-29', 'Electronics', 14200.00, 480);
 ```
 
-> **控制台真实回显**：
+> **控制台真实回显与底表验证截图**：
 > ```text
 > Table TEST_SALES_METRICS successfully created.
 > number of rows inserted: 5
 > ```
+>
+> 执行 `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics;` 查看准备就绪的 5 条多维度技术指标数据：
+>
+> ![Snowflake 监控底表数据查询结果](../images/10_step_01_test_sales_metrics_table.png)
 
 ---
 
@@ -234,6 +238,12 @@ CREATE OR REPLACE STAGE dev_streamlit_stage;
 PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 ```
 
+> **内部 Stage 文件验证截图**：
+>
+> 执行 `LIST @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage;` 确认 `streamlit_app.py` 已经成功挂载于数仓暂存区中：
+>
+> ![Snowflake 内部 Stage 存储的 Streamlit 源码文件](../images/10_step_02_stage_streamlit_file.png)
+
 #### 3. 执行 DDL 创建 Streamlit 应用对象
 ```sql
 CREATE OR REPLACE STREAMLIT dev_demo_dashboard
@@ -267,7 +277,19 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 > └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
 > ```
 
-在 Snowflake Snowsight 控制台中，直接点击左侧菜单栏 **`Projects -> Streamlit`**，即可直接点击打开名为 **`DEV_DEMO_DASHBOARD`** 的交互式看板！
+在 Snowflake Snowsight 控制台中，直接点击左侧菜单栏 **`Projects -> Streamlit`**，即可直接在已发布看板列表中看到名为 **`DEV_DEMO_DASHBOARD`** 的项目：
+
+> **Snowsight Streamlit 看板应用列表**：
+>
+> ![Snowflake Snowsight Streamlit 应用列表](../images/10_step_03_streamlit_app_list.png)
+
+点击进入看板，即可体验原生内嵌于计算仓库中的实时交互式可视化大屏：
+
+> **生产级交互式看板实景大图**：
+>
+> 页面顶部呈现由 `st.metric` 驱动的核心 KPI 指标（总销售额、调用次数），中部为实时明细数据台账，底部联动呈现基于 Altair 渲染的营收趋势折线图，全程仓内内网计算，零外部密码泄露：
+>
+> ![Streamlit in Snowflake 原生交互式监控看板运行实景](../images/10_step_04_streamlit_dashboard_live.png)
 
 ---
 
@@ -334,3 +356,4 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 1. **零密码免密集成**：通过 `get_active_session()` 摆脱传统 BI 工具对数据库账号密码的脆弱依赖，全面纳入 Snowflake RBAC 权限体系；
 2. **性能与成本守门员**：牢记 Streamlit 响应式重跑机制，将 `@st.cache_data` 作为每个查询函数的必备铠甲，兼顾极致流畅体验与数仓成本可控；
 3. **DevOps 自动化交付**：通过 `Stage + PUT + CREATE STREAMLIT` 实现看板代码即基础设施，无缝融入企业 CI/CD 发布体系。
+

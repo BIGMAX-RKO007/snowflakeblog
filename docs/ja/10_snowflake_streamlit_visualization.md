@@ -127,11 +127,15 @@ INSERT INTO test_sales_metrics VALUES
   ('2026-10-29', 'Electronics', 14200.00, 480);
 ```
 
-> **コンソール実行結果**：
+> **コンソール実行結果とテーブル確認スクリーンショット**：
 > ```text
 > Table TEST_SALES_METRICS successfully created.
 > number of rows inserted: 5
 > ```
+>
+> `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics;` を実行し、準備された 5 レコードの指標データを確認：
+>
+> ![Snowflake 監視指標テーブル確認](../images/10_step_01_test_sales_metrics_table.png)
 
 ---
 
@@ -229,6 +233,12 @@ CREATE OR REPLACE STAGE dev_streamlit_stage;
 PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
 ```
 
+> **ステージ内ファイル確認スクリーンショット**：
+>
+> `LIST @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage;` を実行し、`streamlit_app.py` が正常に配置されたことを確認：
+>
+> ![Snowflake 内部ステージの Streamlit ファイル一覧](../images/10_step_02_stage_streamlit_file.png)
+
 #### 3. DDL による Streamlit オブジェクト作成
 ```sql
 CREATE OR REPLACE STREAMLIT dev_demo_dashboard
@@ -260,7 +270,19 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 > └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
 > ```
 
-Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`** をクリックすると、一覧に登録された **`DEV_DEMO_DASHBOARD`** が即座に対話型アプリとして起動します！
+Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`** をクリックすると、一覧に登録された **`DEV_DEMO_DASHBOARD`** が確認できます：
+
+> **Snowsight Streamlit アプリケーション一覧**：
+>
+> ![Snowflake Streamlit アプリ一覧](../images/10_step_03_streamlit_app_list.png)
+
+クリックしてダッシュボードを開くと、DWH 内でセキュアに即時描画された対話型ダッシュボードが表示されます：
+
+> **対話型ダッシュボード稼働実機画面**：
+>
+> 上部に KPI スコアカード、中央にリアルタイム明细レコード、下部に Altair 連携の売上推移グラフを完備した、パスワードレス・ゼロ外部流出のダッシュボードです：
+>
+> ![Streamlit in Snowflake 稼働実機画面](../images/10_step_04_streamlit_dashboard_live.png)
 
 ---
 
@@ -323,3 +345,4 @@ Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`*
 1. **完全パスワードレス**：`get_active_session()` により、接続文字列や ID/Pass の流出リスクを完全に根絶しました。
 2. **キャッシュによるコスト防壁**：`@st.cache_data` を必須適用することで、対話的な操作性とクラウドコストの最小化を両立できます。
 3. **Infrastructure as Code**：`Stage + PUT + CREATE STREAMLIT` により、ダッシュボード資産をすべて Git 管理下の自動デプロイストリームに乗せることが可能です。
+

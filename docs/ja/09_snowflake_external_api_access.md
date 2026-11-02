@@ -57,6 +57,12 @@ Snowflake の外部ネットワークアクセス（External Network Access：**
 | **テストDB・スキーマ** | 読み書き可能な環境（本書では `DEV_DEMO_DB.API_INTEGRATION` を使用） | ネットワークルール、シークレット、検証用テーブルの格納 |
 | **接続先外部 API** | 標準 HTTPS エンドポイント（`api.box.com` や検証用 `httpbin.org`） | 外部通信疎通と JSON レスポンスの解析検証 |
 
+> **操作スクリーンショット：Box Developer Console からの Developer Token 取得**
+>
+> [Box Developer Console (https://app.box.com/developers/console)](https://app.box.com/developers/console) にアクセスし、Custom App の Configuration 画面から 1 時間有効な Developer Token を取得します：
+>
+> ![Box Developer Console Developer Token 取得](../images/09_step_01_box_developer_token.png)
+
 ---
 
 ## 二、技術アーキテクチャとデータフロー
@@ -124,7 +130,13 @@ flowchart TD
 
 ### Step 1: テスト環境とネットワーク出網ルールの作成
 
-`ACCOUNTADMIN` 権限でログインし、以下の SQL を実行します：
+`ACCOUNTADMIN` 権限でログインし、Snowsight Workspaces の SQL エディタを開きます：
+
+> **操作スクリーンショット：Snowflake Workspaces SQL Worksheet 環境準備**
+>
+> 実行ロールを `ACCOUNTADMIN`、ウェアハウスを `COMPUTE_WH`、対象データベースとスキーマを確認します：
+>
+> ![Snowflake Workspaces SQL Worksheet 環境準備](../images/09_step_02_snowflake_worksheet_setup.png)
 
 ```sql
 -- 1. テスト用データベースとスキーマの作成
@@ -157,10 +169,12 @@ CREATE OR REPLACE SECRET dev_demo_api_secret
   SECRET_STRING = 'demo_token_xyz_98765';
 ```
 
-> **コンソール実行結果**：
+> **コンソール実行結果と実機スクリーンショット**：
 > ```text
 > Secret DEV_DEMO_API_SECRET successfully created.
 > ```
+>
+> ![Snowflake Network Rule と Secret 作成結果](../images/09_step_03_create_network_rule_secret.png)
 
 > [!TIP]
 > **安全性検証**：`SELECT * FROM DEV_DEMO_API_SECRET;` は文法エラーとなり、`SHOW SECRETS;` でも平文は絶対にマスクされます。
@@ -280,6 +294,11 @@ SELECT call_external_api_demo() AS api_response;
   SQL compilation error: External access is not supported for trial accounts. 
   (request_id=74e8aae5-7093-4b1e-8f55-f02422d1bbd6, sfqid=01c82546-0205-255b-0005-a222000ee1ae)
   ```
+
+> **実機エラー発生画面（Worksheet 実行ログ）**：
+>
+> ![Snowflake トライアル環境 EAI 作成制限エラー 509009](../images/09_step_04_trial_error_509009.png)
+
 - **根本原因**：
   Snowflake は悪意あるユーザーによるトライアル枠を利用した DDoS 攻撃やポートスキャンを防ぐため、トライアル環境下での ENA 機能利用を一律制限しています。
 - **実践的ソリューション（本番 vs トライアル代替案）**：
@@ -348,6 +367,12 @@ if __name__ == "__main__":
 > 最新レコード: ('https://httpbin.org/get?project=SnowflakeBlog&module=API_Ingestion', '153.242.193.2', 'python-requests/2.34.2', datetime.datetime(2026, 11, 3, 1, 42, 16, 654235))
 > ```
 
+> **DWH 格納確認スクリーンショット**：
+>
+> Snowflake SQL Worksheet で `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.API_INGESTION_LOG ORDER BY FETCH_TIME DESC;` を実行し、データが格納されたことを確認：
+>
+> ![Snowflake API 取り込みログ確認](../images/09_step_05_api_ingestion_log_query.png)
+
 ---
 
 ### `[!WARNING]` 【落とし穴 2】：ローカル IDE で `ModuleNotFoundError: No module named '_snowflake'`
@@ -370,3 +395,4 @@ if __name__ == "__main__":
 1. **4層セキュリティモデル**：`NETWORK RULE`（通信先）、`SECRET`（認証情報）、`INTEGRATION`（結合承認）、`UDF/SP`（実行）の分離により、世界最高水準のセキュリティ統制を実現できます。
 2. **トークン漏洩ゼロ**：暗号化された Secret をメモリ内でのみ復号することで、SQL 履歴への平文露出を完全に遮断します。
 3. **アカウント制限の把握**：トライアル環境での制約を理解し、要件や環境に応じてネイティブ ENA とクライアントパイプライン方式を柔軟に使い分けることが肝要です。
+
