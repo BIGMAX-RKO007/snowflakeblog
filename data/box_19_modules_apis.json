@@ -1,0 +1,355 @@
+{
+  "Files": [
+    {
+      "method": "GET",
+      "title": "Get file information",
+      "url": "https://developer.box.com/reference/get-files-id"
+    },
+    {
+      "method": "GET",
+      "title": "Get file thumbnail",
+      "url": "https://developer.box.com/reference/get-files-id-thumbnail-id"
+    },
+    {
+      "method": "POST",
+      "title": "Copy file",
+      "url": "https://developer.box.com/reference/post-files-id-copy"
+    },
+    {
+      "method": "PUT",
+      "title": "Update file",
+      "url": "https://developer.box.com/reference/put-files-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Delete file",
+      "url": "https://developer.box.com/reference/delete-files-id"
+    }
+  ],
+  "Folders": [
+    {
+      "method": "GET",
+      "title": "Get folder information",
+      "url": "https://developer.box.com/reference/get-folders-id"
+    },
+    {
+      "method": "GET",
+      "title": "List items in folder",
+      "url": "https://developer.box.com/reference/get-folders-id-items"
+    },
+    {
+      "method": "POST",
+      "title": "Copy folder",
+      "url": "https://developer.box.com/reference/post-folders-id-copy"
+    },
+    {
+      "method": "POST",
+      "title": "Create folder",
+      "url": "https://developer.box.com/reference/post-folders"
+    },
+    {
+      "method": "PUT",
+      "title": "Update folder",
+      "url": "https://developer.box.com/reference/put-folders-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Delete folder",
+      "url": "https://developer.box.com/reference/delete-folders-id"
+    }
+  ],
+  "File versions": [
+    {
+      "method": "GET",
+      "title": "Get file version",
+      "url": "https://developer.box.com/reference/get-files-id-versions-id"
+    },
+    {
+      "method": "GET",
+      "title": "List all file versions",
+      "url": "https://developer.box.com/reference/get-files-id-versions"
+    },
+    {
+      "method": "POST",
+      "title": "Promote file version",
+      "url": "https://developer.box.com/reference/post-files-id-versions-current"
+    },
+    {
+      "method": "PUT",
+      "title": "Restore file version",
+      "url": "https://developer.box.com/reference/put-files-id-versions-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Remove file version",
+      "url": "https://developer.box.com/reference/delete-files-id-versions-id"
+    }
+  ],
+  "File requests": [
+    {
+      "method": "GET",
+      "title": "Get file request",
+      "url": "https://developer.box.com/reference/get-file-requests-id"
+    },
+    {
+      "method": "POST",
+      "title": "Copy file request",
+      "url": "https://developer.box.com/reference/post-file-requests-id-copy"
+    },
+    {
+      "method": "PUT",
+      "title": "Update file request",
+      "url": "https://developer.box.com/reference/put-file-requests-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Delete file request",
+      "url": "https://developer.box.com/reference/delete-file-requests-id"
+    }
+  ],
+  "Uploads": [
+    {
+      "method": "POST",
+      "title": "Upload file",
+      "url": "https://developer.box.com/reference/post-files-content"
+    },
+    {
+      "method": "POST",
+      "title": "Upload file version",
+      "url": "https://developer.box.com/reference/post-files-id-content"
+    },
+    {
+      "method": "OPTIONS",
+      "title": "Preflight check before upload",
+      "url": "https://developer.box.com/reference/options-files-content"
+    }
+  ],
+  "Uploads (Chunked)": [
+    {
+      "method": "GET",
+      "title": "Get upload session",
+      "url": "https://developer.box.com/reference/get-files-upload-sessions-id"
+    },
+    {
+      "method": "GET",
+      "title": "List parts",
+      "url": "https://developer.box.com/reference/get-files-upload-sessions-id-parts"
+    },
+    {
+      "method": "POST",
+      "title": "Commit upload session",
+      "url": "https://developer.box.com/reference/post-files-upload-sessions-id-commit"
+    },
+    {
+      "method": "POST",
+      "title": "Create upload session",
+      "url": "https://developer.box.com/reference/post-files-upload-sessions"
+    },
+    {
+      "method": "POST",
+      "title": "Create upload session for existing file",
+      "url": "https://developer.box.com/reference/post-files-id-upload-sessions"
+    },
+    {
+      "method": "POST",
+      "title": "Plan upload session",
+      "url": "https://developer.box.com/reference/post-files-upload-sessions-id-plan"
+    },
+    {
+      "method": "PUT",
+      "title": "Upload part of file",
+      "url": "https://developer.box.com/reference/put-files-upload-sessions-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Remove upload session",
+      "url": "https://developer.box.com/reference/delete-files-upload-sessions-id"
+    }
+  ],
+  "Downloads": [
+    {
+      "method": "GET",
+      "title": "Download file",
+      "url": "https://developer.box.com/reference/get-files-id-content"
+    }
+  ],
+  "Zip Downloads": [
+    {
+      "method": "GET",
+      "title": "Download zip archive",
+      "url": "https://developer.box.com/reference/get-zip-downloads-id-content"
+    },
+    {
+      "method": "GET",
+      "title": "Get zip download status",
+      "url": "https://developer.box.com/reference/get-zip-downloads-id-status"
+    },
+    {
+      "method": "POST",
+      "title": "Create zip download",
+      "url": "https://developer.box.com/reference/post-zip-downloads"
+    }
+  ],
+  "Folder Locks": [
+    {
+      "method": "GET",
+      "title": "List folder locks",
+      "url": "https://developer.box.com/reference/get-folder-locks"
+    },
+    {
+      "method": "POST",
+      "title": "Create folder lock",
+      "url": "https://developer.box.com/reference/post-folder-locks"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Delete folder lock",
+      "url": "https://developer.box.com/reference/delete-folder-locks-id"
+    }
+  ],
+  "Collections": [
+    {
+      "method": "GET",
+      "title": "Get collection by ID",
+      "url": "https://developer.box.com/reference/get-collections-id"
+    },
+    {
+      "method": "GET",
+      "title": "List all collections",
+      "url": "https://developer.box.com/reference/get-collections"
+    },
+    {
+      "method": "GET",
+      "title": "List collection items",
+      "url": "https://developer.box.com/reference/get-collections-id-items"
+    }
+  ],
+  "Recent items": [
+    {
+      "method": "GET",
+      "title": "List recently accessed items",
+      "url": "https://developer.box.com/reference/get-recent-items"
+    }
+  ],
+  "Transfer folders": [
+    {
+      "method": "PUT",
+      "title": "Transfer owned folders",
+      "url": "https://developer.box.com/reference/put-users-id-folders-0"
+    }
+  ],
+  "Web links": [
+    {
+      "method": "GET",
+      "title": "Get web link",
+      "url": "https://developer.box.com/reference/get-web-links-id"
+    },
+    {
+      "method": "POST",
+      "title": "Create web link",
+      "url": "https://developer.box.com/reference/post-web-links"
+    },
+    {
+      "method": "PUT",
+      "title": "Update web link",
+      "url": "https://developer.box.com/reference/put-web-links-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Remove web link",
+      "url": "https://developer.box.com/reference/delete-web-links-id"
+    }
+  ],
+  "App item associations": [
+    {
+      "method": "GET",
+      "title": "List file app item associations",
+      "url": "https://developer.box.com/reference/get-files-id-app-item-associations"
+    },
+    {
+      "method": "GET",
+      "title": "List folder app item associations",
+      "url": "https://developer.box.com/reference/get-folders-id-app-item-associations"
+    }
+  ],
+  "Trashed files": [
+    {
+      "method": "GET",
+      "title": "Get trashed file",
+      "url": "https://developer.box.com/reference/get-files-id-trash"
+    },
+    {
+      "method": "POST",
+      "title": "Restore file",
+      "url": "https://developer.box.com/reference/post-files-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Permanently remove file",
+      "url": "https://developer.box.com/reference/delete-files-id-trash"
+    }
+  ],
+  "Trashed folders": [
+    {
+      "method": "GET",
+      "title": "Get trashed folder",
+      "url": "https://developer.box.com/reference/get-folders-id-trash"
+    },
+    {
+      "method": "POST",
+      "title": "Restore folder",
+      "url": "https://developer.box.com/reference/post-folders-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Permanently remove folder",
+      "url": "https://developer.box.com/reference/delete-folders-id-trash"
+    }
+  ],
+  "Trashed items": [
+    {
+      "method": "GET",
+      "title": "List trashed items",
+      "url": "https://developer.box.com/reference/get-folders-trash-items"
+    }
+  ],
+  "Trashed web links": [
+    {
+      "method": "GET",
+      "title": "Get trashed web link",
+      "url": "https://developer.box.com/reference/get-web-links-id-trash"
+    },
+    {
+      "method": "POST",
+      "title": "Restore web link",
+      "url": "https://developer.box.com/reference/post-web-links-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Permanently remove web link",
+      "url": "https://developer.box.com/reference/delete-web-links-id-trash"
+    }
+  ],
+  "Archives": [
+    {
+      "method": "GET",
+      "title": "List archives",
+      "url": "https://developer.box.com/reference/v2025.0/get-archives"
+    },
+    {
+      "method": "POST",
+      "title": "Create archive",
+      "url": "https://developer.box.com/reference/v2025.0/post-archives"
+    },
+    {
+      "method": "PUT",
+      "title": "Update archive",
+      "url": "https://developer.box.com/reference/v2025.0/put-archives-id"
+    },
+    {
+      "method": "GET",
+      "title": "DEL Delete archive",
+      "url": "https://developer.box.com/reference/v2025.0/delete-archives-id"
+    }
+  ]
+}
