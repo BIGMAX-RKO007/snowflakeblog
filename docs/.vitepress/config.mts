@@ -46,6 +46,8 @@ export default withMermaid(
                     { text: '08-8. Administration & Compliance（20大モジュール）', link: '/08_08_box_admin_compliance' },
                   ]
                 },
+                { text: '09. Snowflake 外部 API アクセス完全ガイド', link: '/09_snowflake_external_api_access' },
+                { text: '10. Streamlit in Snowflake データ可視化', link: '/10_snowflake_streamlit_visualization' },
               ]
             }
           ],
@@ -75,6 +77,8 @@ export default withMermaid(
                     { text: '08-8. Administration & Compliance（20大モジュール）', link: '/08_08_box_admin_compliance' },
                   ]
                 },
+                { text: '09. Snowflake 外部 API アクセス完全ガイド', link: '/09_snowflake_external_api_access' },
+                { text: '10. Streamlit in Snowflake (SiS) データ可視化', link: '/10_snowflake_streamlit_visualization' },
               ]
             }
           ],
@@ -119,6 +123,8 @@ export default withMermaid(
                     { text: '08-8. Administration & Compliance（20 大模块）', link: '/zh/08_08_box_admin_compliance' },
                   ]
                 },
+                { text: '09. Snowflake 外部 API 调用全流程实战', link: '/zh/09_snowflake_external_api_access' },
+                { text: '10. Streamlit in Snowflake 数据可视化全流程实战', link: '/zh/10_snowflake_streamlit_visualization' },
               ]
             }
           ],
@@ -148,6 +154,8 @@ export default withMermaid(
                     { text: '08-8. Administration & Compliance（20 大模块）', link: '/zh/08_08_box_admin_compliance' },
                   ]
                 },
+                { text: '09. Snowflake 外部 API 调用全流程实战', link: '/zh/09_snowflake_external_api_access' },
+                { text: '10. Streamlit in Snowflake 数据可视化全流程实战', link: '/zh/10_snowflake_streamlit_visualization' },
               ]
             }
           ],
