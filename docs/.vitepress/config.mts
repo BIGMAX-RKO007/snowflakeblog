@@ -32,7 +32,20 @@ export default withMermaid(
                 { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                 { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
                 { text: '07. Snowflake Openflow による Box 連携と Cortex 検索', link: '/07_openflow_box_integration' },
-                { text: '08. Box API 実践ガイド：Content Management 19大モジュール', link: '/08_box_content_management_api' },
+                {
+                  text: '08. Box API 実践ガイド (8-1 〜 8-8)',
+                  collapsed: false,
+                  items: [
+                    { text: '08-1. Content Management（19大モジュール）', link: '/08_01_box_content_management' },
+                    { text: '08-2. Authentication & Users（10大モジュール）', link: '/08_02_box_authentication_users' },
+                    { text: '08-3. Sharing & Collaboration（14大モジュール）', link: '/08_03_box_sharing_collaboration' },
+                    { text: '08-4. Search & Metadata（11大モジュール）', link: '/08_04_box_search_metadata' },
+                    { text: '08-5. Events & Webhooks（2大モジュール）', link: '/08_05_box_events_webhooks' },
+                    { text: '08-6. AI & Intelligence（3大モジュール）', link: '/08_06_box_ai_intelligence' },
+                    { text: '08-7. Automation & Workflows（7大モジュール）', link: '/08_07_box_automation_workflows' },
+                    { text: '08-8. Administration & Compliance（20大モジュール）', link: '/08_08_box_admin_compliance' },
+                  ]
+                },
               ]
             }
           ],
@@ -48,7 +61,20 @@ export default withMermaid(
                 { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                 { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
                 { text: '07. Snowflake Openflow による Box 連携と Cortex 検索', link: '/07_openflow_box_integration' },
-                { text: '08. Box API 実践ガイド：Content Management 19大モジュール', link: '/08_box_content_management_api' },
+                {
+                  text: '08. Box API 実践ガイド (8-1 〜 8-8)',
+                  collapsed: false,
+                  items: [
+                    { text: '08-1. Content Management（19大モジュール）', link: '/08_01_box_content_management' },
+                    { text: '08-2. Authentication & Users（10大モジュール）', link: '/08_02_box_authentication_users' },
+                    { text: '08-3. Sharing & Collaboration（14大モジュール）', link: '/08_03_box_sharing_collaboration' },
+                    { text: '08-4. Search & Metadata（11大モジュール）', link: '/08_04_box_search_metadata' },
+                    { text: '08-5. Events & Webhooks（2大モジュール）', link: '/08_05_box_events_webhooks' },
+                    { text: '08-6. AI & Intelligence（3大モジュール）', link: '/08_06_box_ai_intelligence' },
+                    { text: '08-7. Automation & Workflows（7大モジュール）', link: '/08_07_box_automation_workflows' },
+                    { text: '08-8. Administration & Compliance（20大モジュール）', link: '/08_08_box_admin_compliance' },
+                  ]
+                },
               ]
             }
           ],
@@ -79,7 +105,20 @@ export default withMermaid(
                 { text: '05. 数据突合对账', link: '/zh/05_data_reconciliation' },
                 { text: '06. 生产避坑指南', link: '/zh/06_troubleshooting_tips' },
                 { text: '07. Openflow 接入 Box 与 Cortex 知识检索', link: '/zh/07_openflow_box_integration' },
-                { text: '08. Box API 实战指南：Content Management 19大模块全景', link: '/zh/08_box_content_management_api' },
+                {
+                  text: '08. Box API 实战指南 (8-1 〜 8-8)',
+                  collapsed: false,
+                  items: [
+                    { text: '08-1. Content Management（19 大模块）', link: '/zh/08_01_box_content_management' },
+                    { text: '08-2. Authentication & Users（10 大模块）', link: '/zh/08_02_box_authentication_users' },
+                    { text: '08-3. Sharing & Collaboration（14 大模块）', link: '/zh/08_03_box_sharing_collaboration' },
+                    { text: '08-4. Search & Metadata（11 大模块）', link: '/zh/08_04_box_search_metadata' },
+                    { text: '08-5. Events & Webhooks（2 大模块）', link: '/zh/08_05_box_events_webhooks' },
+                    { text: '08-6. AI & Intelligence（3 大模块）', link: '/zh/08_06_box_ai_intelligence' },
+                    { text: '08-7. Automation & Workflows（7 大模块）', link: '/zh/08_07_box_automation_workflows' },
+                    { text: '08-8. Administration & Compliance（20 大模块）', link: '/zh/08_08_box_admin_compliance' },
+                  ]
+                },
               ]
             }
           ],
@@ -95,7 +134,20 @@ export default withMermaid(
                 { text: '05. 迁移后两方数据差异突合对账', link: '/zh/05_data_reconciliation' },
                 { text: '06. 生产避坑指南与解决方案', link: '/zh/06_troubleshooting_tips' },
                 { text: '07. Snowflake Openflow 接入 Box 与 Cortex 知识检索', link: '/zh/07_openflow_box_integration' },
-                { text: '08. Box API 实战指南：Content Management 19大模块全景', link: '/zh/08_box_content_management_api' },
+                {
+                  text: '08. Box API 实战指南 (8-1 〜 8-8)',
+                  collapsed: false,
+                  items: [
+                    { text: '08-1. Content Management（19 大模块）', link: '/zh/08_01_box_content_management' },
+                    { text: '08-2. Authentication & Users（10 大模块）', link: '/zh/08_02_box_authentication_users' },
+                    { text: '08-3. Sharing & Collaboration（14 大模块）', link: '/zh/08_03_box_sharing_collaboration' },
+                    { text: '08-4. Search & Metadata（11 大模块）', link: '/zh/08_04_box_search_metadata' },
+                    { text: '08-5. Events & Webhooks（2 大模块）', link: '/zh/08_05_box_events_webhooks' },
+                    { text: '08-6. AI & Intelligence（3 大模块）', link: '/zh/08_06_box_ai_intelligence' },
+                    { text: '08-7. Automation & Workflows（7 大模块）', link: '/zh/08_07_box_automation_workflows' },
+                    { text: '08-8. Administration & Compliance（20 大模块）', link: '/zh/08_08_box_admin_compliance' },
+                  ]
+                },
               ]
             }
           ],

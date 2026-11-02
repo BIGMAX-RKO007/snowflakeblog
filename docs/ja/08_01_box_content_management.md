@@ -1,4 +1,4 @@
-# 第08章：Box コア API 実践ガイド —— Content Management 19大モジュール完全網羅
+# 第08-1講：Box コア API 実践ガイド —— Content Management 19大モジュール完全網羅
 
 > **【技術ポジショニング】**
 >
