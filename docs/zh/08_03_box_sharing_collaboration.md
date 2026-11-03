@@ -4,6 +4,11 @@
 >
 > 网状协作关系树与外链生命周期：跨企业协作者权限矩阵（8 大角色）、只读外链与密码保护、评论批注与任务流驱动。无业务噪音，纯粹以协作图模型与 HTTP 契约为主线。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Collaborations 协作资源手册](https://developer.box.com/reference/resources/collaboration/)
+> - [Box 共享与跨企业协同开发者指南 (Shared Links & Collaboration)](https://developer.box.com/guides/collaborations/)
+> - [Box 协同角色权限矩阵官方定义 (Roles and Permissions)](https://developer.box.com/guides/collaborations/roles/)
+
 ---
 
 ## 08-3.1 全景 CRUD 能力矩阵沙盘

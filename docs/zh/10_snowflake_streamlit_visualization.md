@@ -42,6 +42,11 @@ Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底打破了�
 - **核心疑问**：在 Snowflake 里写 Streamlit 代码，数据库账号密码写在哪里？用户拖动滑块时，SQL 查询会不会把数仓 Credit 刷爆？如何实现像写代码一样的自动化版本部署？
 - **本章目标**：去除任何花哨的业务包装，聚焦纯技术本质。从搭建监控指标底表开始，到编写包含 **KPI 仪表卡片、动态筛选下拉框、营收趋势折线图、实时明细表** 的完整看板，再到通过 SQL/Stage 实现 DevOps 自动化部署与性能防刷治理，一站式全部跑通！
 
+> 📖 **Snowflake & Streamlit 官方权威文档**：
+> - [Streamlit in Snowflake (SiS) 架构总览与核心概念](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit)
+> - [SiS 安全模型与必需角色权限 (Privileges Required)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
+> - [Streamlit 官方 API 手册 (Streamlit Documentation)](https://docs.streamlit.io/develop/api-reference)
+
 ---
 
 ## 一、环境与前置准备 (Prerequisites)
@@ -92,6 +97,11 @@ flowchart TD
 ## 三、核心函数与配置全量字典
 
 在编写 SiS 应用时，必须熟练使用以下核心 API：
+
+> 📖 **官方 API 参考手册**：
+> - [get_active_session API Reference (Snowpark Python)](https://docs.snowflake.com/en/developer-guide/snowpark/reference/python/latest/api/snowflake.snowpark.context.get_active_session)
+> - [st.cache_data 缓存工作机制与 TTL 规范](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_data)
+> - [Streamlit Core Widgets & Charts API](https://docs.streamlit.io/develop/api-reference/layout/st.columns)
 
 | 函数 / 语法 | 典型用法 | 生产建议 | 核心作用与底层逻辑 |
 | :--- | :--- | :--- | :--- |
@@ -227,6 +237,10 @@ if st.button("🔄 清除应用缓存并强制重新拉取"):
 
 在企业生产级运维中，不推荐人工在 Web 界面里手动点击粘贴代码。通过 **Internal Stage + SQL DDL** 即可将 Streamlit 看板纳入 Git CI/CD 自动化部署流！
 
+> 📖 **官方 DDL 与部署规范**：
+> - [CREATE STREAMLIT 语法规范与参数手册](https://docs.snowflake.com/en/sql-reference/sql/create-streamlit)
+> - [在 Snowflake 内部 Stage 托管 Streamlit 文件的官方操作指南](https://docs.snowflake.com/en/developer-guide/streamlit/create-streamlit-sql)
+
 #### 1. 创建内部 Stage
 ```sql
 CREATE OR REPLACE STAGE dev_streamlit_stage;
@@ -261,6 +275,8 @@ CREATE OR REPLACE STREAMLIT dev_demo_dashboard
 ---
 
 ### Step 4: 验证部署状态与访问路径
+
+> 📖 **官方元数据命令参考**：[SHOW STREAMLITS 官方语法手册](https://docs.snowflake.com/en/sql-reference/sql/show-streamlits)
 
 执行 `SHOW STREAMLITS;` 查询已部署的看板元数据：
 
@@ -307,6 +323,8 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
   Streamlit 的核心设计哲学是**声明式响应（Reactive Execution）**。页面上的任何交互控件（`selectbox`、`slider`、`button`）一旦被触发，Python 引擎**会从第 1 行到最后 1 行重新完整执行一遍代码**！
 - **标准解决方案（防刷铁律）**：
   **凡是涉及 `session.sql()` 的数据加载逻辑，必须抽取为独立函数，并使用 `@st.cache_data(ttl=...)` 修饰！**
+  > 📖 **官方缓存最佳实践**：[Streamlit 缓存执行架构与生命周期文档 (Optimize performance with st.cache_data)](https://docs.streamlit.io/develop/concepts/architecture/caching)
+
   ```python
   # 必须设置合理过期时间 (ttl=300 表示 5 分钟内复用内存缓存)
   @st.cache_data(ttl=300)
@@ -322,6 +340,8 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 - **现象**：业务普通用户访问看板时报错 `Object does not exist or not authorized`，或者普通员工通过看板意外看到了全公司所有人员的薪资数据。
 - **根因分析**：
   Streamlit in Snowflake 中的 `session = get_active_session()` 并不是以看板创建者（Owner）的身份运行，而是**严格以当前登录用户的会话上下文（Caller's Rights）执行**！
+  > 📖 **官方权限治理文档**：[Streamlit in Snowflake 访问控制与权限共享规范 (Managing privileges for Streamlit apps)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
+
 - **标准解法**：
   1. 确保将 Streamlit 应用对象授权给目标业务角色：
      ```sql
@@ -337,6 +357,8 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 - **现象**：在看板中 `import plotly` 或 `import xgboost` 时，页面报错 `ModuleNotFoundError`。
 - **根因分析**：SiS 默认仅预装了 Streamlit、Pandas、Altair 等基础常用库。
+  > 📖 **官方依赖配置规范**：[在 Streamlit in Snowflake 中使用 environment.yml 安装 Python 包 (Managing Python packages)](https://docs.snowflake.com/en/developer-guide/streamlit/environment-dependencies)
+
 - **标准解法**：
   在 Stage 根目录下提供一个标准 Conda 环境文件 `environment.yml`：
   ```yaml

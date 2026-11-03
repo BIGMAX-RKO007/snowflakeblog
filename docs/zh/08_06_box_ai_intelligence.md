@@ -4,6 +4,12 @@
 >
 > 下一代内容智能底座：基于大语言模型的单/多文档 RAG 问答（Box AI）、智能结构化元数据提取与 AI Studio 自定义 Agent。无业务噪音，纯粹以提示词交互与 LLM 管道为主线。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Box AI 资源手册](https://developer.box.com/reference/resources/ai/)
+> - [Box AI 开发者官方开发指南 (Box AI Overview)](https://developer.box.com/guides/box-ai/)
+> - [Box AI 针对文档 RAG 问答官方规范 (Ask Questions)](https://developer.box.com/guides/box-ai/ask-questions/)
+> - [Box AI 结构化元数据智能提取规范 (Extract Metadata)](https://developer.box.com/guides/box-ai/extract-metadata/)
+
 ---
 
 ## 08-6.1 全景 CRUD 能力矩阵沙盘

@@ -4,6 +4,12 @@
 >
 > 企业内容索引与结构化属性图谱：全文倒排检索、自定义元数据模板（Metadata Templates）、属性级联继承（Cascade Policy）与数据安全密级（Classification）。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Search 检索手册](https://developer.box.com/reference/resources/search/)
+> - [Box API Reference - Metadata 模版与实例资源](https://developer.box.com/reference/resources/metadata-template/)
+> - [Box Metadata 结构化属性与级联继承官方指南](https://developer.box.com/guides/metadata/)
+> - [Box Information Security Classification 官方开发指南](https://developer.box.com/guides/classifications/)
+
 ---
 
 ## 08-4.1 全景 CRUD 能力矩阵沙盘

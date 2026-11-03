@@ -8,6 +8,11 @@
 >
 > 本章节抛开任何业务虚词与场景假设，**纯技术视角**拆解 Content Management 下全部 **19 个官方模块**。通过「CRUD 全景沙盘矩阵」与「API 要素拓扑卡片」，帮助开发者建立全景心智模型，掌握最严谨的生产级 API 交互规范。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - 官方完整参考手册](https://developer.box.com/reference/)
+> - [Content Management 核心开发者指南](https://developer.box.com/guides/content/)
+> - [Chunked Uploads 大文件分片上传指南](https://developer.box.com/guides/uploads/chunked/)
+
 ---
 
 ## 8.1 官方 Content Management 架构图景

@@ -44,6 +44,10 @@ Snowflake の外部ネットワークアクセス（External Network Access：**
 - **読者の疑問**：デフォルトで外部と遮断された Snowflake で、どうやって安全に特定のドメインだけを許可するのか？トークンを `QUERY_HISTORY` に平文で残さない方法は？SQL からたった 1 行で API を叩くには？
 - **本章のゴール**：業務の複雑さを一切排除し、純粋な技術最小構成（Network Rule + Secret + Integration + Python UDF）を通じて、完全な動作検証をステップ・バイ・ステップで完遂します！
 
+> 📖 **Snowflake 公式ドキュメント**：
+> - [外部ネットワークアクセスの概要 (External network access overview)](https://docs.snowflake.com/ja/developer-guide/external-network-access/overview)
+> - [外部ネットワークアクセスの仕組みとセキュリティモデル (How external network access works)](https://docs.snowflake.com/ja/developer-guide/external-network-access/overview#how-external-network-access-works)
+
 ---
 
 ## 一、前提条件と事前準備 (Prerequisites)
@@ -103,6 +107,8 @@ flowchart TD
 
 ### 1. 外部送信ルール：`NETWORK RULE`
 
+> 📖 **公式構文・パラメータ仕様**：[CREATE NETWORK RULE (Snowflake ドキュメント)](https://docs.snowflake.com/ja/sql-reference/sql/create-network-rule)
+
 | パラメータ名 | 型 / 設定値 | 推奨値 | 技術的意味と解説 |
 | :--- | :--- | :--- | :--- |
 | `MODE` | `EGRESS` / `INGRESS` | `EGRESS` | 通信方向。外部 API を呼び出す場合は必ず `EGRESS`（送信）を指定。 |
@@ -111,12 +117,16 @@ flowchart TD
 
 ### 2. 機密クレデンシャル：`SECRET`
 
+> 📖 **公式構文・パラメータ仕様**：[CREATE SECRET (Snowflake ドキュメント)](https://docs.snowflake.com/ja/sql-reference/sql/create-secret)
+
 | パラメータ名 | 型 / 設定値 | 推奨値 | 技術的意味と解説 |
 | :--- | :--- | :--- | :--- |
 | `TYPE` | `GENERIC_STRING` / `OAUTH2` / `PASSWORD` | API の仕様準拠 | クレデンシャルの種別。Bearer トークンや API キーは `GENERIC_STRING` を指定。 |
 | `SECRET_STRING` | 文字列 | `'your_api_token'` | トークンの平文。登録直後に Snowflake 内部で安全に暗号化され、**画面やログで二度と平文表示されません**。 |
 
 ### 3. 外部アクセス統合：`EXTERNAL ACCESS INTEGRATION`
+
+> 📖 **公式構文・パラメータ仕様**：[CREATE EXTERNAL ACCESS INTEGRATION (Snowflake ドキュメント)](https://docs.snowflake.com/ja/sql-reference/sql/create-external-access-integration)
 
 | パラメータ名 | 型 / 設定値 | 推奨値 | 技術的意味と解説 |
 | :--- | :--- | :--- | :--- |
@@ -207,6 +217,8 @@ GRANT USAGE ON INTEGRATION dev_demo_external_access_int TO ROLE ACCOUNTADMIN;
 ### Step 4: Python UDF を作成し外部 API を呼び出す
 
 Snowflake 固有の `_snowflake` ライブラリを使用してメモリ上でシークレットを安全に復号し、標準の `requests` 経由で呼び出します：
+
+> 📖 **公式開発ガイド**：[Python 関数およびストアドプロシージャでの外部ネットワークアクセスの作成と使用 (_snowflake シークレット抽出仕様)](https://docs.snowflake.com/ja/developer-guide/external-network-access/creating-using-external-network-access)
 
 ```sql
 CREATE OR REPLACE FUNCTION call_external_api_demo()
@@ -301,10 +313,13 @@ SELECT call_external_api_demo() AS api_response;
 
 - **根本原因**：
   Snowflake は悪意あるユーザーによるトライアル枠を利用した DDoS 攻撃やポートスキャンを防ぐため、トライアル環境下での ENA 機能利用を一律制限しています。
+  > 📖 **公式制限仕様**：[Snowflake 無料トライアルアカウントの機能サポートとネットワーク制限 (Trial Account Limitations)](https://docs.snowflake.com/ja/user-guide/admin-trial-account)
+
 - **実践的ソリューション（本番 vs トライアル代替案）**：
   1. **本番アカウント**：Snowsight 管理画面 `Admin -> Billing` からクレジットカードを登録して Pay-As-You-Go アカウントへアップグレードするか、サポートへ申請してください。
   2. **トライアル／ネットワーク制限環境（クライアントパイプライン方式）**：
      外部の軽量 Python スクリプトから API を叩き、Snowflake コネクタ経由で直接投入するアプローチが標準的です：
+     > 📖 **公式データ取り込み API**：[Snowflake Python Connector - バッチデータ書き込み (write_pandas API リファレンス)](https://docs.snowflake.com/ja/developer-guide/python-connector/python-connector-api#write_pandas)
 
 ```python
 # ==============================================================================
@@ -379,6 +394,7 @@ if __name__ == "__main__":
 
 - **現象**：ローカルの VSCode や PyCharm で UDF コードをテストしようとすると、`import _snowflake` でエラーになる。
 - **原因**：`_snowflake` は Snowflake の Warehouse 内コンテナ起動時にのみ C++ 拡張として動的に注入される特殊内部モジュールです。PyPI には存在しません。
+  > 📖 **公式環境仕様**：[Snowflake Python UDF ウェアハウス内依存関係と _snowflake 内部モジュール仕様](https://docs.snowflake.com/ja/developer-guide/udf/python/udf-python-packages)
 - **回避策**：ローカル実行時は `try...except` で環境変数を読み出すフォールバック（モック）を実装してください。
 
 ---
@@ -387,6 +403,7 @@ if __name__ == "__main__":
 
 - **現象**：接続先の外部 API が応答しなくなった際、UDF が上限（最長数分間）までブロックされ、その間 Warehouse が稼働し続けて無駄なクレジット消費が発生する。
 - **鉄則**：**すべての `requests` 呼び出しには必ず `timeout=10` など明確な秒数を指定すること！**
+  > 📖 **公式パフォーマンス調整ガイド**：[外部ネットワークアクセスにおけるタイムアウト処理と並行制御 (Handling Timeouts and Concurrency)](https://docs.snowflake.com/ja/developer-guide/external-network-access/external-network-access-best-practices)
 
 ---
 

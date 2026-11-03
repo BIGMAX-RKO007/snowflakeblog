@@ -4,6 +4,12 @@
 >
 > 次世代コンテンツインテリジェンス：大規模言語モデル（LLM）による単一・複数ドキュメント RAG 質問応答（Box AI）、構造化抽出、AI Studio カスタムエージェントを解説します。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Box AI リソース仕様](https://developer.box.com/reference/resources/ai/)
+> - [Box AI 開発者公式ガイド (Box AI Overview)](https://developer.box.com/guides/box-ai/)
+> - [Box AI ドキュメント RAG 質問応答仕様 (Ask Questions)](https://developer.box.com/guides/box-ai/ask-questions/)
+> - [Box AI 構造化メタデータ自動抽出仕様 (Extract Metadata)](https://developer.box.com/guides/box-ai/extract-metadata/)
+
 ---
 
 ## 08-6.1 全景 CRUD 能力マトリックス

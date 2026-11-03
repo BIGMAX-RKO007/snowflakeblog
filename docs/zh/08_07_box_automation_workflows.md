@@ -4,6 +4,12 @@
 >
 > 无纸化业务流程与电子合规交付：Box Relay 自动化流水线触发、Box Sign 合规电子签章请求、签章模板配置与 Doc Gen 动态文档生成。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Sign Requests 电子签章手册](https://developer.box.com/reference/resources/sign-request/)
+> - [Box API Reference - Workflows 自动化流水线手册](https://developer.box.com/reference/resources/workflow/)
+> - [Box Sign 电子签署流程官方开发指南](https://developer.box.com/guides/box-sign/)
+> - [Box Doc Gen 模板动态生成官方规范](https://developer.box.com/guides/docgen/)
+
 ---
 
 ## 08-7.1 全景 CRUD 能力矩阵沙盘

@@ -4,6 +4,12 @@
 >
 > イベント駆動型アーキテクチャとリアルタイム通知：ロングポーリングイベント、エンタープライズセキュリティ監査ストリーム、および署名検証付き Webhook v2 を徹底解剖します。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Events イベントリソース仕様](https://developer.box.com/reference/resources/event/)
+> - [Box API Reference - Webhooks v2 リソース仕様](https://developer.box.com/reference/resources/webhook/)
+> - [Box イベントストリームアーキテクチャ開発者ガイド](https://developer.box.com/guides/events/)
+> - [Box Webhook 署名検証とセキュリティハンドリングガイド](https://developer.box.com/guides/webhooks/handle/verify-signatures/)
+
 ---
 
 ## 08-5.1 全景 CRUD 能力マトリックス

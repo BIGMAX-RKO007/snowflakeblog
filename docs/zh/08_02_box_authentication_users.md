@@ -4,6 +4,11 @@
 >
 > 企业级身份治理与凭证生命周期：OAuth 2.0 握手、JWT 认证、用户/用户组自动化配置与设备准入控制。无业务噪音，纯粹以技术概念、身份状态机与 HTTP 契约为主线。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Authentication & Users 资源手册](https://developer.box.com/reference/resources/user/)
+> - [Box 身份认证与安全治理开发者指南](https://developer.box.com/guides/authentication/)
+> - [OAuth 2.0 与 CCG 凭据生命周期官方规范](https://developer.box.com/guides/authentication/oauth2/)
+
 ---
 
 ## 08-2.1 全景 CRUD 能力矩阵沙盘

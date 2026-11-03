@@ -42,6 +42,11 @@ Snowflake が提供する **Streamlit in Snowflake（SiS）** は、この課題
 - **読者の疑問**：Snowflake 上で Streamlit を動かす際、DB のパスワードはどこに書くのか？ユーザーがスライダーを動かしたとき、クエリでクレジットが爆発しないか？コードとして自動デプロイ（DevOps）するには？
 - **本章のゴール**：業務の装飾を徹底排除し、純粋な技術構成に集中します。監視指標テーブルの作成から、**KPI メトリクスカード・動的フィルタ・トレンド折れ線グラフ・リアルタイム明細テーブル** の実装、そして Stage + SQL による自動デプロイとキャッシュ制御までを一気に完遂します！
 
+> 📖 **Snowflake & Streamlit 公式ドキュメント**：
+> - [Streamlit in Snowflake (SiS) アーキテクチャ概要と基本概念](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit)
+> - [SiS セキュリティモデルと必要なロール権限 (Privileges Required)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
+> - [Streamlit 公式 API リファレンス (Streamlit Documentation)](https://docs.streamlit.io/develop/api-reference)
+
 ---
 
 ## 一、前提条件と事前準備 (Prerequisites)
@@ -90,6 +95,11 @@ flowchart TD
 ---
 
 ## 三、コア関数と設定パラメータ定義（完全辞書）
+
+> 📖 **公式 API リファレンスマニュアル**：
+> - [get_active_session API リファレンス (Snowpark Python)](https://docs.snowflake.com/ja/developer-guide/snowpark/reference/python/latest/api/snowflake.snowpark.context.get_active_session)
+> - [st.cache_data キャッシュ動作仕様と TTL ガイド](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_data)
+> - [Streamlit Core ウィジェット & チャート API](https://docs.streamlit.io/develop/api-reference/layout/st.columns)
 
 | 関数 / 文法 | コード例 | 推奨設定 | 技術的役割と解説 |
 | :--- | :--- | :--- | :--- |
@@ -223,6 +233,10 @@ if st.button("🔄 キャッシュをクリアして再取得"):
 
 Snowsight 画面での手作業による貼り付けを排し、Git や CI/CD パイプラインと直結できる標準方式を採用します：
 
+> 📖 **公式 DDL・デプロイ仕様**：
+> - [CREATE STREAMLIT 構文仕様とパラメータリファレンス](https://docs.snowflake.com/ja/sql-reference/sql/create-streamlit)
+> - [Snowflake 内部ステージでの Streamlit ファイル管理ガイド](https://docs.snowflake.com/ja/developer-guide/streamlit/create-streamlit-sql)
+
 #### 1. 内部ステージの作成
 ```sql
 CREATE OR REPLACE STAGE dev_streamlit_stage;
@@ -256,6 +270,8 @@ CREATE OR REPLACE STREAMLIT dev_demo_dashboard
 ---
 
 ### Step 4: デプロイ結果の確認とアクセス
+
+> 📖 **公式メタデータコマンド仕様**：[SHOW STREAMLITS 公式構文リファレンス](https://docs.snowflake.com/ja/sql-reference/sql/show-streamlits)
 
 ```sql
 SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
@@ -298,6 +314,8 @@ Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`*
   Streamlit の設計思想は**宣言的リアクティブ実行**です。画面上のパーツ（selectbox や slider 等）が操作されると、Python エンジンは**スクリプトの先頭行から末尾行までを丸ごと再実行**します。
 - **鉄壁の解決策**：
   **すべての `session.sql()` 呼び出しは独立した関数に切り出し、必ず `@st.cache_data(ttl=...)` デコレータを付与すること！**
+  > 📖 **公式キャッシュベストプラクティス**：[Streamlit キャッシュ実行アーキテクチャとライフサイクル (Optimize performance with st.cache_data)](https://docs.streamlit.io/develop/concepts/architecture/caching)
+
   ```python
   @st.cache_data(ttl=300) # 300秒間はメモリキャッシュから即答
   def fetch_data():
@@ -312,6 +330,8 @@ Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`*
 - **現象**：一般ユーザーがダッシュボードを開くと `Object does not exist or not authorized` になる、または本来見えてはならない役職のデータが表示される。
 - **原因**：
   SiS の `get_active_session()` は作成者権限（Definer's Rights）ではなく、**アクセス中のユーザーの RBAC コンテキスト（Caller's Rights）で実行されます**。
+  > 📖 **公式アクセス制御仕様**：[Streamlit in Snowflake アクセス権限と共有モデル (Managing privileges for Streamlit apps)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
+
 - **解決策**：
   1. 利用者ロールに Streamlit オブジェクト、Warehouse、参照テーブルへの `USAGE` / `SELECT` 権限を適切に付与する：
      ```sql
@@ -327,6 +347,8 @@ Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`*
 
 - **現象**：`import plotly` や `import scikit-learn` を書くと `ModuleNotFoundError` で起動に失敗する。
 - **原因**：SiS のデフォルト環境には標準的なライブラリ（Streamlit, Pandas, Altair 等）のみが含まれています。
+  > 📖 **公式パッケージ管理仕様**：[Streamlit in Snowflake で environment.yml による追加パッケージ管理 (Managing Python packages)](https://docs.snowflake.com/ja/developer-guide/streamlit/environment-dependencies)
+
 - **解決策**：
   ステージのルートに `environment.yml` を配置してアップロードすることで、必要なパッケージを自動ロードできます：
   ```yaml

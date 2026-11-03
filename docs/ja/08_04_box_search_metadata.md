@@ -4,6 +4,12 @@
 >
 > コンテンツ全文検索と構造化属性グラフ：全文インデックス検索、カスタムメタデータスキーマ、フォルダカスケード継承とセキュリティ分類（Classification）。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Search 検索 API 仕様](https://developer.box.com/reference/resources/search/)
+> - [Box API Reference - Metadata テンプレートとインスタンス仕様](https://developer.box.com/reference/resources/metadata-template/)
+> - [Box メタデータ属性設計とカスケード継承開発者ガイド](https://developer.box.com/guides/metadata/)
+> - [Box 情報セキュリティ分類 (Classification) 公式ガイド](https://developer.box.com/guides/classifications/)
+
 ---
 
 ## 08-4.1 全景 CRUD 能力マトリックス

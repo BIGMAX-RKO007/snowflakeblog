@@ -4,6 +4,13 @@
 >
 > 企业级数据保全与法规遵循架构：数据保留期合规策略（Retention Policies）、司法举证数据冻结（Legal Hold）、Shield 信息安全屏障（Ethical Wall）与动态数字水印。无业务噪音，纯粹以安全防御模型与状态机为主线。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Retention Policies 数据保留手册](https://developer.box.com/reference/resources/retention-policy/)
+> - [Box API Reference - Legal Hold 诉讼保全手册](https://developer.box.com/reference/resources/legal-hold-policy/)
+> - [Box 数据生命周期保留期管理开发者指南 (Retention Policies Guide)](https://developer.box.com/guides/retention-policies/)
+> - [Box 司法诉讼数据冻结开发指南 (Legal Holds Guide)](https://developer.box.com/guides/legal-holds/)
+> - [Box Shield 威胁防护与信息屏障开发者指南](https://developer.box.com/guides/shield/)
+
 ---
 
 ## 08-8.1 全景 CRUD 能力矩阵沙盘

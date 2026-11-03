@@ -4,6 +4,11 @@
 >
 > コラボレーション権限マトリックスと共有リンク：8段階のアクセスロール、パスワード保護付き共有リンク、ファイルコメントとタスク管理フローを完全網羅します。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Collaborations 共有・コラボレーション仕様](https://developer.box.com/reference/resources/collaboration/)
+> - [Box 共有リンクとコラボレーション開発者ガイド](https://developer.box.com/guides/collaborations/)
+> - [Box コラボレーション権限ロール公式定義 (Roles and Permissions)](https://developer.box.com/guides/collaborations/roles/)
+
 ---
 
 ## 08-3.1 全景 CRUD 能力マトリックス

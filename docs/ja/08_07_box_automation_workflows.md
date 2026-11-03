@@ -4,6 +4,12 @@
 >
 > ペーパーレス業務自動化と電子署名統制：Box Relay ワークフロー実行、Box Sign 法的電子署名リクエスト、署名テンプレートおよび Doc Gen 帳票自動生成エンジン。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Sign Requests 電子署名リソース仕様](https://developer.box.com/reference/resources/sign-request/)
+> - [Box API Reference - Workflows ワークフロー自動化仕様](https://developer.box.com/reference/resources/workflow/)
+> - [Box Sign 電子署名開発者ガイド](https://developer.box.com/guides/box-sign/)
+> - [Box Doc Gen 動的帳票生成仕様](https://developer.box.com/guides/docgen/)
+
 ---
 
 ## 08-7.1 全景 CRUD 能力マトリックス

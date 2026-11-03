@@ -4,6 +4,12 @@
 >
 > 事件驱动架构与合规流批一体传输：长轮询操作日志流（Long Polling Events）、企业级安全审计流（Enterprise Admin Events）与毫秒级实时网络钩子回调（Webhooks v2）。
 
+> 📖 **Box 官方权威规范与文档**：
+> - [Box API Reference - Events 事件审计资源手册](https://developer.box.com/reference/resources/event/)
+> - [Box API Reference - Webhooks v2 资源规范](https://developer.box.com/reference/resources/webhook/)
+> - [Box 事件驱动架构官方指南 (Events Guide)](https://developer.box.com/guides/events/)
+> - [Box Webhooks 签名防重放校验开发指南](https://developer.box.com/guides/webhooks/handle/verify-signatures/)
+
 ---
 
 ## 08-5.1 全景 CRUD 能力矩阵沙盘

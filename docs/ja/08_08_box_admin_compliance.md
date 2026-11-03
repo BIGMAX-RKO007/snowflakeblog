@@ -4,6 +4,13 @@
 >
 > エンタープライズ資産保全と統制：リテンション保持ポリシー、リーガルホールド、Shield 情報障壁（チャイニーズウォール）および動的電子透かしを徹底解説します。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Retention Policies データ保持ポリシー仕様](https://developer.box.com/reference/resources/retention-policy/)
+> - [Box API Reference - Legal Hold 法的証拠保全仕様](https://developer.box.com/reference/resources/legal-hold-policy/)
+> - [Box データライフサイクル保持期間管理ガイド (Retention Policies Guide)](https://developer.box.com/guides/retention-policies/)
+> - [Box 訴訟ホールド保全開発者ガイド (Legal Holds Guide)](https://developer.box.com/guides/legal-holds/)
+> - [Box Shield 脅威保護・情報障壁開発者ガイド](https://developer.box.com/guides/shield/)
+
 ---
 
 ## 08-8.1 全景 CRUD 能力マトリックス

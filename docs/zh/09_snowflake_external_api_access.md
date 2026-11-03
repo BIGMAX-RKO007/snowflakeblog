@@ -44,6 +44,10 @@
 - **核心疑问**：Snowflake 默认是严密封闭的隔离沙箱，如何安全地放行指定的 API 域名？Token 如何存放才能杜绝在 `QUERY_HISTORY` 中被明文打印？在 SQL 中如何像调用内置函数一样一行代码拿回 API 数据？
 - **本章目标**：彻底剥离任何行业业务干扰，用最纯粹的技术最小闭环（Network Rule + Secret + Integration + Python UDF/Proc），手把手带你跑通全流程！
 
+> 📖 **Snowflake 官方权威文档**：
+> - [外部网络访问架构总览 (External network access overview)](https://docs.snowflake.com/en/developer-guide/external-network-access/overview)
+> - [外部访问工作原理与安全模型 (How external network access works)](https://docs.snowflake.com/en/developer-guide/external-network-access/overview#how-external-network-access-works)
+
 ---
 
 ## 一、环境与前置准备 (Prerequisites)
@@ -105,6 +109,8 @@ flowchart TD
 
 ### 1. 网络出网规则：`NETWORK RULE`
 
+> 📖 **官方语法与参数规范**：[CREATE NETWORK RULE (Snowflake Documentation)](https://docs.snowflake.com/en/sql-reference/sql/create-network-rule)
+
 | 参数名 | 类型 / 取值 | 生产建议值 | 中文释义与底层说明 |
 | :--- | :--- | :--- | :--- |
 | `MODE` | `EGRESS` / `INGRESS` | `EGRESS` | 访问方向：访问外部 API 必须设为 `EGRESS`（出站）。 |
@@ -113,12 +119,16 @@ flowchart TD
 
 ### 2. 敏感凭据：`SECRET`
 
+> 📖 **官方语法与参数规范**：[CREATE SECRET (Snowflake Documentation)](https://docs.snowflake.com/en/sql-reference/sql/create-secret)
+
 | 参数名 | 类型 / 取值 | 生产建议值 | 中文释义与底层说明 |
 | :--- | :--- | :--- | :--- |
 | `TYPE` | `GENERIC_STRING` / `OAUTH2` / `PASSWORD` | 视 API 而定 | 凭据类型：Bearer Token、API Key 通常选用 `GENERIC_STRING`。 |
 | `SECRET_STRING` | 敏感文本 | `'your_api_token'` | 实际密钥明文。入库后由 Snowflake 硬件加密机加密，**在所有日志与界面中全部被掩码**。 |
 
 ### 3. 外部访问集成：`EXTERNAL ACCESS INTEGRATION`
+
+> 📖 **官方语法与参数规范**：[CREATE EXTERNAL ACCESS INTEGRATION (Snowflake Documentation)](https://docs.snowflake.com/en/sql-reference/sql/create-external-access-integration)
 
 | 参数名 | 类型 / 取值 | 生产建议值 | 中文释义与底层说明 |
 | :--- | :--- | :--- | :--- |
@@ -212,6 +222,8 @@ GRANT USAGE ON INTEGRATION dev_demo_external_access_int TO ROLE ACCOUNTADMIN;
 ### Step 4: 编写原生 Python UDF 实时调用 API 并解析 JSON
 
 这是最核心的一步：在 Python 函数中，通过 Snowflake 专有内置库 `_snowflake` 在内存中取出安全凭据，调用标准 `requests` 库发送网络请求：
+
+> 📖 **官方开发指南**：[在 Python 函数与存储过程中创建与使用外部网络访问 (_snowflake 凭据提取规范)](https://docs.snowflake.com/en/developer-guide/external-network-access/creating-using-external-network-access)
 
 ```sql
 CREATE OR REPLACE FUNCTION call_external_api_demo()
@@ -308,10 +320,13 @@ SELECT call_external_api_demo() AS api_response;
 
 - **根因深度分析**：
   Snowflake 为了防止黑客利用 30 天无门槛试用账号创建大量虚假计算集群对外发起 DDoS 攻击或端口扫描，在底层全局内核中对所有试用租户硬编码封禁了 `EXTERNAL ACCESS INTEGRATION` 的创建能力。
+  > 📖 **官方限制规范**：[Snowflake 免费试用账号的功能支持与网络限制说明 (Trial Account Limitations)](https://docs.snowflake.com/en/user-guide/admin-trial-account)
+
 - **工业级标准避险解法（双轨架构）**：
   1. **正式环境解法**：进入 Snowsight 控制台 `Admin -> Billing` 绑定一张信用卡（升级为正式 Pay-As-You-Go 账号，初期消费额为 0），或者向 Snowflake Support 提交工单解封 ENA 特性；
   2. **测试/试用/受限网络环境解法（Python Client 管道模式）**：
      如果在试用期或物理隔离环境中，不要气馁！工业界最成熟的对等平替方案是：**利用外部 Python 脚本拉取 API 数据，并通过 Snowflake Connector 零中间件秒级入仓**。代码如下：
+     > 📖 **官方数据摄取 API**：[Snowflake Python Connector - 批量数据写入 (write_pandas API Reference)](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-api#write_pandas)
 
 ```python
 # ==============================================================================
@@ -388,6 +403,8 @@ if __name__ == "__main__":
   开发者将 UDF 代码复制到本地 VSCode / PyCharm 中测试调试时，首行 `import _snowflake` 抛出模块找不到异常。
 - **根因分析**：
   `_snowflake` 是 Snowflake Warehouse 在容器启动时**以 C++ 扩展动态挂载进 Python 进程的仓内专属伪模块**。它在公网 PyPI 上不存在，专门负责与安全机密通信。
+  > 📖 **官方环境规范**：[Snowflake Python UDF 仓内预装依赖与 _snowflake 内部模块说明](https://docs.snowflake.com/en/developer-guide/udf/python/udf-python-packages)
+
 - **解决方案**：
   在本地开发调试脚本时，使用 `try...except` 进行优雅垫片（Mock）：
   ```python
@@ -409,6 +426,7 @@ if __name__ == "__main__":
   调用的外部三方 API 服务偶发宕机挂起。Snowflake Python UDF 默认无强制网络超时，导致计算节点一直等待响应直到达到默认系统超时（通常高达 180 秒到几分钟）。如果有并发批量查询，数仓 Warehouse 会被长时间占满，导致巨额 Credit 费用飞升！
 - **强制规范**：
   **所有仓内外部网络请求必须在 `requests` 中显式设置 `timeout` 参数（建议 5 ~ 10 秒）**，杜绝慢请求拖垮数仓！
+  > 📖 **官方性能调优指南**：[外部网络访问中的超时处理与并发控制 (Handling Timeouts and Concurrency)](https://docs.snowflake.com/en/developer-guide/external-network-access/external-network-access-best-practices)
 
 ---
 

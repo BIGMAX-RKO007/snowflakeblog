@@ -8,6 +8,11 @@
 >
 > 本章では、業務上の前提を排した**純粋なエンジニアリング視点**で、Content Management に属する**全19モジュール**を徹底解剖します。「CRUD 能力マトリックス」と「API 5要素トポロジカード」により、堅牢なメンタルモデルと本番水準の実装指針を提供します。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - 公式 API リファレンス総覧](https://developer.box.com/reference/)
+> - [Content Management コア開発者ガイド](https://developer.box.com/guides/content/)
+> - [Chunked Uploads 大容量ファイル分割アップロードガイド](https://developer.box.com/guides/uploads/chunked/)
+
 ---
 
 ## 8.1 公式 Content Management アーキテクチャ全景

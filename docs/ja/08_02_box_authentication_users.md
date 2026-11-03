@@ -4,6 +4,11 @@
 >
 > エンタープライズアイデンティティ統制：OAuth 2.0、JWT認証、ユーザー・グループ構成とセッション強制切断。業務前提を排除し、純粋な技術仕様と状態機を中心に解説します。
 
+> 📖 **Box 公式リファレンス・仕様ドキュメント**：
+> - [Box API Reference - Authentication & Users リソース仕様](https://developer.box.com/reference/resources/user/)
+> - [Box 認証・セキュリティガバナンス開発者ガイド](https://developer.box.com/guides/authentication/)
+> - [OAuth 2.0 & CCG クレデンシャルライフサイクル公式仕様](https://developer.box.com/guides/authentication/oauth2/)
+
 ---
 
 ## 08-2.1 全景 CRUD 能力マトリックス
