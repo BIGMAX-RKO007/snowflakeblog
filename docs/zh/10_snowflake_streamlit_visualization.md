@@ -373,6 +373,35 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ---
 
+### `[!CAUTION]` 【避坑 4】：Streamlit 页面保持连接阻断 Warehouse 休眠，导致额度被持续吞噬！
+
+- **真实惨案现场**：
+  很多开发者在 Snowsight 网页中建好 Streamlit 看板后，顺手将浏览器标签页留在后台下班离开。几天后再次登录时，发现账户提示免费额度用光（甚至在付费账号下产生意外巨额账单）。
+- **根因深度分析**：
+  Streamlit in Snowflake 依托浏览器与仓内 Python 容器之间的 **WebSocket 双向长连接（Live Heartbeat）** 进行页面状态保持。
+  只要浏览器标签页处于打开状态，前端就会不断向 Warehouse 发送探活心跳，导致 Warehouse 认为“当前仍有活跃会话”，**完全无法触发 `AUTO_SUSPEND` 自动休眠计时**，从而一直处于开机状态持续扣费！
+- **生产与实操两大防线**：
+  1. **测试完毕务必关闭标签页，并手动休眠仓库**：
+     完成前端页面调试后，随手关闭 Streamlit 浏览器标签页；在 SQL 中可随时手动挂起仓库：
+     ```sql
+     ALTER WAREHOUSE COMPUTE_WH SUSPEND;
+     ```
+  2. **配置账户级资源配额熔断器（Resource Monitor，企业防刷最强底线）**：
+     为 Streamlit 专用仓库绑定 Resource Monitor，一旦额度达到阈值自动挂起，杜绝账单失控：
+     ```sql
+     CREATE OR REPLACE RESOURCE MONITOR STREAMLIT_COST_GUARD
+         WITH CREDIT_QUOTA = 5
+         FREQUENCY = MONTHLY
+         START_TIMESTAMP = IMMEDIATELY
+         TRIGGERS 
+             ON 80 PERCENT DO NOTIFY
+             ON 100 PERCENT DO SUSPEND;
+
+     ALTER WAREHOUSE COMPUTE_WH SET RESOURCE_MONITOR = STREAMLIT_COST_GUARD;
+     ```
+
+---
+
 ## 本章小结
 
 1. **零密码免密集成**：通过 `get_active_session()` 摆脱传统 BI 工具对数据库账号密码的脆弱依赖，全面纳入 Snowflake RBAC 权限体系；

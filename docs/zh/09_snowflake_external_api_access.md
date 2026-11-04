@@ -574,6 +574,12 @@ ORDER BY FILE_ID ASC;
   Snowflake 为了防止黑客利用 30 天无门槛试用账号创建大量虚假计算集群对外发起 DDoS 攻击或端口扫描，在底层全局内核中对所有试用租户硬编码封禁了 `EXTERNAL ACCESS INTEGRATION` 的创建能力。
   > 📖 **官方限制规范**：[Snowflake 免费试用账号的功能支持与网络限制说明 (Trial Account Limitations)](https://docs.snowflake.com/en/user-guide/admin-trial-account)
 
+> [!IMPORTANT]
+> **关于试用账号“30 天 vs 400 美元”额度机制与意外锁仓避险说明**：  
+> 很多初学者经常产生一个巨大困惑：“*我才刚注册了一周多，明明还没满 30 天，为什么今天登录控制台突然被全屏遮罩强行要求输入信用卡，并提示试用已结束、所有 Warehouse 被挂起？*”  
+> - **真相揭秘**：Snowflake 官方试用规则是 **“30 天期限 或 400 美元赠送额度（约 130~150 Credits），二者以先到者为准”**！如果在之前的实战（如第 07 章部署了每小时自动向量索引的 Cortex Search Service，或第 10 章 Streamlit 页面后台保持长连接未关闭）导致后台持续运转，400 美元额度极易在 7~8 天内被提前耗尽。  
+> - **避险指南**：遇到此情况**切勿盲目输入个人银行卡**！您只需换个邮箱在 Snowflake 官网花 1 分钟重新注册一个新试用租户，即可瞬间重获完整的 30 天 + 400 美元全新额度；同时牢记在第 07 章验证完毕后执行 `DROP CORTEX SEARCH SERVICE`，彻底杜绝额度偷跑。
+
 - **工业级标准避险解法（双轨架构）**：
   1. **正式环境解法**：进入 Snowsight 控制台 `Admin -> Billing` 绑定一张信用卡（升级为正式 Pay-As-You-Go 账号，初期消费额为 0），或者向 Snowflake Support 提交工单解封 ENA 特性；
   2. **测试/试用/受限网络环境解法（Python Client 管道模式 · Box 多格式企业文档真实入仓）**：

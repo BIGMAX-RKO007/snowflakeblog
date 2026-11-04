@@ -468,6 +468,42 @@ FROM DIRECTORY(@BOX_RAW_STAGE);
 
 ---
 
+### 避坑 4：`CORTEX SEARCH SERVICE` 设置 `TARGET_LAG` 导致 400 美元额度几天内被耗尽！
+
+> [!CAUTION] **【重大暗坑 · 真实惨案现场】**  
+> 刚注册 7~8 天的试用账号，满心以为“30 天免费试用还早得很”，结果某天登录时突然被全屏遮罩强行拦截：  
+> `Your free trial has ended and all of your virtual warehouses have been suspended.`  
+> 控制台要求立即输入信用卡升级为 Pay-As-You-Go，所有虚拟仓库被强制关停，无法执行任何 SQL！
+
+- **根因深度分析**：
+  1. **官方试用规则真相**：Snowflake 官网对 Free Trial 的官方定义是 **“30 天 或 400 美元计算额度，二者以先到者为准（Whichever comes first）”**。400 美元折算下来仅约 **130 ~ 150 个 Credits**！
+  2. **持续调度后台任务偷跑费用**：在配置 Cortex Search Service 时，我们书写了如下标准生产语句：
+     ```sql
+     CREATE OR REPLACE CORTEX SEARCH SERVICE BOX_ENTERPRISE_SEARCH_SERVICE
+         ON CHUNK_TEXT
+         ATTRIBUTES USER_EMAILS, FILE_NAME, FOLDER_ID
+         WAREHOUSE = OPENFLOW_INGEST_WH
+         TARGET_LAG = '1 hour'   -- ⚠️ 关键元凶：设置了 1 小时自动同步时延！
+     ```
+     `CORTEX SEARCH` 底层是一个 **Serverless 持续索引守护任务**。设置了 `TARGET_LAG = '1 hour'`，意味着 Snowflake 无论前台有没有人在操作，**每隔 1 小时都会自动唤醒后台引擎，对文本块重新进行向量化与增量构建索引**！
+     整整 7 天（168 小时），后台默默调度了 160 多次向量计算，加上多个未设极速休眠的计算仓库，直接把赠送的 400 美元额度烧得一干二净！
+
+- **工业级生产与教学避险三铁律**：
+  1. **实验验证完毕后立即销毁后台守护服务（防偷跑第一定律）**：  
+     在教学演练或概念验证（PoC）阶段，一旦完成检索验证，**必须在 SQL 中立即执行清理语句**，杜绝后台持续空转：
+     ```sql
+     -- 验证完毕后，立即删除持续索引服务（数据表仍保留，但停止后台按小时扣费）
+     DROP CORTEX SEARCH SERVICE IF EXISTS BOX_INTEGRATION_DB.CORTEX.BOX_ENTERPRISE_SEARCH_SERVICE;
+     ```
+  2. **强制所有 Warehouse 开启 60 秒极速休眠**：
+     ```sql
+     ALTER WAREHOUSE OPENFLOW_INGEST_WH SET AUTO_SUSPEND = 60 AUTO_RESUME = TRUE;
+     ```
+  3. **一旦试用额度耗尽的处理方案（切勿盲目输入信用卡）**：  
+     如果您只是学习和验证技术，**完全不需要输入个人银行卡**！直接换一个新邮箱在 Snowflake 官网重新开一个 30 天试用租户，瞬间重获全新的 30 天 + 400 美元额度，之前编写的表结构与 SQL 代码一键重新刷入即可。
+
+---
+
 ## 本章小结
 
 本章严格按照**尚硅谷技术讲义标准**完成了非结构化文件数据同步实战：

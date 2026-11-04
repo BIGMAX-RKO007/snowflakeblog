@@ -362,6 +362,34 @@ Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`*
 
 ---
 
+### `[!CAUTION]` 【落とし穴 4】：Streamlit 画面の接続維持によるサスペンド阻害とクレジット過剰消費
+
+- **エラー・事故事例**：
+  Snowsight 上で Streamlit ダッシュボードを作成・表示したまま、ブラウザのタブを閉じずに放置。数日後に確認したところ、無料枠のクレジットが完全に枯渇していた（あるいは本番アカウントで想定外の課金が発生した）。
+- **根本原因**：
+  Streamlit in Snowflake は、ブラウザとコンテナ間の **WebSocket 常時接続（ハートビート）** によって画面状態を維持します。  
+  ブラウザタブが開いたままの場合、フロントエンドから定期的な探活パケットが送信され続けるため、Warehouse 側は「アクティブなセッションが継続中」と判定し、**`AUTO_SUSPEND` のタイマーがリセットされ続けてスリープに入りません**。
+- **本番運用＆学習時の 2 大防御策**：
+  1. **動作確認後は必ずブラウザタブを閉じ、手動サスペンドを実行**：
+     ```sql
+     ALTER WAREHOUSE COMPUTE_WH SUSPEND;
+     ```
+  2. **リソースモニター（Resource Monitor）による強制サーキットブレーカーの配備**：
+     Streamlit 専任ウェアハウスに対して上限クォータを設定し、閾値到達時に自動サスペンドさせることで、想定外の課金を確実に防止します：
+     ```sql
+     CREATE OR REPLACE RESOURCE MONITOR STREAMLIT_COST_GUARD
+         WITH CREDIT_QUOTA = 5
+         FREQUENCY = MONTHLY
+         START_TIMESTAMP = IMMEDIATELY
+         TRIGGERS 
+             ON 80 PERCENT DO NOTIFY
+             ON 100 PERCENT DO SUSPEND;
+
+     ALTER WAREHOUSE COMPUTE_WH SET RESOURCE_MONITOR = STREAMLIT_COST_GUARD;
+     ```
+
+---
+
 ## 本章のまとめ
 
 1. **完全パスワードレス**：`get_active_session()` により、接続文字列や ID/Pass の流出リスクを完全に根絶しました。

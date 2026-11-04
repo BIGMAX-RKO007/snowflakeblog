@@ -457,6 +457,42 @@ FROM DIRECTORY(@BOX_RAW_STAGE);
 
 ---
 
+### 避坑ポイント 4：`CORTEX SEARCH SERVICE` の `TARGET_LAG` 設定によるトライアル 400 ドル枠の枯渇
+
+> [!CAUTION] **【重大な暗坑・実戦トラブル事例】**  
+> 登録からわずか 7〜8 日しか経過していないアカウントで、「30 日間の無料枠はまだまだ残っている」と思っていた矢先、ログイン時に全画面モーダルで強制ブロックされる事象が発生：  
+> `Your free trial has ended and all of your virtual warehouses have been suspended.`  
+> クレジットカード登録（Pay-As-You-Go へのアップグレード）を要求され、全ウェアハウスが停止し SQL が一切実行できなくなる。
+
+- **根本原因の徹底究明**：
+  1. **公式トライアル規約の盲点**：Snowflake 公式の無料枠仕様は **「30 日間、または 400 ドル相当の利用枠のいずれか早い方（Whichever comes first）」** です。400 ドルは実質 **約 130 〜 150 Credits** に相当します。
+  2. **バックグラウンド定期タスクによるクレジット消費**：Cortex Search Service を作成する際、標準構成として以下を指定しました：
+     ```sql
+     CREATE OR REPLACE CORTEX SEARCH SERVICE BOX_ENTERPRISE_SEARCH_SERVICE
+         ON CHUNK_TEXT
+         ATTRIBUTES USER_EMAILS, FILE_NAME, FOLDER_ID
+         WAREHOUSE = OPENFLOW_INGEST_WH
+         TARGET_LAG = '1 hour'   -- ⚠️ 元凶：1時間ごとの自動同期ラグ設定！
+     ```
+     `CORTEX SEARCH` は **サーバーレス型の継続的インデックス同期デーモン** として動作します。`TARGET_LAG = '1 hour'` を設定すると、フロントエンドで誰も操作していなくても、**1 時間ごとにバックグラウンドエンジンが起動し、テキストのベクトル化とインデックス再構築を永続実行** します。  
+     7 日間（168 時間）で 160 回以上のベクトル計算が自動実行され、ウェアハウスの稼働と合わさって 400 ドル分のクレジットがあっという間に使い切られてしまいます。
+
+- **本番運用＆学習時の 3 大回避ルール**：
+  1. **演習・検証完了後は直ちにバックグラウンドサービスを削除（最重要ルール）**：  
+     検証が終了したら、SQL で即座にサービスを停止または削除し、バックグラウンドでの課金空回りを根絶します：
+     ```sql
+     -- 演習完了後、即座にサービスを削除（テーブル実データは維持され、定期課金のみ停止）
+     DROP CORTEX SEARCH SERVICE IF EXISTS BOX_INTEGRATION_DB.CORTEX.BOX_ENTERPRISE_SEARCH_SERVICE;
+     ```
+  2. **全ウェアハウスに 60 秒即時サスペンドを強制設定**：
+     ```sql
+     ALTER WAREHOUSE OPENFLOW_INGEST_WH SET AUTO_SUSPEND = 60 AUTO_RESUME = TRUE;
+     ```
+  3. **トライアル枠が枯渇した場合の対応（安易なクレカ登録は不要）**：  
+     学習や機能検証が目的の場合、**個人のクレジットカードを登録する必要は一切ありません**。別のメールアドレスを用いて Snowflake 公式サイトから 1 分で新規トライアルアカウントを開設すれば、即座に **新たな 30 日間＋400 ドル枠** を獲得できます。
+
+---
+
 ## 本章のまとめ
 
 本章では**尚硅谷スタイル**を徹底し、非構造化ファイルデータ同期の全技術フローを完結させました：
