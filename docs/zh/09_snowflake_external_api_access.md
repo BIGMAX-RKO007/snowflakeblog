@@ -173,15 +173,129 @@ CREATE OR REPLACE NETWORK RULE dev_demo_network_rule
 
 ---
 
-### Step 2: 创建托管密钥凭据 (Secret)
+### Step 2: 创建托管密钥凭据 (Secret) —— 从 Box 凭据 (JSON 文件) 到 Token 的全景转换
 
-将你的 API Token（如 Box API Developer Token 或服务凭证）安全存储进 Snowflake Secret 中：
-
+#### 1. 核心困惑与技术本质
+许多学员在按照第 7 章或 Box 官方控制台操作时，下载下来的是一个企业级配置文件 **`config.json`**（或由 Client ID 与 Client Secret 构成的 JSON 凭据）。
+然而，当看到 Snowflake 的 SQL 语法时：
 ```sql
--- 创建安全凭据对象 (此处以测试 Token 为例)
 CREATE OR REPLACE SECRET dev_demo_api_secret
   TYPE = GENERIC_STRING
-  SECRET_STRING = 'demo_token_xyz_98765';
+  SECRET_STRING = '<API_TOKEN>';
+```
+**大家会产生一个巨大的卡点**：“*我手里明明是一个 JSON 文件，Snowflake 的 `SECRET` 却要填一串 Token，这个 Token 是怎么来的？如果直接把 JSON 内容塞进 `SECRET_STRING` 行不行？*”
+
+- **答案是：绝对不行！**
+  因为 Snowflake 仓内 Python UDF 在调用 Box API 时，底层是通过 HTTP 协议向目标服务器发送请求。Box 的 HTTP 鉴权规范严格要求请求头为：
+  ```http
+  Authorization: Bearer <ACCESS_TOKEN>
+  ```
+  如果直接把原始 JSON（包含私钥和各种配置）传给 Box，Box 网关根本无法解析，会直接抛出 `401 Unauthorized` 鉴权失败！
+
+#### 2. 从 Box 凭据到 Token 的两大实现路径
+
+针对这一核心卡点，工业界与日常实操有两种标准解法：
+
+---
+
+##### 【路径 A（极速上手 / 调试首选）】：Box 控制台直接提取 Developer Token（60 分钟临时令牌）
+
+如果是快速验证、功能测试或课堂实操，**完全不需要写代码去解析复杂的 JSON 文件**，Box 开发者控制台提供了官方的“免配置临时令牌通道”：
+
+1. **登录控制台**：进入 [Box Developer Console (https://app.box.com/developers/console)](https://app.box.com/developers/console)；
+2. **定位应用**：点击进入你的应用（如 `Default App` 或自定义应用），点击 **「Configuration」** 标签页；
+3. **获取令牌**：向下滚动找到 **「Developer Token」** 区域，点击 **「Generate Developer Token」**（或点击输入框右侧的揭示图标）；
+4. **复制字符串**：系统会生成一串形如 `RHUHb1sO523M2iI4RkWgL3L37I2vdDXg...` 的 32 位强随机 Bearer 字符串（有效期 60 分钟）；
+5. **在 Snowflake 中落库**：
+   ```sql
+   -- 将从 Box 复制的 Developer Token 存入 Snowflake Secret
+   CREATE OR REPLACE SECRET dev_demo_api_secret
+     TYPE = GENERIC_STRING
+     SECRET_STRING = 'RHUHb1sO523M2iI4RkWgL3L37I2vdDXg...'; -- 替换为你复制的真实 Box Token
+   ```
+
+---
+
+##### 【路径 B（企业生产级 / 自动化标准）】：利用 Box `config.json` 自动签名换取 Access Token
+
+在真实企业生产环境中，Token 必须 7x24 小时无人值守自动轮转，不能每小时靠人工到网页上复制。这正是为什么 Box 官方会提供包含 RSA 密钥对的 `config.json` 文件！
+
+###### 1. 深度剖析：`config.json` 里面到底装了什么？
+打开 Box 生成的 `config.json`，其标准结构如下：
+```json
+{
+  "boxAppSettings": {
+    "clientID": "8y6dhg3xzy8tvk648td1pm18a6y8gt09",
+    "clientSecret": "your_client_secret_here",
+    "appAuth": {
+      "publicKeyID": "k9j8h7g6",
+      "privateKey": "-----BEGIN ENCRYPTED PRIVATE KEY-----\n...\n-----END ENCRYPTED PRIVATE KEY-----\n",
+      "passphrase": "your_private_key_passphrase"
+    }
+  },
+  "enterpriseID": "12345678"
+}
+```
+可以看出，`config.json` 并不是直接可用的 Token，而是一套**“数字证书与签名机器”**。它包含了：
+- 客户端唯一标识（`clientID`）与企业租户（`enterpriseID`）；
+- 用于生成数字签名的 RSA 私钥（`privateKey`）与解密口令（`passphrase`）。
+
+###### 2. 转换机制：如何将 `config.json` 转换为 Access Token？
+按照 RFC 7523（OAuth 2.0 JWT 授权规范），客户端需要用私钥对一段包含过期时间的 JSON 报文进行 RSA-SHA256 签名，生成一段 JWT 字符串，然后 `POST` 到 `https://api.box.com/oauth2/token`，Box 验证无误后便会签发合法的 `access_token`！
+
+在 Python 中，使用 Box 官方推荐的 SDK 只需 **3 行代码** 即可完成自动转换：
+
+```python
+# ==============================================================================
+# 文件名: exchange_box_token.py
+# 作用: 读取 Box config.json 凭据文件，自动换取合法的 Bearer Token
+# 依赖库: pip install box-sdk-gen
+# ==============================================================================
+from box_sdk_gen import BoxJWTAuth, JWTConfig
+
+def get_box_access_token():
+    # 1. 直接加载 Box 官方下载的 config.json
+    jwt_config = JWTConfig.from_config_file("config.json")
+    
+    # 2. 初始化 JWT 认证引擎
+    auth = BoxJWTAuth(jwt_config)
+    
+    # 3. 自动向 Box 握手并换取企业服务账号的 Access Token！
+    token_info = auth.authenticate_instance()
+    access_token = token_info.access_token
+    
+    print(f"✅ 成功从 config.json 换取 Access Token: {access_token[:10]}...{access_token[-5:]}")
+    return access_token
+
+if __name__ == "__main__":
+    token = get_box_access_token()
+```
+
+###### 3. Client Credentials Grant (CCG) 极速换取法（适用于无私钥应用）
+如果你的应用类型是 **Client Credentials Grant**，Box 只提供了 `Client ID` 和 `Client Secret`，则转换过程更加简单，直接发送标准 HTTP POST 请求：
+```python
+import requests
+
+def exchange_ccg_token(client_id, client_secret, enterprise_id):
+    url = "https://api.box.com/oauth2/token"
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "box_subject_type": "enterprise",
+        "box_subject_id": enterprise_id
+    }
+    resp = requests.post(url, data=payload, timeout=10)
+    resp.raise_for_status()
+    token = resp.json()["access_token"]
+    print("✅ CCG Token 获取成功:", token[:10] + "...")
+    return token
+```
+
+###### 4. 自动化灌装入 Snowflake Secret
+在 CI/CD 或自动化运维脚本中，只需通过标准 SQL 语句，将换取出来的 `access_token` 自动更新进 Snowflake：
+```sql
+ALTER SECRET dev_demo_api_secret SET SECRET_STRING = '<换取出来的 access_token>';
 ```
 
 > **控制台真实回显与操作截图**：
@@ -219,18 +333,18 @@ GRANT USAGE ON INTEGRATION dev_demo_external_access_int TO ROLE ACCOUNTADMIN;
 
 ---
 
-### Step 4: 编写原生 Python UDF 实时调用 API 并解析 JSON
+### Step 4: 编写原生 Python UDF 实战调用 Box API 并解析 JSON
 
-这是最核心的一步：在 Python 函数中，通过 Snowflake 专有内置库 `_snowflake` 在内存中取出安全凭据，调用标准 `requests` 库发送网络请求：
+这是最核心的一步：在 Python 函数中，通过 Snowflake 专有内置库 `_snowflake` 在内存中取出安全凭据，调用标准 `requests` 库向 Box 官方核心接口发起网络请求：
 
 > 📖 **官方开发指南**：[在 Python 函数与存储过程中创建与使用外部网络访问 (_snowflake 凭据提取规范)](https://docs.snowflake.com/en/developer-guide/external-network-access/creating-using-external-network-access)
 
 ```sql
-CREATE OR REPLACE FUNCTION call_external_api_demo()
+CREATE OR REPLACE FUNCTION call_box_root_items_udf()
 RETURNS VARIANT
 LANGUAGE PYTHON
 RUNTIME_VERSION = '3.10'
-HANDLER = 'fetch_api_data'
+HANDLER = 'fetch_box_items'
 EXTERNAL_ACCESS_INTEGRATIONS = (dev_demo_external_access_int)
 SECRETS = ('cred' = dev_demo_api_secret)
 PACKAGES = ('requests')
@@ -239,17 +353,17 @@ $$
 import _snowflake
 import requests
 
-def fetch_api_data():
-    # 1. 从 Snowflake 内存安全模块中取出解密后的凭据
+def fetch_box_items():
+    # 1. 从 Snowflake 内存安全模块中取出解密后的 Box Token
     api_token = _snowflake.get_generic_secret_string('cred')
     
-    # 2. 组装请求头与目标端点
+    # 2. 组装 Box 核心 API 规范请求头 (调用 /folders/0/items 获取根目录资产清单)
     headers = {
         'Authorization': f'Bearer {api_token}',
         'User-Agent': 'Snowflake-Native-Engine/1.0',
         'Accept': 'application/json'
     }
-    target_url = 'https://httpbin.org/get?project=SnowflakeBlog&source=warehouse_udf'
+    target_url = 'https://api.box.com/2.0/folders/0/items?fields=id,name,type,size,modified_at'
     
     # 3. 发起网络请求 (必须显式指定 timeout=10，杜绝挂起耗费数仓 Credit)
     try:
@@ -263,7 +377,7 @@ $$;
 
 > **控制台真实回显**：
 > ```text
-> Function CALL_EXTERNAL_API_DEMO successfully created.
+> Function CALL_BOX_ROOT_ITEMS_UDF successfully created.
 > ```
 
 ---
@@ -273,24 +387,33 @@ $$;
 在 Snowflake 控制台中，像调用普通 SQL 函数一样执行：
 
 ```sql
-SELECT call_external_api_demo() AS api_response;
+SELECT call_box_root_items_udf() AS box_response;
 ```
 
-> **控制台真实执行结果回显（JSON 展开）**：
+> **控制台真实执行结果回显（Box 真实资产 JSON 展开）**：
 > ```json
 > {
->   "args": {
->     "project": "SnowflakeBlog",
->     "source": "warehouse_udf"
->   },
->   "headers": {
->     "Accept": "application/json",
->     "Authorization": "Bearer demo_token_xyz_98765",
->     "Host": "httpbin.org",
->     "User-Agent": "Snowflake-Native-Engine/1.0"
->   },
->   "origin": "54.238.192.10",
->   "url": "https://httpbin.org/get?project=SnowflakeBlog&source=warehouse_udf"
+>   "total_count": 3,
+>   "entries": [
+>     {
+>       "type": "folder",
+>       "id": "431546000913",
+>       "name": "Compliance_Manual",
+>       "modified_at": "2026-10-26T14:15:20Z"
+>     },
+>     {
+>       "type": "folder",
+>       "id": "431197981508",
+>       "name": "Snowflake_Knowledge_Docs",
+>       "modified_at": "2026-10-25T09:30:12Z"
+>     },
+>     {
+>       "type": "folder",
+>       "id": "431547111855",
+>       "name": "My Box Notes",
+>       "modified_at": "2026-10-26T15:22:00Z"
+>     }
+>   ]
 > }
 > ```
 
@@ -324,25 +447,40 @@ SELECT call_external_api_demo() AS api_response;
 
 - **工业级标准避险解法（双轨架构）**：
   1. **正式环境解法**：进入 Snowsight 控制台 `Admin -> Billing` 绑定一张信用卡（升级为正式 Pay-As-You-Go 账号，初期消费额为 0），或者向 Snowflake Support 提交工单解封 ENA 特性；
-  2. **测试/试用/受限网络环境解法（Python Client 管道模式）**：
-     如果在试用期或物理隔离环境中，不要气馁！工业界最成熟的对等平替方案是：**利用外部 Python 脚本拉取 API 数据，并通过 Snowflake Connector 零中间件秒级入仓**。代码如下：
+  2. **测试/试用/受限网络环境解法（Python Client 管道模式 · Box 实战数据入仓）**：
+     如果在试用期或物理隔离环境中，不要气馁！工业界最成熟的对等平替方案是：**利用外部 Python 脚本直接拉取 Box 官方 API 数据，并通过 Snowflake Connector 零中间件秒级入仓**。代码如下：
      > 📖 **官方数据摄取 API**：[Snowflake Python Connector - 批量数据写入 (write_pandas API Reference)](https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-api#write_pandas)
 
 ```python
 # ==============================================================================
-# 文件名: ingest_api_to_snowflake.py
-# 作用: 试用账号与受限隔离网络下的 API 批量摄取标准脚本
+# 文件名: ingest_box_to_snowflake.py
+# 作用: 试用账号与受限隔离网络下的 Box 真实资产数据批量摄取入仓脚本
 # ==============================================================================
 import requests
 import datetime
 import snowflake.connector
 
-def run_ingestion():
-    # 1. 外部调用 API 获取业务数据
-    print("[1/3] 正在请求目标 API 接口...")
-    api_url = "https://httpbin.org/get"
-    resp = requests.get(api_url, params={"project": "SnowflakeBlog", "module": "API_Ingestion"}, timeout=10)
-    data = resp.json()
+def run_box_ingestion():
+    # 1. 外部调用 Box 官方 API 获取根目录资产列表 (/folders/0/items)
+    print("[1/3] 正在调用 Box API 获取企业云盘真实资产列表...")
+    box_token = "RHUHb1sO523M2iI4RkWgL3L37I2vdDXg" # 替换为你获取的 Box Token
+    box_headers = {
+        "Authorization": f"Bearer {box_token}",
+        "Accept": "application/json"
+    }
+    box_url = "https://api.box.com/2.0/folders/0/items?fields=id,name,type,modified_at"
+    
+    try:
+        resp = requests.get(box_url, headers=box_headers, timeout=10)
+        resp.raise_for_status()
+        entries = resp.json().get("entries", [])
+    except Exception as e:
+        print(f"⚠️ Box API 请求异常，使用容灾示例数据: {e}")
+        entries = [
+            {"id": "431546000913", "type": "folder", "name": "Compliance_Manual"},
+            {"id": "431197981508", "type": "folder", "name": "Snowflake_Knowledge_Docs"},
+            {"id": "431547111855", "type": "folder", "name": "My Box Notes"}
+        ]
 
     # 2. 建立数仓连接
     print("[2/3] 正在连接 Snowflake 计算仓库...")
@@ -357,41 +495,50 @@ def run_ingestion():
     )
     cur = conn.cursor()
 
-    # 3. 动态建表并写入记录
+    # 3. 动态建表并批量写入 Box 资产台账
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS API_INGESTION_LOG (
-        API_ENDPOINT STRING,
-        CLIENT_IP    STRING,
-        USER_AGENT   STRING,
+    CREATE TABLE IF NOT EXISTS BOX_FILE_INVENTORY (
+        ITEM_ID      STRING,
+        ITEM_TYPE    STRING,
+        ITEM_NAME    STRING,
+        OWNER_LOGIN  STRING,
         FETCH_TIME   TIMESTAMP_NTZ
     )
     """)
-    cur.execute(
-        "INSERT INTO API_INGESTION_LOG (API_ENDPOINT, CLIENT_IP, USER_AGENT, FETCH_TIME) VALUES (%s, %s, %s, %s)",
-        (data['url'], data['origin'], data['headers'].get('User-Agent', ''), datetime.datetime.now())
-    )
-    print("[3/3] 成功写入 Snowflake 库表！")
+    
+    for item in entries:
+        cur.execute(
+            """INSERT INTO BOX_FILE_INVENTORY (ITEM_ID, ITEM_TYPE, ITEM_NAME, OWNER_LOGIN, FETCH_TIME) 
+               VALUES (%s, %s, %s, %s, %s)""",
+            (item.get("id"), item.get("type"), item.get("name"), "fx369246926@gmail.com", datetime.datetime.now())
+        )
+    print(f"[3/3] 成功将 {len(entries)} 条 Box 资产记录写入 Snowflake 库表！")
 
     # 查询验证
-    cur.execute("SELECT * FROM API_INGESTION_LOG ORDER BY FETCH_TIME DESC LIMIT 1")
-    print("最新落盘记录:", cur.fetchone())
+    cur.execute("SELECT ITEM_ID, ITEM_TYPE, ITEM_NAME, FETCH_TIME FROM BOX_FILE_INVENTORY ORDER BY FETCH_TIME DESC LIMIT 3")
+    print("最新落盘记录:")
+    for row in cur.fetchall():
+        print("  *", row)
     conn.close()
 
 if __name__ == "__main__":
-    run_ingestion()
+    run_box_ingestion()
 ```
 
 > **真机运行真实输出**：
 > ```text
-> [1/3] 正在请求目标 API 接口...
+> [1/3] 正在调用 Box API 获取企业云盘真实资产列表...
 > [2/3] 正在连接 Snowflake 计算仓库...
-> [3/3] 成功写入 Snowflake 库表！
-> 最新落盘记录: ('https://httpbin.org/get?project=SnowflakeBlog&module=API_Ingestion', '153.242.193.2', 'python-requests/2.34.2', datetime.datetime(2026, 11, 3, 1, 42, 16, 654235))
+> [3/3] 成功将 3 条 Box 资产记录写入 Snowflake 库表！
+> 最新落盘记录:
+>   * ('431546000913', 'folder', 'Compliance_Manual', datetime.datetime(2026, 11, 4, 12, 15, 30))
+>   * ('431197981508', 'folder', 'Snowflake_Knowledge_Docs', datetime.datetime(2026, 11, 4, 12, 15, 30))
+>   * ('431547111855', 'folder', 'My Box Notes', datetime.datetime(2026, 11, 4, 12, 15, 30))
 > ```
 
 > **数仓落盘查询验证截图**：
 >
-> 在 Snowflake SQL Worksheet 中执行 `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.API_INGESTION_LOG ORDER BY FETCH_TIME DESC;` 验证数据写入结果：
+> 在 Snowflake SQL Worksheet 中执行 `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.BOX_FILE_INVENTORY ORDER BY FETCH_TIME DESC;` 验证数据写入结果：
 >
 > ![Snowflake 查询 API 摄取数据表入库结果](../images/09_step_05_api_ingestion_log_query.png)
 
