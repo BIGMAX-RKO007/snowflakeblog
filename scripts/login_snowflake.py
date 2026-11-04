@@ -16,15 +16,18 @@ with sync_playwright() as p:
     # Fill login form if present
     u_inp = page.locator("input[name='username'], input[type='text']").first
     if u_inp.is_visible():
-        print("Filling login credentials...")
+        print("Filling username...")
         u_inp.fill("fanxiao")
+        page.locator("button[type='submit'], button:has-text('Continue'), button:has-text('Sign In'), button:has-text('Next')").first.click()
+        page.wait_for_timeout(3000)
         p_inp = page.locator("input[name='password'], input[type='password']").first
-        p_inp.fill("SuperCoffee!2026")
-        page.locator("button[type='submit'], button:has-text('Sign In')").first.click()
-        page.wait_for_timeout(10000)
+        if p_inp.is_visible():
+            print("Filling password...")
+            p_inp.fill("SuperCoffee!2026")
+            page.locator("button[type='submit'], button:has-text('Sign In')").first.click()
+            page.wait_for_timeout(10000)
         
-    print("Logged in URL:", page.url)
+    print("Current URL:", page.url)
     page.screenshot(path="docs/images/snowflake_after_login.png")
     print("Saved docs/images/snowflake_after_login.png")
     context.close()
-
