@@ -38,3 +38,4 @@ with sync_playwright() as p:
     page.screenshot(path="docs/images/09_step_01_box_credentials_revealed.png")
     print("Saved 09_step_01_box_credentials_revealed.png")
     browser.close()
+

@@ -36,3 +36,4 @@ with sync_playwright() as p:
             f.write(parent.inner_html())
         print("Saved dev_token_sec.html")
     browser.close()
+

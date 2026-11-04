@@ -31,3 +31,4 @@ with sync_playwright() as p:
             f.write(d.inner_text() + "\n---\n")
     print("Written to secret_dialog.txt")
     browser.close()
+

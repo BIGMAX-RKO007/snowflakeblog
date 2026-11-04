@@ -43,3 +43,4 @@ with sync_playwright() as p:
         
     page.screenshot(path="docs/images/box_full_config.png", full_page=True)
     browser.close()
+
