@@ -1,0 +1,215 @@
+1
+00:00:00,000 --> 00:00:02,122
+Once you open the automatic setup app
+
+2
+00:00:02,122 --> 00:00:05,400
+this will be super easy Click Start Setup Process
+
+3
+00:00:05,400 --> 00:00:08,596
+Your keepers will be generated in a second
+
+4
+00:00:08,600 --> 00:00:12,596
+You actually don't need to download these two
+
+5
+00:00:12,600 --> 00:00:16,800
+but if you want to connect to this Snowflake account
+
+6
+00:00:16,800 --> 00:00:21,300
+with anything else like a SQL client or your own BI tools
+
+7
+00:00:21,300 --> 00:00:24,000
+or anything outside of this course
+
+8
+00:00:24,000 --> 00:00:29,400
+then you probably want to download both your private key and your public key
+
+9
+00:00:29,400 --> 00:00:32,175
+But I'm embedding these two into the files
+
+10
+00:00:32,175 --> 00:00:33,794
+that you will download later
+
+11
+00:00:33,800 --> 00:00:37,794
+so for the course strictly speaking you don't need it
+
+12
+00:00:37,800 --> 00:00:40,397
+So click Continue to Snowflake Setup
+
+13
+00:00:40,400 --> 00:00:45,394
+So here what you need to do is set up your Snowflake account
+
+14
+00:00:45,400 --> 00:00:47,199
+which is not your username
+
+15
+00:00:47,200 --> 00:00:51,596
+The easiest way to go is to come back to your email
+
+16
+00:00:51,596 --> 00:00:53,794
+and just copy paste this URL
+
+17
+00:00:53,800 --> 00:00:56,797
+Copy this URL paste it in there
+
+18
+00:00:56,800 --> 00:00:59,464
+and then when you press Enter
+
+19
+00:00:59,464 --> 00:01:04,793
+then the app will extract your Snowflake account name from the URL
+
+20
+00:01:04,800 --> 00:01:08,400
+Now the username if you used admin as I did
+
+21
+00:01:08,400 --> 00:01:10,200
+just keep it at admin
+
+22
+00:01:10,200 --> 00:01:15,600
+and then for the password I will just go and use my password
+
+23
+00:01:15,600 --> 00:01:19,200
+that I added and please do the same
+
+24
+00:01:19,200 --> 00:01:21,800
+Once you're done click Start Setup
+
+25
+00:01:21,800 --> 00:01:26,193
+And if you've been enrolled into a multi factor authentication
+
+26
+00:01:26,200 --> 00:01:29,793
+Snowflake does this with some of the registrations
+
+27
+00:01:29,800 --> 00:01:33,157
+then now is the time to check your phone
+
+28
+00:01:33,157 --> 00:01:37,925
+because in your Duo app you will see confirmation notification
+
+29
+00:01:37,925 --> 00:01:40,200
+that you will need to approve
+
+30
+00:01:40,200 --> 00:01:44,195
+This might take not more than two minutes of setting up everything
+
+31
+00:01:44,200 --> 00:01:50,000
+So it's importing the row tables like the listings and the reviews and so on
+
+32
+00:01:50,000 --> 00:01:52,800
+You can take a look at the actual sequence if you want
+
+33
+00:01:52,800 --> 00:01:57,220
+sets up the dbt user and also sets up the reset user
+
+34
+00:01:57,220 --> 00:01:59,600
+and then verifies these rows
+
+35
+00:01:59,600 --> 00:02:02,400
+Okay so this has been complete
+
+36
+00:02:02,400 --> 00:02:06,000
+So now we are ready to download the configuration files
+
+37
+00:02:06,000 --> 00:02:09,756
+This is a super important step so don't skip it
+
+38
+00:02:09,756 --> 00:02:13,780
+because then you will need to do everything from ground zero
+
+39
+00:02:13,800 --> 00:02:17,200
+First there is a dbtprofiles yml
+
+40
+00:02:17,200 --> 00:02:19,000
+We will learn more about this later
+
+41
+00:02:19,000 --> 00:02:21,997
+This is basically your dbt connection configuration
+
+42
+00:02:22,000 --> 00:02:25,290
+Please click it and download it to somewhere
+
+43
+00:02:25,290 --> 00:02:29,591
+where you will be able to copy it from into your dbt project later
+
+44
+00:02:29,600 --> 00:02:32,400
+Also there is the preset instructions
+
+45
+00:02:32,400 --> 00:02:35,760
+which includes a configuration file for the BI tool
+
+46
+00:02:35,760 --> 00:02:38,400
+that we are using later in the course
+
+47
+00:02:38,400 --> 00:02:42,196
+So please download preset instructions too
+
+48
+00:02:42,200 --> 00:02:44,243
+So keep these two files handy
+
+49
+00:02:44,243 --> 00:02:47,194
+as we are going to need them in the next videos
+
+50
+00:02:47,200 --> 00:02:50,073
+In the next lecture I will show you what happens behind the scenes
+
+51
+00:02:50,073 --> 00:02:51,594
+of this automatic Snowflake app
+
+52
+00:02:51,600 --> 00:02:53,796
+But if you just want to get going
+
+53
+00:02:53,800 --> 00:02:58,360
+then feel free to just tick the check mark in the next lecture
+
+54
+00:02:58,360 --> 00:03:01,400
+and mark it completed and skip over it

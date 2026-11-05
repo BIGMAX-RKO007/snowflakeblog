@@ -1,0 +1,14 @@
+airbnb:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: mvfryvt-nv04752
+      user: dbt
+      role: TRANSFORM
+      private_key_path: "C:\\Users\\FX\\Projects\\SnowflakeBlog\\dbt_keys\\rsa_key.p8"
+      warehouse: COMPUTE_WH
+      database: AIRBNB
+      schema: DEV
+      threads: 4
+      client_session_keep_alive: False

@@ -1,0 +1,215 @@
+1
+00:00:00,000 --> 00:00:02,750
+Now that we have a working dbt installation
+
+2
+00:00:02,750 --> 00:00:05,250
+let's go through the file structure
+
+3
+00:00:05,250 --> 00:00:09,942
+with special regards to the dbtproject yml Please open dbtproject yml
+
+4
+00:00:09,942 --> 00:00:12,992
+and I will simply guide you through this
+
+5
+00:00:13,000 --> 00:00:14,996
+Our project will have a name
+
+6
+00:00:14,996 --> 00:00:16,992
+and it will have a version
+
+7
+00:00:17,000 --> 00:00:20,500
+You can access these as configuration variables
+
+8
+00:00:20,500 --> 00:00:22,250
+meta parameters if you want
+
+9
+00:00:22,250 --> 00:00:25,000
+but it doesn't matter too much for us now
+
+10
+00:00:25,000 --> 00:00:28,360
+You can also configure which profile to use
+
+11
+00:00:28,360 --> 00:00:32,000
+So remember this is where it connects to right
+
+12
+00:00:32,000 --> 00:00:34,450
+So we work with the Airbnb profile
+
+13
+00:00:34,450 --> 00:00:37,987
+and this is what it will look for in the profile file
+
+14
+00:00:38,000 --> 00:00:42,278
+And then we have a bunch of paths So we have models
+
+15
+00:00:42,278 --> 00:00:46,272
+and you will see that models are basically the tables
+
+16
+00:00:46,272 --> 00:00:51,521
+and the views and everything that we are building We have analysis
+
+17
+00:00:51,521 --> 00:00:58,832
+Analysis are those sequels that you simply want to execute manually We have tests
+
+18
+00:00:58,832 --> 00:01:01,120
+We will spend quite some time on tests
+
+19
+00:01:01,120 --> 00:01:04,000
+There are many test types in dbt We have seeds
+
+20
+00:01:04,000 --> 00:01:07,000
+If you have some local data like a local CSV
+
+21
+00:01:07,000 --> 00:01:09,750
+that you want to push to your data warehouse
+
+22
+00:01:09,750 --> 00:01:13,332
+then this will go into the seed folder You have macros
+
+23
+00:01:13,332 --> 00:01:20,666
+And macros are little reusable snippets that we will cover later We have snapshots
+
+24
+00:01:20,666 --> 00:01:25,500
+which will be the SED two type dimension tables And
+
+25
+00:01:25,500 --> 00:01:28,500
+any time you execute dbt
+
+26
+00:01:28,500 --> 00:01:33,000
+dbt will create folders like target
+
+27
+00:01:33,000 --> 00:01:35,500
+And also when you install the dbt packages
+
+28
+00:01:35,500 --> 00:01:37,500
+so third party dbt packages
+
+29
+00:01:37,500 --> 00:01:41,000
+it's going to create a folder called dbt packages
+
+30
+00:01:41,000 --> 00:01:44,025
+The clean targets parameter tells dbt
+
+31
+00:01:44,025 --> 00:01:47,875
+which folders to delete when you execute dbt clean
+
+32
+00:01:47,875 --> 00:01:52,000
+So you want to get rid of everything that dbt generated
+
+33
+00:01:52,000 --> 00:01:54,532
+You can see that all of these are arrays
+
+34
+00:01:54,532 --> 00:01:57,986
+so you can have multiple folders actually for all of these
+
+35
+00:01:58,000 --> 00:02:00,967
+So for example if you have a bunch of macros
+
+36
+00:02:00,967 --> 00:02:03,478
+that you want to reuse across dbt projects
+
+37
+00:02:03,478 --> 00:02:05,989
+then you can have your local macros folder
+
+38
+00:02:06,000 --> 00:02:08,340
+And you will be able to like you know
+
+39
+00:02:08,340 --> 00:02:11,985
+like also dot dot slash common macros or something
+
+40
+00:02:12,000 --> 00:02:15,993
+You will be able to add in here So shared macros
+
+41
+00:02:16,000 --> 00:02:18,750
+Then the main part of our dbt project folder
+
+42
+00:02:18,750 --> 00:02:21,000
+is the actual model definitions
+
+43
+00:02:21,000 --> 00:02:22,944
+This is the model configuration
+
+44
+00:02:22,944 --> 00:02:25,968
+Here you will see that we already have an Airbnb project
+
+45
+00:02:25,968 --> 00:02:28,992
+which corresponds to the name of this project right
+
+46
+00:02:29,000 --> 00:02:33,849
+And in the Airbnb project it says that we have a model group
+
+47
+00:02:33,849 --> 00:02:38,985
+or a folder called example which we want to materialize as few
+
+48
+00:02:39,000 --> 00:02:42,996
+We will come back to all of these like materializations and so on
+
+49
+00:02:43,000 --> 00:02:47,998
+I would like to ask you to delete this for now and just save it
+
+50
+00:02:48,000 --> 00:02:54,500
+And also if you go to models you will actually see an example folder We don't need that
+
+51
+00:02:54,500 --> 00:02:59,344
+Please right click and delete the whole example for OK
+
+52
+00:02:59,344 --> 00:03:04,509
+So this is now a clean blank slate project folder
+
+53
+00:03:04,509 --> 00:03:08,984
+that we can use to start building on projects on
+
+54
+00:03:09,000 --> 00:03:11,000
+I see you in the next video

@@ -1,0 +1,519 @@
+1
+00:00:00,000 --> 00:00:07,040
+Finally we are ready to set up our dbt project Let's do this
+
+2
+00:00:07,040 --> 00:00:10,209
+Ensure that your virtual lamp is activated
+
+3
+00:00:10,209 --> 00:00:12,513
+and we will go and say dbt init
+
+4
+00:00:12,513 --> 00:00:21,465
+and one important piece I'm gonna get back to this in a second is skip profile setup
+
+5
+00:00:21,465 --> 00:00:24,045
+and then our project name
+
+6
+00:00:24,045 --> 00:00:29,225
+and our project name is rbnb Please execute this
+
+7
+00:00:29,225 --> 00:00:34,480
+one of course you will find this command in the course resources markdown
+
+8
+00:00:34,480 --> 00:00:39,160
+Okay it's up and running
+
+9
+00:00:39,160 --> 00:00:44,453
+Let's open this folder in your editor
+
+10
+00:00:44,453 --> 00:00:50,275
+which in my case is Visual Studio Code
+
+11
+00:00:50,280 --> 00:00:53,504
+You can see that we have a bunch of subfolders and files in this folder
+
+12
+00:00:53,504 --> 00:00:58,400
+which of course we will explore in great detail later in the course
+
+13
+00:00:58,400 --> 00:01:05,793
+For now let's just take the profiles yaml that you downloaded from the dbt setup app
+
+14
+00:01:05,800 --> 00:01:08,797
+and copy it into this folder
+
+15
+00:01:08,800 --> 00:01:12,115
+I will go and simply drag and drop it in there
+
+16
+00:01:12,115 --> 00:01:17,600
+but you can just copy and paste it in there in any way you like
+
+17
+00:01:17,600 --> 00:01:21,424
+The main thing is that you want to end up with a profiles yaml
+
+18
+00:01:21,424 --> 00:01:25,599
+which has all the connection details to Snowflake
+
+19
+00:01:25,600 --> 00:01:27,436
+Let's see if it works
+
+20
+00:01:27,440 --> 00:01:30,252
+First of all as you open the editor
+
+21
+00:01:30,252 --> 00:01:34,191
+you might want to re enable your virtual environment
+
+22
+00:01:34,200 --> 00:01:37,274
+As you can see mine has been already re enabled
+
+23
+00:01:37,280 --> 00:01:43,718
+And now you can say dbt debug So execute dbt debug
+
+24
+00:01:43,720 --> 00:01:47,515
+dbt debug will take a look at your project
+
+25
+00:01:47,515 --> 00:01:54,467
+and tell you if the whole file structure and everything is consistent
+
+26
+00:01:54,467 --> 00:01:59,279
+and if it can connect to your data warehouse
+
+27
+00:01:59,280 --> 00:02:03,076
+It should only take a second or two to execute
+
+28
+00:02:03,080 --> 00:02:06,201
+And it says that our profiles file is okay
+
+29
+00:02:06,201 --> 00:02:10,000
+our dbt project yaml is okay Git is found
+
+30
+00:02:10,000 --> 00:02:13,541
+If you don't have Git installed you might see an error
+
+31
+00:02:13,541 --> 00:02:14,868
+or Git not found here
+
+32
+00:02:14,880 --> 00:02:16,518
+Don't worry about that for now
+
+33
+00:02:16,520 --> 00:02:19,915
+You don't need Git for the core part of this course
+
+34
+00:02:19,920 --> 00:02:22,636
+Then it tells you all about the connections
+
+35
+00:02:22,636 --> 00:02:25,126
+and it tries to connect to Snowflake
+
+36
+00:02:25,140 --> 00:02:29,078
+If you see connection okay you're golden
+
+37
+00:02:29,080 --> 00:02:33,419
+If you have problems connecting to Snowflake when you execute dbt debug
+
+38
+00:02:33,419 --> 00:02:37,823
+the most common issues are that you are either behind the VPN
+
+39
+00:02:37,823 --> 00:02:43,399
+or that you are behind a corporate proxy or a corporate firewall
+
+40
+00:02:43,400 --> 00:02:47,002
+In this case I would like to ask you to switch off the VPN
+
+41
+00:02:47,002 --> 00:02:50,369
+and ensure that you use a laptop and a network
+
+42
+00:02:50,369 --> 00:02:54,691
+that provides you with unconstrained network access
+
+43
+00:02:54,700 --> 00:02:57,691
+So you might want to use your personal laptop
+
+44
+00:02:57,691 --> 00:03:00,432
+in your run into issues or just switch wifi
+
+45
+00:03:00,440 --> 00:03:07,155
+and use a wifi network that doesn't constrain your network access
+
+46
+00:03:07,160 --> 00:03:11,354
+Let's talk a bit about why we use the skip profile setup switch
+
+47
+00:03:11,360 --> 00:03:16,008
+We did this because by default dbt tries to setup
+
+48
+00:03:16,008 --> 00:03:19,750
+your profile file not in your project folder
+
+49
+00:03:19,750 --> 00:03:22,000
+but in your home folder
+
+50
+00:03:22,000 --> 00:03:25,058
+For earlier dbt versions the default location
+
+51
+00:03:25,058 --> 00:03:32,719
+for your profiles folder was a folder called dbt inside your home folder
+
+52
+00:03:32,720 --> 00:03:35,020
+This has changed with recent dbt versions
+
+53
+00:03:35,020 --> 00:03:38,960
+and now your default profiles folder is your project folder
+
+54
+00:03:38,960 --> 00:03:41,196
+But I want to discuss a little bit about it
+
+55
+00:03:41,200 --> 00:03:45,480
+So by default you would go to your home folder
+
+56
+00:03:45,480 --> 00:03:49,101
+dbt folder both in windows and on a mac
+
+57
+00:03:49,101 --> 00:03:51,720
+and here you would find a profile siamak
+
+58
+00:03:51,720 --> 00:03:55,108
+Now you won't find it here and that's ok
+
+59
+00:03:55,108 --> 00:03:57,880
+I just set this up for you for demo
+
+60
+00:03:57,880 --> 00:04:02,099
+And the reason behind this was that generally speaking
+
+61
+00:04:02,099 --> 00:04:05,656
+you don't want to pack your connection details
+
+62
+00:04:05,656 --> 00:04:09,946
+which has your private key and other sensitive information
+
+63
+00:04:09,946 --> 00:04:14,200
+in your project folder because you don't want to submit it to git
+
+64
+00:04:14,200 --> 00:04:17,280
+and of course your connection might be different
+
+65
+00:04:17,280 --> 00:04:20,197
+depending on if you are on your own laptop
+
+66
+00:04:20,197 --> 00:04:22,871
+or if you are on a production server
+
+67
+00:04:22,880 --> 00:04:25,800
+So if you work with production dbt apps
+
+68
+00:04:25,800 --> 00:04:30,180
+I would suggest you to either copy the profile siamak
+
+69
+00:04:30,180 --> 00:04:34,821
+to your project folder automatically through a CICD pipeline
+
+70
+00:04:34,821 --> 00:04:38,578
+and exclude it from git so never submit it
+
+71
+00:04:38,578 --> 00:04:42,189
+or just use it in an arbitrary location
+
+72
+00:04:42,200 --> 00:04:44,816
+Regardless where you have your profile siamak
+
+73
+00:04:44,816 --> 00:04:48,881
+you can always execute dbt with the dash profile dr parameter
+
+74
+00:04:48,881 --> 00:04:52,955
+which specifies the path to your profile siamak
+
+75
+00:04:52,960 --> 00:04:57,368
+In this course for simplicity we use the profile siamak's default location
+
+76
+00:04:57,368 --> 00:05:00,080
+which is our project folder
+
+77
+00:05:00,080 --> 00:05:03,018
+So let's take a look at the profile siamak file
+
+78
+00:05:03,020 --> 00:05:05,533
+The profile siamak has a profile name
+
+79
+00:05:05,533 --> 00:05:09,052
+which we will reference later in our project file
+
+80
+00:05:09,060 --> 00:05:11,618
+so we know which profile to use
+
+81
+00:05:11,618 --> 00:05:14,176
+and then dbt can have multiple targets
+
+82
+00:05:14,176 --> 00:05:16,676
+for example you can have a target
+
+83
+00:05:16,676 --> 00:05:19,661
+so a connection to your dev environment
+
+84
+00:05:19,661 --> 00:05:21,830
+and we would have like a QA
+
+85
+00:05:21,840 --> 00:05:26,394
+for testing and a prode environment if you wish
+
+86
+00:05:26,400 --> 00:05:30,390
+Here in this example we only have a dev environment for now
+
+87
+00:05:30,390 --> 00:05:34,182
+so we have a single target which is called dev
+
+88
+00:05:34,182 --> 00:05:37,916
+and also we are setting this as a default target
+
+89
+00:05:37,920 --> 00:05:42,075
+And everything that comes in between is your connection detail
+
+90
+00:05:42,080 --> 00:05:44,462
+We use a snowflake type connection
+
+91
+00:05:44,462 --> 00:05:46,367
+this is our snowflake account
+
+92
+00:05:46,367 --> 00:05:50,008
+we are authenticating with the dbt user that we set up
+
+93
+00:05:50,008 --> 00:05:52,217
+which has the role transform
+
+94
+00:05:52,217 --> 00:05:56,797
+it's again a role that we set up with the automatic setup script
+
+95
+00:05:56,800 --> 00:06:00,136
+Here is a private key that the setup script generated for us
+
+96
+00:06:00,136 --> 00:06:03,400
+and the private key also has a passphrase
+
+97
+00:06:03,400 --> 00:06:05,913
+It is optional to have a passphrase
+
+98
+00:06:05,913 --> 00:06:08,676
+but our BI tool will require a private key
+
+99
+00:06:08,676 --> 00:06:11,304
+which is protected by a passphrase
+
+100
+00:06:11,304 --> 00:06:15,032
+so I just added a single digit Q as a passphrase
+
+101
+00:06:15,032 --> 00:06:18,000
+when we generated our private key
+
+102
+00:06:18,000 --> 00:06:20,450
+The database we want to use is Airbnb
+
+103
+00:06:20,450 --> 00:06:23,635
+this is because our automated snowflake setup
+
+104
+00:06:23,635 --> 00:06:26,394
+set up an Airbnb database for us
+
+105
+00:06:26,394 --> 00:06:28,594
+with a schema called row
+
+106
+00:06:28,594 --> 00:06:34,480
+which has all the host listing and reviews tables
+
+107
+00:06:34,480 --> 00:06:36,622
+And the output schemas will be dev
+
+108
+00:06:36,622 --> 00:06:42,100
+so this is where we want to then later generate our tables
+
+109
+00:06:42,100 --> 00:06:46,134
+For the sake of simplicity we also instruct dbt
+
+110
+00:06:46,134 --> 00:06:49,495
+to only work on one model at a time
+
+111
+00:06:49,495 --> 00:06:53,897
+so we don't get into parallel execution problems
+
+112
+00:06:53,900 --> 00:06:58,350
+And in snowflake there is a default data warehouse that we will use
+
+113
+00:06:58,350 --> 00:07:01,000
+and it is called compute wh
+
+114
+00:07:01,000 --> 00:07:04,540
+This is how our profile server has been set up
+
+115
+00:07:04,540 --> 00:07:07,490
+and now you are up and running with dbt
+
+116
+00:07:07,500 --> 00:07:12,155
+There is one last but very important thing to avoid any confusion
+
+117
+00:07:12,160 --> 00:07:15,468
+I'm going to use sometimes VisioStudio cost terminal
+
+118
+00:07:15,468 --> 00:07:20,157
+and sometimes standalone terminal application It doesn't matter right
+
+119
+00:07:20,160 --> 00:07:23,525
+I would suggest you just use VisioStudio cost terminal
+
+120
+00:07:23,525 --> 00:07:27,117
+because that gives you even if you are on windows
+
+121
+00:07:27,117 --> 00:07:32,432
+the closest experience to my environment here on a Mac
+
+122
+00:07:32,440 --> 00:07:35,932
+And another super important detail is that
+
+123
+00:07:35,932 --> 00:07:41,160
+you will see sometimes Airbnb here as my project folder name
+
+124
+00:07:41,160 --> 00:07:45,960
+but sometimes you will see dbt learn
+
+125
+00:07:45,960 --> 00:07:52,424
+The reason for that is that recently dbt labs has trademarked the dbt learn term
+
+126
+00:07:52,424 --> 00:07:57,112
+so now in the new videos I go with the Airbnb project name
+
+127
+00:07:57,112 --> 00:08:03,115
+but in some earlier videos you will see that the folder I work on is dbt learn
+
+128
+00:08:03,120 --> 00:08:07,188
+It doesn't matter you will always see Airbnb
+
+129
+00:08:07,188 --> 00:08:10,239
+and everything will work 100 the same
+
+130
+00:08:10,240 --> 00:08:12,875
+So let's move on and get our hands dirty with dbt

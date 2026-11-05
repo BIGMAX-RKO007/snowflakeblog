@@ -1,0 +1,455 @@
+1
+00:00:00,000 --> 00:00:04,658
+Let's install dbt Here is a quick reminder of the requirements
+
+2
+00:00:04,658 --> 00:00:07,398
+You must have a working Python version
+
+3
+00:00:07,400 --> 00:00:11,620
+git installed on your computer a working github account
+
+4
+00:00:11,620 --> 00:00:19,869
+and I would strongly encourage you to Use Vizul studio code It is open source a free solution
+
+5
+00:00:19,869 --> 00:00:22,292
+and dbt has amazing extensions
+
+6
+00:00:22,292 --> 00:00:24,660
+if you use Vizul studio code
+
+7
+00:00:24,660 --> 00:00:30,080
+and Vizul studio code will give you the best course experience
+
+8
+00:00:30,080 --> 00:00:33,350
+Also we will need to install uv a python package manager
+
+9
+00:00:33,350 --> 00:00:34,876
+but we will do this together
+
+10
+00:00:34,880 --> 00:00:37,342
+Here are the steps we will go through
+
+11
+00:00:37,342 --> 00:00:42,022
+first You will make a copy of the official student repository on github
+
+12
+00:00:42,040 --> 00:00:45,460
+Then you will take your copy and clone it
+
+13
+00:00:45,460 --> 00:00:48,538
+import it into Vizul studio code
+
+14
+00:00:48,540 --> 00:00:50,862
+Then you will install uv
+
+15
+00:00:50,862 --> 00:00:58,200
+and with the help of uv install dbt and that's it Let's get to it
+
+16
+00:00:58,200 --> 00:01:00,001
+When it comes to python
+
+17
+00:01:00,001 --> 00:01:04,635
+please ensure that you have a compatible python version installed
+
+18
+00:01:04,635 --> 00:01:09,217
+now here You see the official dbt websites documentation
+
+19
+00:01:09,217 --> 00:01:12,562
+of what both python versions are available
+
+20
+00:01:12,562 --> 00:01:16,640
+and compatible with the latest dbt
+
+21
+00:01:16,640 --> 00:01:18,512
+You will of course find this link
+
+22
+00:01:18,512 --> 00:01:21,554
+and every other link in the course resources
+
+23
+00:01:21,560 --> 00:01:24,657
+And I would like to ask you to just come here
+
+24
+00:01:24,657 --> 00:01:26,465
+and pick the latest version
+
+25
+00:01:26,480 --> 00:01:31,034
+Maybe it's not 1 11 when you watch the recording
+
+26
+00:01:31,040 --> 00:01:35,089
+Maybe the latest supported version is not python 3 13
+
+27
+00:01:35,089 --> 00:01:39,066
+but try to find something in this area
+
+28
+00:01:39,066 --> 00:01:42,172
+so Definitely the latest version
+
+29
+00:01:42,172 --> 00:01:45,634
+and probably one of the the later python releases
+
+30
+00:01:45,640 --> 00:01:49,800
+Okay and please ensure you have that installed on your computer
+
+31
+00:01:50,840 --> 00:01:53,973
+After that follow the link in course resources
+
+32
+00:01:53,973 --> 00:01:55,901
+and come to the dbt student repo
+
+33
+00:01:55,901 --> 00:01:57,829
+and make a copy by forking it
+
+34
+00:01:57,829 --> 00:02:00,903
+click fork and For compatibility reasons
+
+35
+00:02:00,903 --> 00:02:04,806
+the easiest is to call the new repo simply course
+
+36
+00:02:04,806 --> 00:02:08,106
+but it's up to you how you want to call it
+
+37
+00:02:08,120 --> 00:02:12,630
+Under your username you click create fork
+
+38
+00:02:12,630 --> 00:02:19,040
+and In a few seconds there will be a repo called course under your username
+
+39
+00:02:19,080 --> 00:02:22,353
+So this is what we can then import into visual studio code
+
+40
+00:02:22,360 --> 00:02:26,763
+But here is a shortcut if you are in a hurry with this course
+
+41
+00:02:26,763 --> 00:02:29,612
+you can go and click code and code spaces
+
+42
+00:02:29,612 --> 00:02:32,920
+and launch code space on main
+
+43
+00:02:32,920 --> 00:02:38,314
+This would take you to a visual studio instance which has dbt installed
+
+44
+00:02:38,314 --> 00:02:41,156
+so it has everything installed for you
+
+45
+00:02:41,160 --> 00:02:42,974
+That's something I prepared for you
+
+46
+00:02:42,974 --> 00:02:45,147
+in case you just want to go as fast as possible
+
+47
+00:02:45,280 --> 00:02:49,598
+And you don't want to care about the local installation steps
+
+48
+00:02:49,600 --> 00:02:52,592
+It might take a minute or two for the code space to come up
+
+49
+00:02:52,600 --> 00:02:54,025
+But once it's came up
+
+50
+00:02:54,025 --> 00:02:57,160
+if in a terminal you execute dbt version
+
+51
+00:02:57,160 --> 00:03:00,709
+You will see right away that dbt is up and running
+
+52
+00:03:00,709 --> 00:03:04,237
+alright But for those of you who want to use dbt locally
+
+53
+00:03:04,240 --> 00:03:08,748
+I would suggest that you click code and then local
+
+54
+00:03:08,748 --> 00:03:10,358
+and if you have a
+
+55
+00:03:10,880 --> 00:03:13,426
+GitHub public key submitted to github
+
+56
+00:03:13,426 --> 00:03:15,043
+then you can use the SSH link
+
+57
+00:03:15,043 --> 00:03:18,745
+otherwise I suggest you to use HTTPS or click HTTPS
+
+58
+00:03:18,760 --> 00:03:21,469
+Click the link to this repository
+
+59
+00:03:21,469 --> 00:03:23,877
+and then open visual studio code
+
+60
+00:03:23,880 --> 00:03:26,104
+In VS code in a new window
+
+61
+00:03:26,104 --> 00:03:31,616
+click the source control menu click clone repository Paste the URL
+
+62
+00:03:31,616 --> 00:03:34,956
+press enter and you will find yourself
+
+63
+00:03:34,956 --> 00:03:36,960
+in your own student repo
+
+64
+00:03:38,040 --> 00:03:43,210
+Click terminal new terminal to ensure that you have a terminal panel up and running
+
+65
+00:03:43,220 --> 00:03:45,585
+Let's see what you have in your student repo
+
+66
+00:03:45,585 --> 00:03:47,520
+in the course resources folder
+
+67
+00:03:47,520 --> 00:03:51,010
+You have the course resources MD file with instructions and code
+
+68
+00:03:51,010 --> 00:03:53,191
+and course resources for this course
+
+69
+00:03:53,200 --> 00:03:56,397
+Then you have a devcontainer folder
+
+70
+00:03:56,400 --> 00:03:57,768
+Feel free to ignore this
+
+71
+00:03:57,768 --> 00:03:59,821
+this is the code space definition
+
+72
+00:03:59,821 --> 00:04:01,873
+that I showed you a minute ago
+
+73
+00:04:01,880 --> 00:04:05,897
+And we have the pyproject tummel
+
+74
+00:04:05,897 --> 00:04:08,574
+which is the dbt and
+
+75
+00:04:08,580 --> 00:04:13,130
+The python version definition of this repository
+
+76
+00:04:13,130 --> 00:04:15,853
+This is what we will use with UV
+
+77
+00:04:15,853 --> 00:04:18,583
+so let's go ahead and install UV
+
+78
+00:04:18,583 --> 00:04:22,678
+by clicking the UV installation link in course resources
+
+79
+00:04:22,680 --> 00:04:26,617
+On the UV website you will see very simple instructions
+
+80
+00:04:26,617 --> 00:04:28,585
+both for Mac or for Windows
+
+81
+00:04:28,585 --> 00:04:32,367
+as I'm on the Mac I will just copy this command
+
+82
+00:04:32,367 --> 00:04:36,087
+and please do the same on Mac or Windows
+
+83
+00:04:36,087 --> 00:04:38,337
+and Paste it to your terminal
+
+84
+00:04:38,337 --> 00:04:44,571
+press enter and in a few seconds UV will be installed Once UV is installed
+
+85
+00:04:44,571 --> 00:04:48,353
+I would like to ask you to execute UV sync
+
+86
+00:04:48,353 --> 00:04:51,191
+which will create a virtual lamp
+
+87
+00:04:51,200 --> 00:04:53,440
+There is a new virtual lamp
+
+88
+00:04:53,440 --> 00:04:57,480
+click yes so Visual Studio code can use it
+
+89
+00:04:57,480 --> 00:04:59,090
+in case you have this pop up
+
+90
+00:04:59,090 --> 00:05:02,081
+I think it's managed by the Python extension
+
+91
+00:05:02,081 --> 00:05:04,322
+and Then you will see right away
+
+92
+00:05:04,322 --> 00:05:06,610
+that there is a vm folder
+
+93
+00:05:06,610 --> 00:05:09,756
+This is for your Python virtual environment
+
+94
+00:05:09,760 --> 00:05:13,918
+Okay so now everything has been installed
+
+95
+00:05:13,920 --> 00:05:16,331
+Let's activate our virtual environment
+
+96
+00:05:16,331 --> 00:05:20,428
+and please ensure that every time you reopen Visual Studio code
+
+97
+00:05:20,720 --> 00:05:23,144
+You activate your virtual environment
+
+98
+00:05:23,144 --> 00:05:27,991
+On Mac or Linux the activation command is source vm bin activate
+
+99
+00:05:28,000 --> 00:05:31,291
+And on Windows PowerShell it will be
+
+100
+00:05:31,291 --> 00:05:33,594
+vmv scripts activate ps 1
+
+101
+00:05:33,600 --> 00:05:36,480
+Of course all of these are in the course resources
+
+102
+00:05:36,480 --> 00:05:38,957
+Once your virtual lamp is activated
+
+103
+00:05:38,957 --> 00:05:42,203
+you can test it by executing dbt version
+
+104
+00:05:42,203 --> 00:05:46,395
+and as you can see dbt is up and running
+
+105
+00:05:46,400 --> 00:05:49,360
+Congrats and just a final note
+
+106
+00:05:49,960 --> 00:05:53,320
+You might see a different dbt version here
+
+107
+00:05:53,320 --> 00:05:56,870
+in the Pyproject com or there might be an update
+
+108
+00:05:56,870 --> 00:05:59,400
+whatever please don't worry about that
+
+109
+00:05:59,400 --> 00:06:03,276
+The version that you will find in your repository
+
+110
+00:06:03,276 --> 00:06:07,475
+is the version we tested the courseware against
+
+111
+00:06:07,480 --> 00:06:10,343
+So please use that version and trust me
+
+112
+00:06:10,343 --> 00:06:13,987
+if there is a new major dbt version coming out
+
+113
+00:06:14,000 --> 00:06:17,135
+Then the course will catch up very very soon with it
+
+114
+00:06:17,135 --> 00:06:19,064
+I'll see you in the next video

@@ -1,0 +1,439 @@
+1
+00:00:00,000 --> 00:00:02,666
+When it comes to developing dbt with VS code
+
+2
+00:00:02,666 --> 00:00:06,889
+you'll probably want to take the most out of development environment right
+
+3
+00:00:06,900 --> 00:00:09,700
+So you want to use tools whatsoever
+
+4
+00:00:09,700 --> 00:00:13,900
+that help you develop and test and build dbt projects faster
+
+5
+00:00:13,900 --> 00:00:17,086
+Now fortunately there are a few ways to do that
+
+6
+00:00:17,086 --> 00:00:19,781
+and I would like to show you two of them
+
+7
+00:00:19,781 --> 00:00:23,832
+and both of these are Visual Studio code extensions
+
+8
+00:00:23,832 --> 00:00:28,331
+and namely there is one official VS code extension
+
+9
+00:00:28,331 --> 00:00:32,413
+from dbt labs and it's completely built from
+
+10
+00:00:32,413 --> 00:00:35,031
+the ground up for dbt fusion
+
+11
+00:00:35,031 --> 00:00:39,240
+and this is the only official extension in VS code
+
+12
+00:00:39,240 --> 00:00:43,113
+and There is also another strong contender
+
+13
+00:00:43,113 --> 00:00:46,020
+which is called dbt power user
+
+14
+00:00:46,020 --> 00:00:48,740
+They were the original dbt extension
+
+15
+00:00:48,740 --> 00:00:50,665
+so this company ultimate AI
+
+16
+00:00:50,665 --> 00:00:56,165
+they've started already quite a few years ago with creating dbt extensions
+
+17
+00:00:56,165 --> 00:00:59,404
+and This is a third party extension
+
+18
+00:00:59,404 --> 00:01:02,266
+and it supports both dbt core and dbt fusion
+
+19
+00:01:02,280 --> 00:01:05,233
+Let's take a quick look at the comparison
+
+20
+00:01:05,233 --> 00:01:08,431
+and the features so you can make an informed decision
+
+21
+00:01:08,440 --> 00:01:10,360
+About if you want to use them
+
+22
+00:01:10,360 --> 00:01:12,280
+and which one you want to use
+
+23
+00:01:12,280 --> 00:01:14,832
+Now for the feature comparison
+
+24
+00:01:14,832 --> 00:01:18,660
+they are I wouldn't say they are very much the same
+
+25
+00:01:18,660 --> 00:01:21,065
+But they all cover the base features
+
+26
+00:01:21,065 --> 00:01:24,272
+Let's take a look at the licensing first
+
+27
+00:01:24,680 --> 00:01:29,240
+So the official dbt extension it is free up to 15 users
+
+28
+00:01:29,240 --> 00:01:31,235
+and then after 15 users
+
+29
+00:01:31,240 --> 00:01:35,320
+You will need to make a deal with dbt to continue using it
+
+30
+00:01:35,320 --> 00:01:38,440
+You can use it completely free to your projects
+
+31
+00:01:38,440 --> 00:01:41,560
+but it does require registration after 14 days
+
+32
+00:01:41,560 --> 00:01:46,760
+The dbt power user extension it follows a freemium model
+
+33
+00:01:46,760 --> 00:01:49,659
+That means that it actually has like three layers
+
+34
+00:01:49,880 --> 00:01:54,934
+the first layer is stuff that you can use without registration for free
+
+35
+00:01:54,934 --> 00:02:00,876
+and Then cups other features that you can use for free but it requires Registration
+
+36
+00:02:00,876 --> 00:02:04,964
+the reason for that is that some of their free features
+
+37
+00:02:04,964 --> 00:02:09,802
+use their backend for example LLM based dbt advice whatsoever
+
+38
+00:02:09,802 --> 00:02:13,138
+and for that you will need to acquire an API key
+
+39
+00:02:13,240 --> 00:02:15,935
+But they have a kind of generous free offering
+
+40
+00:02:15,935 --> 00:02:19,855
+and then there are a bunch of like super premium features
+
+41
+00:02:19,855 --> 00:02:23,280
+that you will need to Pay for if you want to use them
+
+42
+00:02:23,280 --> 00:02:26,836
+So let's just go through the feature matrix
+
+43
+00:02:26,840 --> 00:02:29,350
+I try to keep this like very very compact
+
+44
+00:02:29,350 --> 00:02:31,358
+focusing on the the main features
+
+45
+00:02:31,360 --> 00:02:35,158
+Now first of all there can be only a single official extension
+
+46
+00:02:35,160 --> 00:02:40,440
+so if you are you want to have something that's like super solid and future proof and
+
+47
+00:02:40,840 --> 00:02:44,716
+You know you don't want to take any risk of working with a third party
+
+48
+00:02:44,720 --> 00:02:48,178
+You probably want to use the official dbt extension
+
+49
+00:02:48,180 --> 00:02:51,825
+But there is a caveat with the official dbt extension
+
+50
+00:02:51,825 --> 00:02:54,498
+and that is that it only supports dbt fusion
+
+51
+00:02:54,500 --> 00:02:57,713
+So if you want to work with dbt core
+
+52
+00:02:57,720 --> 00:03:02,874
+Then I would suggest you to go and use the dbt power user extension
+
+53
+00:03:02,874 --> 00:03:05,045
+which fully supports dbt core
+
+54
+00:03:05,600 --> 00:03:08,420
+Both of these extensions support dbt fusion
+
+55
+00:03:08,420 --> 00:03:10,300
+and also the dbt cloud platform
+
+56
+00:03:10,300 --> 00:03:13,120
+from that point there are nuance differences
+
+57
+00:03:13,120 --> 00:03:15,450
+so I think for the basics
+
+58
+00:03:15,450 --> 00:03:19,593
+the basics like inspecting SQL and executing tests
+
+59
+00:03:19,593 --> 00:03:22,862
+and taking a look at the lineage of your
+
+60
+00:03:24,060 --> 00:03:28,197
+everything works very very well in both extensions
+
+61
+00:03:28,197 --> 00:03:34,912
+and Then dbt power user adds a bunch of AI features on top of that
+
+62
+00:03:35,120 --> 00:03:38,418
+So hopefully this will help you decide which extension to you
+
+63
+00:03:38,418 --> 00:03:42,074
+as a last note I would like to give you some support materials
+
+64
+00:03:42,074 --> 00:03:43,621
+and also maybe some advice
+
+65
+00:03:43,621 --> 00:03:45,389
+now here is a personal opinion
+
+66
+00:03:45,400 --> 00:03:49,627
+I think that if you want to learn dbt or any technology
+
+67
+00:03:49,627 --> 00:03:53,592
+you cannot spare yourself the struggle the cognitive load
+
+68
+00:03:53,600 --> 00:03:56,380
+To sweat your way through the basics
+
+69
+00:03:56,380 --> 00:04:01,690
+So I would suggest you to go and get your feet wet with dbt first
+
+70
+00:04:01,690 --> 00:04:05,649
+with the vanilla Visual Studio code without any extensions
+
+71
+00:04:05,649 --> 00:04:07,839
+so you can recognize your blind spot
+
+72
+00:04:07,840 --> 00:04:11,233
+You can recognize what you fully understand but you don't understand you get the point
+
+73
+00:04:11,240 --> 00:04:16,650
+But if you are keen to get started with the extensions right now
+
+74
+00:04:16,660 --> 00:04:20,442
+Then we are providing an alternative path in this course
+
+75
+00:04:20,442 --> 00:04:23,718
+so you can jump to later sections of the course
+
+76
+00:04:23,718 --> 00:04:27,104
+and install the Extensions now
+
+77
+00:04:27,104 --> 00:04:29,072
+now again here is one caveat
+
+78
+00:04:29,072 --> 00:04:32,075
+that if you go with the official Extension
+
+79
+00:04:32,075 --> 00:04:34,696
+if you install the official extension now
+
+80
+00:04:34,696 --> 00:04:38,030
+you will need to switch to dbt fusion to get it work
+
+81
+00:04:38,040 --> 00:04:41,263
+but if you want to work with the power user extension
+
+82
+00:04:41,263 --> 00:04:42,874
+you can keep using dbt core
+
+83
+00:04:42,874 --> 00:04:45,587
+and dbt fusion is at the time of recording
+
+84
+00:04:45,587 --> 00:04:47,157
+is not yet feature complete
+
+85
+00:04:47,157 --> 00:04:50,489
+so for example documentation generation Doesn't work
+
+86
+00:04:50,489 --> 00:04:53,036
+if you go all in with dbt fusion
+
+87
+00:04:53,040 --> 00:04:56,363
+Anyway if you want to use the extensions
+
+88
+00:04:56,363 --> 00:04:58,779
+just fast forward in the course
+
+89
+00:04:58,779 --> 00:05:02,327
+and I'm giving you two GitHub code spaces
+
+90
+00:05:02,327 --> 00:05:05,463
+where you can just drag and drop your profile siamal
+
+91
+00:05:05,463 --> 00:05:07,392
+and get your feet wet right now
+
+92
+00:05:07,400 --> 00:05:09,836
+So you can see what these extensions offer
+
+93
+00:05:09,836 --> 00:05:13,287
+as always you will find all of the links to these resources
+
+94
+00:05:13,287 --> 00:05:15,520
+in the github course resources Section
+
+95
+00:05:15,520 --> 00:05:16,920
+but here is what you can do
+
+96
+00:05:16,920 --> 00:05:19,320
+if you want to give these extensions a shot
+
+97
+00:05:19,320 --> 00:05:21,133
+you just come to the repo
+
+98
+00:05:21,133 --> 00:05:24,004
+and then You switch the branch
+
+99
+00:05:24,004 --> 00:05:26,493
+to either official extension or power user
+
+100
+00:05:26,493 --> 00:05:29,945
+so for example if you want to work with the official extension
+
+101
+00:05:29,945 --> 00:05:31,700
+then you just switch to this branch
+
+102
+00:05:31,700 --> 00:05:34,174
+you go to code and Create the code space
+
+103
+00:05:34,174 --> 00:05:36,913
+and once the code space is up and running
+
+104
+00:05:36,913 --> 00:05:39,154
+you drag and drop your profile siamal
+
+105
+00:05:39,154 --> 00:05:42,877
+and your project will be Good to go and the same applies
+
+106
+00:05:42,877 --> 00:05:45,373
+exact same applies to power user
+
+107
+00:05:45,373 --> 00:05:50,820
+both of these workspaces have the Extensions pre installed for you so official extension
+
+108
+00:05:50,820 --> 00:05:53,760
+the official power user branch the power user extension
+
+109
+00:05:53,760 --> 00:05:55,576
+So you will be ready to go
+
+110
+00:05:55,576 --> 00:05:58,073
+all right I'll see you in the next lecture

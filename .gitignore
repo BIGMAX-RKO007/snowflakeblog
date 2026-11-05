@@ -11,9 +11,12 @@ Thumbs.db
 *.swp
 *.swo
 
-# Python
+# Python & Virtualenvs
 __pycache__/
 *.pyc
+.venv/
+venv/
+dbt_airbnb/.venv/
 
 # Audio & Video Media Files (Large Blobs)
 *.mp4
@@ -37,15 +40,22 @@ scripts/generate_*.py
 output/
 exports/
 scratch/
+logs/
+dbt_airbnb/logs/
+dbt_airbnb/airbnb/logs/
+dbt_airbnb/airbnb/target/
 
 # Local Oracle Data
 oradata/
 *.dbf
 
-# Temporary tokens & dumps
+# Temporary tokens & dumps & keys
 box_token.txt
 box_root_items.json
 *.token
+dbt_keys/
+*.p8
+*.pub
 upd/
 .backup/
 docs/images/.backup/

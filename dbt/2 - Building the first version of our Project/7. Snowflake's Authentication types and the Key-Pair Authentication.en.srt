@@ -1,0 +1,323 @@
+1
+00:00:00,000 --> 00:00:02,600
+Let me quickly explain you what we're gonna do
+
+2
+00:00:02,600 --> 00:00:06,600
+when we are setting up our tables and users and everything in Snowflake
+
+3
+00:00:06,600 --> 00:00:08,598
+Now as of November 2025
+
+4
+00:00:08,598 --> 00:00:11,596
+Snowflake made quite some changes
+
+5
+00:00:11,596 --> 00:00:14,594
+in how you can authenticate into it
+
+6
+00:00:14,600 --> 00:00:19,100
+So one is a username and password based authentication
+
+7
+00:00:19,100 --> 00:00:23,000
+You can have a multi factor app on your device
+
+8
+00:00:23,000 --> 00:00:27,369
+That works well but it doesn't work for so called service account
+
+9
+00:00:27,369 --> 00:00:31,995
+A service account is a non human entity accessing Snowflake
+
+10
+00:00:32,000 --> 00:00:34,018
+For example our dbt project
+
+11
+00:00:34,018 --> 00:00:37,477
+It's not a human it's a piece of software
+
+12
+00:00:37,477 --> 00:00:39,783
+so that is a service account
+
+13
+00:00:39,800 --> 00:00:42,563
+which means that we won't be able to use
+
+14
+00:00:42,563 --> 00:00:45,789
+a single username and password authentication for that
+
+15
+00:00:45,800 --> 00:00:48,300
+The second one is that you can generate
+
+16
+00:00:48,300 --> 00:00:51,050
+a personal access token in Snowflake
+
+17
+00:00:51,050 --> 00:00:54,800
+so a random string basically and authenticate with that
+
+18
+00:00:54,800 --> 00:00:59,735
+But in order to use that you will need to set up network policies in Snowflake
+
+19
+00:00:59,735 --> 00:01:02,790
+So that's more like an enterprise grade setting
+
+20
+00:01:02,800 --> 00:01:05,322
+Then there is single sign on
+
+21
+00:01:05,322 --> 00:01:09,738
+Single sign on means that you integrate Snowflake
+
+22
+00:01:09,738 --> 00:01:14,784
+with your Google workspace or Office 365 suite or whatever
+
+23
+00:01:14,800 --> 00:01:16,854
+and you go through these providers
+
+24
+00:01:16,854 --> 00:01:19,113
+That's something we don't want to do
+
+25
+00:01:19,113 --> 00:01:21,784
+because we don't want to overcomplicate things
+
+26
+00:01:21,800 --> 00:01:24,000
+And the fourth option and as you can see
+
+27
+00:01:24,000 --> 00:01:25,800
+this is what we're going to use
+
+28
+00:01:25,800 --> 00:01:27,800
+is the key pair based authentication
+
+29
+00:01:27,800 --> 00:01:32,859
+Now I want to show you how the key pair based authentication works
+
+30
+00:01:32,859 --> 00:01:36,793
+so you have a basic idea about what we're doing
+
+31
+00:01:36,800 --> 00:01:38,482
+Disclaimer I love this topic
+
+32
+00:01:38,482 --> 00:01:40,796
+I could speak about this for hours
+
+33
+00:01:40,800 --> 00:01:44,487
+This is what fuels digital signatures and digital certificates
+
+34
+00:01:44,487 --> 00:01:46,791
+and HTTPS and everything around it
+
+35
+00:01:46,800 --> 00:01:50,925
+So if you are an analytics engineer or a data engineer
+
+36
+00:01:50,925 --> 00:01:53,950
+I would suggest you to go and look up
+
+37
+00:01:53,950 --> 00:01:57,800
+the public key authentication or PKI infrastructure
+
+38
+00:01:57,800 --> 00:02:03,791
+to understand how this whole encryption and communication works It's super useful
+
+39
+00:02:03,800 --> 00:02:06,220
+But here comes a one minute intro
+
+40
+00:02:06,220 --> 00:02:08,640
+You as a user will create and generate
+
+41
+00:02:08,640 --> 00:02:11,786
+with a piece of software a so called key pair
+
+42
+00:02:11,800 --> 00:02:16,203
+A key pair consists of a private key that you never give anyone
+
+43
+00:02:16,203 --> 00:02:18,793
+and the public key which is public
+
+44
+00:02:18,800 --> 00:02:21,796
+So you can just give it to someone if they require it
+
+45
+00:02:21,800 --> 00:02:25,862
+Now these two keys are mathematically interconnected
+
+46
+00:02:25,862 --> 00:02:30,792
+which means that if you encrypt a message with the public key
+
+47
+00:02:30,800 --> 00:02:38,792
+then it will be only the private key holder who can decrypt this message That's the main thing
+
+48
+00:02:38,800 --> 00:02:42,790
+So what we're going to do is we're going to generate our key pair for us
+
+49
+00:02:42,800 --> 00:02:46,584
+We will register our public key into Snowflake
+
+50
+00:02:46,584 --> 00:02:48,790
+keep our private key with us
+
+51
+00:02:48,800 --> 00:02:50,708
+and then when we want to authenticate
+
+52
+00:02:50,708 --> 00:02:53,464
+Snowflake will be able to come up with a message
+
+53
+00:02:53,464 --> 00:02:55,796
+encrypt it with the public key we provided
+
+54
+00:02:55,800 --> 00:02:58,251
+send the encrypted message to us
+
+55
+00:02:58,251 --> 00:03:00,972
+and then we will be able to decode it
+
+56
+00:03:00,972 --> 00:03:05,795
+decrypt it thus proving Snowflake that we are the actual key holders
+
+57
+00:03:05,800 --> 00:03:10,177
+Now in reality the whole thing is somewhat more sophisticated than that
+
+58
+00:03:10,177 --> 00:03:11,789
+but you get the intuition
+
+59
+00:03:11,800 --> 00:03:15,800
+So we're going to use our private key in our dbt project
+
+60
+00:03:15,800 --> 00:03:17,800
+and also later in our BI tool
+
+61
+00:03:17,800 --> 00:03:20,050
+And with the help of these two keys
+
+62
+00:03:20,050 --> 00:03:23,800
+we will be able to authenticate and connect to Snowflake
+
+63
+00:03:23,800 --> 00:03:26,792
+The good news is that you don't need to worry about any of this
+
+64
+00:03:26,800 --> 00:03:31,228
+because I created an automatic setup script for the whole thing
+
+65
+00:03:31,228 --> 00:03:33,792
+that you will find in the course resources
+
+66
+00:03:33,800 --> 00:03:36,016
+but also here is the link for it
+
+67
+00:03:36,016 --> 00:03:38,788
+which will generate the key pair for you
+
+68
+00:03:38,800 --> 00:03:41,295
+and then set up the database tables
+
+69
+00:03:41,295 --> 00:03:43,791
+our Airbnb listings hot send reviews
+
+70
+00:03:43,800 --> 00:03:47,795
+set up a dbt Snowflake user and its permissions
+
+71
+00:03:47,800 --> 00:03:50,662
+and also set up a so called preset user
+
+72
+00:03:50,662 --> 00:03:53,785
+which will be our BI user and its permissions
+
+73
+00:03:53,800 --> 00:03:56,376
+I would encourage you to follow me in the next video
+
+74
+00:03:56,376 --> 00:03:58,791
+and go through this automized setup in a few minutes
+
+75
+00:03:58,800 --> 00:04:02,793
+but if you are very very much interested in the details
+
+76
+00:04:02,800 --> 00:04:06,850
+I'm sending up after the next video a longer video
+
+77
+00:04:06,850 --> 00:04:12,790
+where I explain every little step that this automatic setup script does for you
+
+78
+00:04:12,800 --> 00:04:15,793
+So if you want to understand it feel free to go through that too
+
+79
+00:04:15,800 --> 00:04:17,862
+But even if you choose the manual path
+
+80
+00:04:17,862 --> 00:04:21,784
+I would suggest you set up everything with the automatic application
+
+81
+00:04:21,800 --> 00:04:26,800
+and then just follow along the video to see how I did everything manually

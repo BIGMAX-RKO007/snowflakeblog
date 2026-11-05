@@ -1,0 +1,143 @@
+1
+00:00:00,000 --> 00:00:04,199
+Let's take a look at what our setup script did on the Snowflake side
+
+2
+00:00:04,200 --> 00:00:08,560
+Okay So we have a new database here in Snowflake
+
+3
+00:00:08,560 --> 00:00:11,897
+If you click Catalog it's called Airbnb
+
+4
+00:00:11,897 --> 00:00:18,418
+and it has two new schemas apart from the default schemas you get in a database with Snowflake
+
+5
+00:00:18,420 --> 00:00:19,945
+One is the Row schema
+
+6
+00:00:19,945 --> 00:00:25,280
+and in the Row schema we have the Airbnb listings and hosts and reviews tables
+
+7
+00:00:25,280 --> 00:00:29,760
+We will have a dedicated video when we explore this table
+
+8
+00:00:29,760 --> 00:00:34,081
+so I don't go into this now but there is a Row schema
+
+9
+00:00:34,081 --> 00:00:36,910
+remember this and we also have a Dev schema
+
+10
+00:00:36,920 --> 00:00:39,280
+This will be our output schema
+
+11
+00:00:39,280 --> 00:00:43,966
+I created this so I can set up permissions for different users
+
+12
+00:00:43,966 --> 00:00:48,184
+well but actually dbt would automatically create the schema
+
+13
+00:00:48,184 --> 00:00:52,880
+if we specified this as the target schema as you will see
+
+14
+00:00:52,880 --> 00:00:56,531
+I set it up for you so we can set up permissions already
+
+15
+00:00:56,531 --> 00:01:00,120
+at the beginning of the course And what permissions
+
+16
+00:01:00,120 --> 00:01:04,640
+So if you go to Governance and Security you see that we have the Admin user
+
+17
+00:01:04,640 --> 00:01:09,794
+so this is the user that you set up manually and the setup page
+
+18
+00:01:09,794 --> 00:01:13,560
+the setup app created two new users
+
+19
+00:01:13,560 --> 00:01:19,342
+One is called dbt which we will use from the dbt app
+
+20
+00:01:19,342 --> 00:01:23,472
+and the other one is called preset
+
+21
+00:01:23,480 --> 00:01:27,460
+and preset will be our tool of choice for BI tool
+
+22
+00:01:27,460 --> 00:01:31,040
+and this will be the user that has read only access
+
+23
+00:01:31,040 --> 00:01:35,800
+through connecting from the BI and building dashboards whatsoever
+
+24
+00:01:35,800 --> 00:01:38,863
+In Snowflake the entities that are more important than users are the rows
+
+25
+00:01:38,863 --> 00:01:44,419
+so if I take a look at the dbt user you will see that the default row is transform
+
+26
+00:01:44,419 --> 00:01:50,119
+and if I look at the preset user you see that the default row is reporter
+
+27
+00:01:50,120 --> 00:01:54,460
+So if I take a look at the rows there are a bunch of default rows here
+
+28
+00:01:54,460 --> 00:01:59,117
+and here you must see a reporter and transform
+
+29
+00:01:59,120 --> 00:02:02,420
+And if you check out the course resources for the actual sequence executed
+
+30
+00:02:02,420 --> 00:02:07,560
+or if you take a look at the next video where we discuss what the app
+
+31
+00:02:07,560 --> 00:02:12,515
+the setup app did then you will understand the nitty gritty details
+
+32
+00:02:12,515 --> 00:02:14,635
+of how everything is set up
+
+33
+00:02:14,640 --> 00:02:20,460
+But if you are not really interested in all these heavy lifting behind the scenes
+
+34
+00:02:20,460 --> 00:02:22,841
+and you want to focus on dbt
+
+35
+00:02:22,841 --> 00:02:27,689
+I would suggest you to go ahead and skip the next video
+
+36
+00:02:27,689 --> 00:02:31,480
+to get started as soon as possible with dbt

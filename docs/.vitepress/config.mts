@@ -59,6 +59,7 @@ export default withMermaid(
                 text: 'dbt 分析エンジニアリング実践',
                 items: [
                   { text: '01. dbt 入門とモダンデータスタック', link: '/dbt/01_what_is_dbt' },
+                  { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                 ]
               }
             ],
@@ -149,6 +150,7 @@ export default withMermaid(
                 text: 'dbt 现代分析工程实战',
                 items: [
                   { text: '01. 初识 dbt 与现代数据栈', link: '/zh/dbt/01_what_is_dbt' },
+                  { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                 ]
               }
             ],

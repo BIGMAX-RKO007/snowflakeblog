@@ -1,0 +1,155 @@
+1
+00:00:00,000 --> 00:00:05,113
+Alright folks let's set up a database so we can start dbting as soon as possible
+
+2
+00:00:05,120 --> 00:00:09,348
+Now even if you are on Databricks or Redshift or any other database technology
+
+3
+00:00:09,360 --> 00:00:13,516
+don't worry we are doing this course in Snowflake
+
+4
+00:00:13,520 --> 00:00:19,280
+but everything that we learn here applies one to one to those technologies
+
+5
+00:00:19,280 --> 00:00:23,274
+So as a first step let's go on and set up a Snowflake account
+
+6
+00:00:23,280 --> 00:00:27,515
+Please come to Snowflake com and click Start for Free
+
+7
+00:00:27,520 --> 00:00:33,118
+And here you will be able to set up a 30 day free Snowflake trial
+
+8
+00:00:33,120 --> 00:00:37,036
+So just add your name and your email
+
+9
+00:00:37,040 --> 00:00:41,909
+Now this says work email but usually it works with Gmail and other addresses too
+
+10
+00:00:41,920 --> 00:00:47,718
+So I just say mydbtcourse gmail com Please add your email
+
+11
+00:00:47,718 --> 00:00:51,680
+Why are you signing up Is it personal learning or development
+
+12
+00:00:51,680 --> 00:00:57,198
+I personally want to opt out of Snowflake emails So let's click Continue
+
+13
+00:00:57,200 --> 00:01:02,471
+And here for the company name you know it's up to you to fill it in
+
+14
+00:01:02,480 --> 00:01:08,148
+For the Snowflake edition we are good with Standard and please click AWS
+
+15
+00:01:08,160 --> 00:01:12,000
+And your region is probably safe to be set at the default
+
+16
+00:01:12,000 --> 00:01:18,628
+but if you want to maximize performance then you can click US East Ohio
+
+17
+00:01:18,640 --> 00:01:23,266
+Then you simply click Get Started and your account should be set up in a minute
+
+18
+00:01:23,280 --> 00:01:27,994
+and you will see an incoming email in your email inbox
+
+19
+00:01:28,000 --> 00:01:31,036
+And our email has arrived in a second
+
+20
+00:01:31,040 --> 00:01:36,960
+Here you want to click to activate but also take note of this URL
+
+21
+00:01:36,960 --> 00:01:39,213
+So please do not delete your email
+
+22
+00:01:39,213 --> 00:01:43,278
+You will need this URL later And click to activate
+
+23
+00:01:43,280 --> 00:01:47,438
+I would suggest you to use the username admin because this is what I will use
+
+24
+00:01:47,440 --> 00:01:50,400
+and then add the sophisticated password
+
+25
+00:01:50,400 --> 00:01:52,398
+Once you're done click Get Started
+
+26
+00:01:52,400 --> 00:01:54,398
+We are going to skip the tutorial
+
+27
+00:01:54,400 --> 00:02:01,440
+And here if you click Create SQL Worksheet you will be straight in your SQL
+
+28
+00:02:01,440 --> 00:02:11,440
+So if you say like Select One and press Play then you will see the response one
+
+29
+00:02:11,440 --> 00:02:17,108
+Amazing One more thing Your Snowflake Trial lasts for 30 days
+
+30
+00:02:17,108 --> 00:02:20,960
+and if you come back to the course and you want to continue
+
+31
+00:02:20,960 --> 00:02:23,360
+you can always create a new trial
+
+32
+00:02:23,360 --> 00:02:25,301
+And here comes a trick
+
+33
+00:02:25,301 --> 00:02:28,073
+You can re register with the same email
+
+34
+00:02:28,080 --> 00:02:32,153
+Okay So you can make a completely new account using the same email
+
+35
+00:02:32,160 --> 00:02:35,995
+No need to set up random Gmail accounts for that
+
+36
+00:02:36,000 --> 00:02:41,032
+If you come back to your email you will see that in your inbox now
+
+37
+00:02:41,040 --> 00:02:43,438
+you have a Welcome to Snowflake message
+
+38
+00:02:43,440 --> 00:02:45,995
+And it also has this dedicated login URL
+
+39
+00:02:46,000 --> 00:02:50,389
+So please copy this URL because you will need it in the next video

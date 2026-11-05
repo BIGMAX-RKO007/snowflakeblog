@@ -1,0 +1,279 @@
+1
+00:00:00,000 --> 00:00:06,000
+In this course you will act as if you were an analytics engineer in Airbnb
+
+2
+00:00:06,000 --> 00:00:15,991
+And as an analytics engineer you're responsible for all the data flow in Berlin Germany in Europe
+
+3
+00:00:16,000 --> 00:00:21,997
+So this takes quite a lot of responsibilities
+
+4
+00:00:22,000 --> 00:00:27,355
+So you will need to import your data into a data warehouse
+
+5
+00:00:27,355 --> 00:00:31,996
+and then make this data available for tools like dbt
+
+6
+00:00:32,000 --> 00:00:36,257
+Then we will need to go and clean the data
+
+7
+00:00:36,257 --> 00:00:40,901
+and also do several transformations on the data
+
+8
+00:00:40,901 --> 00:00:43,997
+and export it to a BI tool
+
+9
+00:00:44,000 --> 00:00:48,998
+I will guide you through all of these steps in this course
+
+10
+00:00:49,000 --> 00:00:53,240
+And once we have a pipeline that works
+
+11
+00:00:53,240 --> 00:00:58,752
+we will make sure that this pipeline is then well tested
+
+12
+00:00:58,752 --> 00:01:02,992
+and well optimized and well documented
+
+13
+00:01:03,000 --> 00:01:07,995
+The data we work with here is real world data
+
+14
+00:01:08,000 --> 00:01:13,828
+And the data itself comes from the Inside Airbnb page
+
+15
+00:01:13,828 --> 00:01:17,992
+which is Airbnb's data sharing website
+
+16
+00:01:18,000 --> 00:01:26,000
+You see here are all the Airbnb listings about Berlin Germany
+
+17
+00:01:26,000 --> 00:01:35,000
+We downloaded this data for you and prepared it to be ready to import it to Snowflake
+
+18
+00:01:35,000 --> 00:01:41,000
+And once we have them imported we can get started right away
+
+19
+00:01:41,000 --> 00:01:47,989
+The tech stack we are going to use here is obviously dbt right
+
+20
+00:01:48,000 --> 00:01:52,188
+And as the data warehouse we will use Snowflake
+
+21
+00:01:52,188 --> 00:01:57,990
+which is a cloud based data warehouse that offers free trial
+
+22
+00:01:58,000 --> 00:02:00,400
+So I will guide you through the registration
+
+23
+00:02:00,400 --> 00:02:03,000
+and you can register the Snowflake account for free
+
+24
+00:02:03,000 --> 00:02:08,644
+And then we are going to use the pre set service
+
+25
+00:02:08,644 --> 00:02:12,987
+which is a managed superset BI tool
+
+26
+00:02:13,000 --> 00:02:17,462
+So one of the more popular BI tools out there
+
+27
+00:02:17,462 --> 00:02:23,988
+to connect to Snowflake and create a simple executive dashboard
+
+28
+00:02:24,000 --> 00:02:30,400
+Now as you start as an analytics engineer in a company
+
+29
+00:02:30,400 --> 00:02:36,000
+there are several requirements you need to take care of
+
+30
+00:02:36,000 --> 00:02:43,992
+You want to work in a system where modeling changes are easy to follow and easy to revert
+
+31
+00:02:44,000 --> 00:02:48,480
+So if you can make your model code it helps a lot
+
+32
+00:02:48,480 --> 00:02:52,000
+because you can version control it right
+
+33
+00:02:52,000 --> 00:02:56,000
+And you can track all the changes and collaborate and revert
+
+34
+00:02:56,000 --> 00:03:02,986
+You also want to make sure that as you have many steps in your data pipeline
+
+35
+00:03:03,000 --> 00:03:06,405
+for example many views and tables which feed each other
+
+36
+00:03:06,405 --> 00:03:07,994
+and depend on each other
+
+37
+00:03:08,000 --> 00:03:11,994
+you want to make sure that these dependencies are explicit
+
+38
+00:03:12,000 --> 00:03:16,850
+So the framework knows in which order to execute
+
+39
+00:03:16,850 --> 00:03:22,992
+different steps in your pipeline to get to a well transformed result
+
+40
+00:03:23,000 --> 00:03:26,000
+a good data set that's ready for analytics
+
+41
+00:03:26,000 --> 00:03:31,052
+Also you want to make sure that it's not only explicit
+
+42
+00:03:31,052 --> 00:03:33,999
+but it's also easy to overview
+
+43
+00:03:34,000 --> 00:03:37,995
+So these dependencies are easy to explore easy to overview
+
+44
+00:03:38,000 --> 00:03:45,077
+And this comes with a bunch of feature requirements from a tool
+
+45
+00:03:45,077 --> 00:03:47,991
+when you build your pipeline
+
+46
+00:03:48,000 --> 00:03:52,998
+So for example a tool should be able to expose this on a UI
+
+47
+00:03:53,000 --> 00:03:56,000
+And let's see what else
+
+48
+00:03:56,000 --> 00:04:01,084
+You also need to make sure that when your pipeline is working
+
+49
+00:04:01,084 --> 00:04:03,989
+then you can test for data quality
+
+50
+00:04:04,000 --> 00:04:07,994
+You can make sure that your pipeline works as expected
+
+51
+00:04:08,000 --> 00:04:14,992
+And if there are any errors then you want to get alerted somehow right
+
+52
+00:04:15,000 --> 00:04:18,997
+So these are probably the basic requirements
+
+53
+00:04:19,000 --> 00:04:25,196
+And as you will see as we progress in building out our business logic
+
+54
+00:04:25,196 --> 00:04:28,983
+we will have also a few extra requirements
+
+55
+00:04:29,000 --> 00:04:34,992
+For example we will have tables that are incremental tables so event based tables
+
+56
+00:04:35,000 --> 00:04:39,000
+New events might come in and we don't want to rebuild the whole table
+
+57
+00:04:39,000 --> 00:04:44,994
+We only want to add records add new records at the end of the table
+
+58
+00:04:45,000 --> 00:04:48,996
+And also in some cases we want to manage slowly changing dimensions
+
+59
+00:04:49,000 --> 00:04:54,996
+That is managing and keeping the history of any change
+
+60
+00:04:54,996 --> 00:04:57,992
+so we can go back in time
+
+61
+00:04:58,000 --> 00:05:05,927
+So these are some of the main requirements of Data Analytics tool
+
+62
+00:05:05,927 --> 00:05:11,990
+and dbt is great for managing these requirements
+
+63
+00:05:12,000 --> 00:05:14,997
+So let's continue with our next step
+
+64
+00:05:15,000 --> 00:05:21,443
+In the beginning I will ask you to follow me and do a few steps of
+
+65
+00:05:21,443 --> 00:05:24,988
+well first of all Snowflake registration
+
+66
+00:05:25,000 --> 00:05:28,996
+So we will use Snowflake the data warehouse solution for this course
+
+67
+00:05:29,000 --> 00:05:32,995
+Then we're going to import our data into Snowflake
+
+68
+00:05:33,000 --> 00:05:40,992
+Then we will show you how you can install dbt on Windows and on the Mac
+
+69
+00:05:41,000 --> 00:05:47,000
+Those come in separate videos so feel free to just pick whichever you prefer
+
+70
+00:05:47,000 --> 00:05:55,000
+And once all of this is set up we will be ready to go So let's get started

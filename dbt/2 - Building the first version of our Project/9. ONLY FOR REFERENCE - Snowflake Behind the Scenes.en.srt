@@ -1,0 +1,887 @@
+1
+00:00:00,000 --> 00:00:04,386
+Okay so you are interested in how things work behind the scene
+
+2
+00:00:04,386 --> 00:00:07,016
+Let's go through this step by step
+
+3
+00:00:07,016 --> 00:00:11,358
+So first of all what this automation script does
+
+4
+00:00:11,358 --> 00:00:15,297
+is that it generates a private and a public key
+
+5
+00:00:15,297 --> 00:00:19,722
+Now if you want to do that I have a few references here for you
+
+6
+00:00:19,722 --> 00:00:24,167
+There is a link to Snowflakes Keeper authentication page
+
+7
+00:00:24,167 --> 00:00:30,600
+which has a tool that helps you generate a private and a public key
+
+8
+00:00:30,600 --> 00:00:33,600
+and also I added a link to PuTTYgen
+
+9
+00:00:33,600 --> 00:00:37,960
+which is a free utility for Windows for key generation
+
+10
+00:00:37,960 --> 00:00:40,200
+Let me just show these to you
+
+11
+00:00:40,200 --> 00:00:45,443
+So for Windows you can come to the PuTTY page
+
+12
+00:00:45,443 --> 00:00:52,766
+and download PuTTY basically or the PuTTYgen executable
+
+13
+00:00:52,766 --> 00:00:57,466
+and this way you will be able to create a private and public keeper
+
+14
+00:00:57,466 --> 00:01:04,074
+Now if you are on a Mac or on Linux then this is easier
+
+15
+00:01:04,074 --> 00:01:09,130
+Then you can come to the Keeper authentication page of Snowflake
+
+16
+00:01:09,130 --> 00:01:14,688
+and if you scroll down you will find a bunch of commands
+
+17
+00:01:14,688 --> 00:01:21,072
+So what we will do is first create a private key
+
+18
+00:01:21,080 --> 00:01:22,744
+and here is a command for that
+
+19
+00:01:22,744 --> 00:01:26,808
+You don't need to understand this command It's cryptography right
+
+20
+00:01:26,808 --> 00:01:31,193
+It's kind of complicated and what we do in the course
+
+21
+00:01:31,200 --> 00:01:35,722
+is that actually we use an encrypted version of a private key
+
+22
+00:01:35,722 --> 00:01:39,692
+So when you create a key pair you can protect the private key
+
+23
+00:01:39,692 --> 00:01:43,560
+with a password as the encrypted version of a private key
+
+24
+00:01:43,560 --> 00:01:45,480
+This is what we are gonna do
+
+25
+00:01:45,480 --> 00:01:47,448
+Let me just copy this command
+
+26
+00:01:47,448 --> 00:01:51,816
+If you're on Linux or on a Mac these commands
+
+27
+00:01:51,816 --> 00:01:55,739
+like openSSL should be installed by default
+
+28
+00:01:55,739 --> 00:02:01,822
+and what we do here is this is kind of the strengths of our key
+
+29
+00:02:01,822 --> 00:02:06,706
+and the cipher algorithm the output format
+
+30
+00:02:06,706 --> 00:02:09,476
+and then here is the output file
+
+31
+00:02:09,476 --> 00:02:13,388
+And now I need to add an encryption password
+
+32
+00:02:13,388 --> 00:02:18,440
+I will just add the single digit Q
+
+33
+00:02:18,440 --> 00:02:23,390
+Okay Alright So now I have this key
+
+34
+00:02:23,390 --> 00:02:27,645
+If I open this key this is my private key
+
+35
+00:02:27,645 --> 00:02:32,486
+then you will see that this says begin encrypted private key
+
+36
+00:02:32,486 --> 00:02:37,348
+and some probably base 64 encoded data right
+
+37
+00:02:37,348 --> 00:02:40,547
+Okay so this is my private key
+
+38
+00:02:40,547 --> 00:02:43,179
+Let's create our public key
+
+39
+00:02:43,179 --> 00:02:47,130
+So here if we want to create a public key
+
+40
+00:02:47,130 --> 00:02:52,410
+we can basically extract the public key from the private key
+
+41
+00:02:52,410 --> 00:02:58,706
+because this private key P 8 file it contains the public key too
+
+42
+00:02:58,706 --> 00:03:01,614
+Remember these are key pairs
+
+43
+00:03:01,614 --> 00:03:04,150
+They are meant to work together
+
+44
+00:03:04,150 --> 00:03:07,954
+So the input file is my private key and I
+
+45
+00:03:07,960 --> 00:03:13,139
+want to create a public output under RSA key dot pub
+
+46
+00:03:13,139 --> 00:03:16,770
+I need to pass the pass phrase of course
+
+47
+00:03:16,770 --> 00:03:19,250
+and now it says writing RSA keys
+
+48
+00:03:19,250 --> 00:03:21,420
+and here is my public key
+
+49
+00:03:21,420 --> 00:03:26,051
+So if I open this then here is the public key
+
+50
+00:03:26,051 --> 00:03:28,859
+that I want to use Alright
+
+51
+00:03:28,859 --> 00:03:31,320
+So now I have a key pair
+
+52
+00:03:31,320 --> 00:03:34,400
+Now I can go on and set up Snowflake
+
+53
+00:03:34,400 --> 00:03:37,776
+by adding this public key for authentication
+
+54
+00:03:37,776 --> 00:03:40,332
+and keeping this private key for me
+
+55
+00:03:40,332 --> 00:03:43,582
+so I can actually do the authentication
+
+56
+00:03:43,582 --> 00:03:46,418
+from the client side from the DBT side
+
+57
+00:03:46,418 --> 00:03:48,882
+So let's go to Snowflake
+
+58
+00:03:48,882 --> 00:03:52,410
+and I want to execute all of the commands here
+
+59
+00:03:52,410 --> 00:03:58,720
+but I will just show you what we execute in the setup script
+
+60
+00:03:58,720 --> 00:04:03,480
+and of course you can find exactly the same commands
+
+61
+00:04:03,480 --> 00:04:05,720
+in the course resources file
+
+62
+00:04:05,720 --> 00:04:08,611
+Let me just go there for a second
+
+63
+00:04:08,611 --> 00:04:12,024
+So here in course resources you will find
+
+64
+00:04:12,024 --> 00:04:17,571
+all of these commands if you want to go on and do this yourself
+
+65
+00:04:17,571 --> 00:04:22,325
+As you know we already have an Airbnb oh at this point
+
+66
+00:04:22,325 --> 00:04:23,923
+sorry no so forget that
+
+67
+00:04:23,923 --> 00:04:25,978
+we have an Airbnb database already
+
+68
+00:04:25,978 --> 00:04:27,848
+So here we are creating
+
+69
+00:04:27,848 --> 00:04:29,960
+let's see what we do
+
+70
+00:04:29,960 --> 00:04:34,362
+We say that we want to use the compute WH warehouse
+
+71
+00:04:34,362 --> 00:04:36,566
+This is just boilerplate for Snowflake
+
+72
+00:04:36,566 --> 00:04:40,584
+It means that we want to use its standard compute engine
+
+73
+00:04:40,584 --> 00:04:43,356
+Then we create the Airbnb database
+
+74
+00:04:43,356 --> 00:04:45,968
+So now we have an Airbnb database right
+
+75
+00:04:45,968 --> 00:04:48,078
+Then we create a schema called row
+
+76
+00:04:48,078 --> 00:04:50,440
+which will contain the row data
+
+77
+00:04:50,440 --> 00:04:54,912
+So the data that we take from S 3 for our use case
+
+78
+00:04:54,912 --> 00:04:57,812
+and we also create a dev schema
+
+79
+00:04:57,812 --> 00:05:01,920
+The dev schema will be our output schema in dbt
+
+80
+00:05:01,920 --> 00:05:07,340
+Now it's not completely necessary to create the dev schema
+
+81
+00:05:07,340 --> 00:05:11,560
+because dbt would create it for us automatically
+
+82
+00:05:11,560 --> 00:05:14,080
+once we say that our output location
+
+83
+00:05:14,080 --> 00:05:16,444
+our output schema should be dev
+
+84
+00:05:16,444 --> 00:05:21,142
+But I want to set up permissions for the dev schema beforehand
+
+85
+00:05:21,142 --> 00:05:23,423
+before we do any work
+
+86
+00:05:23,423 --> 00:05:29,112
+So I'm just creating it here at the beginning of the script
+
+87
+00:05:29,112 --> 00:05:33,997
+So now we have a row schema and a dev schema So here is Airbnb
+
+88
+00:05:33,997 --> 00:05:35,523
+You see we have dev and row
+
+89
+00:05:35,523 --> 00:05:37,706
+and we also have information schema and
+
+90
+00:05:37,720 --> 00:05:41,687
+public which are the default schemas in Snowflake
+
+91
+00:05:41,687 --> 00:05:43,953
+So you will always see those
+
+92
+00:05:43,960 --> 00:05:49,622
+Then we just say the database and the schema we want to use is Airbnb row
+
+93
+00:05:49,622 --> 00:05:52,663
+So when I create a table it should be created
+
+94
+00:05:52,663 --> 00:05:56,336
+It will be created in Airbnb under the row schema
+
+95
+00:05:56,336 --> 00:06:00,947
+We create the row listings table for Airbnb listings
+
+96
+00:06:00,947 --> 00:06:03,584
+and we copy the data into it
+
+97
+00:06:03,584 --> 00:06:09,520
+Now if you are interested in the contents of these files
+
+98
+00:06:09,520 --> 00:06:15,108
+like the Airbnb listings you will find a link to that in the course resources
+
+99
+00:06:15,108 --> 00:06:18,972
+and it will take you to this MD file in the course repo
+
+100
+00:06:18,972 --> 00:06:25,459
+where you will find HTTP links the listings reviews and hosts
+
+101
+00:06:25,459 --> 00:06:28,070
+Okay so let's move on
+
+102
+00:06:28,080 --> 00:06:33,400
+Row listings we do the same for reviews and hosts
+
+103
+00:06:33,400 --> 00:06:38,404
+and now we ensure that we use the account admin role
+
+104
+00:06:38,404 --> 00:06:43,651
+which means that I want to act as a super user in Snowflake
+
+105
+00:06:43,651 --> 00:06:48,922
+because now I am setting up all the users and the permissions
+
+106
+00:06:48,922 --> 00:06:54,825
+So let's see First of all we create a role transform
+
+107
+00:06:54,825 --> 00:06:57,430
+which will be used by dbt
+
+108
+00:06:57,440 --> 00:07:00,638
+Snowflake is very much role based and role heavy
+
+109
+00:07:00,638 --> 00:07:05,128
+so it's better to work with roles and then create a user
+
+110
+00:07:05,128 --> 00:07:09,881
+and assign the role to it than with working with users
+
+111
+00:07:09,881 --> 00:07:14,386
+and assigning permissions to a user in spite of role
+
+112
+00:07:14,386 --> 00:07:17,175
+Okay so working with roles is best practice
+
+113
+00:07:17,175 --> 00:07:19,650
+You will find a bunch of boilerplate here
+
+114
+00:07:19,650 --> 00:07:23,600
+like granting the role transform to account admin
+
+115
+00:07:23,600 --> 00:07:27,660
+and now they just point out the most important pieces
+
+116
+00:07:27,660 --> 00:07:30,029
+So we create this transform role
+
+117
+00:07:30,029 --> 00:07:33,973
+we grant transform to use the default warehouse
+
+118
+00:07:33,973 --> 00:07:38,458
+If there is a dbt user already which shouldn't be
+
+119
+00:07:38,458 --> 00:07:42,698
+then we drop it and then we create a dbt user
+
+120
+00:07:42,698 --> 00:07:46,636
+with a login name dbt The type is service
+
+121
+00:07:46,640 --> 00:07:52,800
+It means that it is not a human user but it is a service user so a program
+
+122
+00:07:52,800 --> 00:07:56,194
+Then here is the authentication piece
+
+123
+00:07:56,194 --> 00:08:01,377
+So I want to add and you want to add the public key here
+
+124
+00:08:01,377 --> 00:08:06,198
+in case you want to do everything completely manual
+
+125
+00:08:06,198 --> 00:08:09,333
+So here is the public key
+
+126
+00:08:09,333 --> 00:08:14,041
+Okay so this is the public key now
+
+127
+00:08:14,041 --> 00:08:18,751
+Default role is transform right
+
+128
+00:08:18,760 --> 00:08:23,920
+I will still assign this role to dbt but the default role will be transform
+
+129
+00:08:23,920 --> 00:08:27,160
+The default warehouse default namespace default schema
+
+130
+00:08:27,160 --> 00:08:29,432
+These are just like metadata for it
+
+131
+00:08:29,432 --> 00:08:33,902
+So now we have a dbt user who can use the transform role
+
+132
+00:08:33,902 --> 00:08:42,748
+and now they say everyone in transform should be able to do everything with compute wh
+
+133
+00:08:42,748 --> 00:08:48,794
+Now you've already seen like operate on warehouse compute wh to role transform
+
+134
+00:08:48,794 --> 00:08:52,914
+So this might be redundant but there might be
+
+135
+00:08:52,920 --> 00:08:55,470
+some redundancies in the setup script
+
+136
+00:08:55,470 --> 00:08:58,780
+This course has been on for for quite a while
+
+137
+00:08:58,780 --> 00:09:01,530
+and what I learned is that we must be on
+
+138
+00:09:01,530 --> 00:09:04,629
+the super super permissive side of things
+
+139
+00:09:04,629 --> 00:09:08,161
+because you come from so many different sources
+
+140
+00:09:08,161 --> 00:09:11,584
+and technologies and setups and you know little quirks
+
+141
+00:09:11,584 --> 00:09:14,850
+that I want to ensure that everything works for everyone
+
+142
+00:09:14,850 --> 00:09:16,650
+So here we will be in Snowfake
+
+143
+00:09:16,650 --> 00:09:20,750
+at least super permissive and sometimes maybe redundant
+
+144
+00:09:20,750 --> 00:09:25,198
+So I just say transform can do everything at compute wh
+
+145
+00:09:25,198 --> 00:09:30,214
+then transform should be able to do everything on the Airbnb database
+
+146
+00:09:30,214 --> 00:09:33,002
+then transform should be able to do everything
+
+147
+00:09:33,002 --> 00:09:35,102
+on all schemas in the Airbnb database
+
+148
+00:09:35,102 --> 00:09:37,164
+I believe this is actually not redundant
+
+149
+00:09:37,164 --> 00:09:38,637
+this is how you should do that
+
+150
+00:09:38,637 --> 00:09:41,291
+Transform should be able to do everything
+
+151
+00:09:41,291 --> 00:09:44,079
+on all future schemas in the Airbnb database
+
+152
+00:09:44,079 --> 00:09:46,157
+and also in the row schema
+
+153
+00:09:46,157 --> 00:09:49,832
+and also for future tables in the row schema
+
+154
+00:09:49,840 --> 00:09:55,060
+Okay so transform has now a very good set of permissions
+
+155
+00:09:55,060 --> 00:09:58,020
+for working with the Airbnb database
+
+156
+00:09:58,020 --> 00:10:02,596
+Then let's just go on so this is probably a redundant
+
+157
+00:10:02,596 --> 00:10:06,341
+I'm saying I want to use the account admin again for sure
+
+158
+00:10:06,341 --> 00:10:08,795
+but it's here for instructional purposes
+
+159
+00:10:08,795 --> 00:10:13,439
+then we say we create a new role called reporter
+
+160
+00:10:13,439 --> 00:10:18,048
+Reporter will be the role that is used by our BI tool
+
+161
+00:10:18,048 --> 00:10:22,988
+later in the course and then I say I want to create a user
+
+162
+00:10:22,988 --> 00:10:26,096
+called preset this will be the BI tool that we are going to use
+
+163
+00:10:26,096 --> 00:10:27,888
+and create the preset user
+
+164
+00:10:27,888 --> 00:10:29,936
+everything is very much the same
+
+165
+00:10:29,936 --> 00:10:32,768
+you can come here you can paste the public key
+
+166
+00:10:32,768 --> 00:10:37,061
+so the BI tool will be able to authenticate with the public key
+
+167
+00:10:37,061 --> 00:10:40,221
+Okay the rest is very much the same
+
+168
+00:10:40,221 --> 00:10:42,890
+and here instead of all here
+
+169
+00:10:42,890 --> 00:10:47,240
+I'm granting usage on all of the database and the schemas
+
+170
+00:10:47,240 --> 00:10:49,981
+usage it's kind of a gatekeeper
+
+171
+00:10:49,981 --> 00:10:53,457
+if you need to grant usage to a role
+
+172
+00:10:53,457 --> 00:10:57,427
+so that role will be able to access resources
+
+173
+00:10:57,427 --> 00:11:03,373
+potentially in a table or in a schema or in a database
+
+174
+00:11:03,373 --> 00:11:07,623
+and here is the actual permission setting
+
+175
+00:11:07,623 --> 00:11:12,944
+when I say that I want the reporter to be able to read
+
+176
+00:11:12,944 --> 00:11:17,080
+so select on all tables in Airbnb dev
+
+177
+00:11:17,080 --> 00:11:18,857
+so on all output tables
+
+178
+00:11:18,857 --> 00:11:22,107
+because it's a BI tool it will need to read the tables that we
+
+179
+00:11:22,120 --> 00:11:28,168
+generate and then also I want to have the same for future tables
+
+180
+00:11:28,168 --> 00:11:32,830
+Okay so this is what we do on the snowflake side
+
+181
+00:11:32,830 --> 00:11:37,963
+and let me show you the profiles yaml and the preset instructions
+
+182
+00:11:37,963 --> 00:11:39,756
+Here is the dbt profiles yaml
+
+183
+00:11:39,756 --> 00:11:43,907
+this is the file that we are going to use for connecting to dbt
+
+184
+00:11:43,907 --> 00:11:47,268
+now I'm going to go through this also in the video
+
+185
+00:11:47,268 --> 00:11:51,754
+for those of you who are not interested in the behind the scenes
+
+186
+00:11:51,760 --> 00:11:55,302
+but here for you as some advanced information
+
+187
+00:11:55,302 --> 00:11:57,234
+is that for each output
+
+188
+00:11:57,234 --> 00:11:59,536
+and we will discuss outputs later
+
+189
+00:11:59,536 --> 00:12:02,747
+so one output is like a connection basically
+
+190
+00:12:02,747 --> 00:12:04,344
+so for our DEV connection
+
+191
+00:12:04,344 --> 00:12:08,892
+this will be a snowflake connection to this account connecting to this user
+
+192
+00:12:08,892 --> 00:12:11,715
+the role this user wants to take is transformed
+
+193
+00:12:11,715 --> 00:12:13,544
+and here is the private key
+
+194
+00:12:13,544 --> 00:12:16,976
+all right so I just copied the private key here
+
+195
+00:12:16,976 --> 00:12:21,006
+and replace the new lines to backslash ends
+
+196
+00:12:21,006 --> 00:12:25,323
+and then I also add the private key pass phrase here
+
+197
+00:12:25,323 --> 00:12:30,618
+now the pass phrase it it is not necessary to have a passphrase
+
+198
+00:12:30,618 --> 00:12:32,504
+for for dbt per se
+
+199
+00:12:32,504 --> 00:12:38,444
+it can go without encrypted and protected private key
+
+200
+00:12:38,444 --> 00:12:42,877
+but the RBI tool reset requires a passphrase
+
+201
+00:12:42,877 --> 00:12:49,404
+so that's why I set up the private key with a passphrase also for dbt okay
+
+202
+00:12:49,404 --> 00:12:51,888
+and here you see like Airbnb and DEV
+
+203
+00:12:51,888 --> 00:12:55,996
+and the compute WH and we will discuss right later
+
+204
+00:12:55,996 --> 00:12:58,420
+okay so this is the profile yaml
+
+205
+00:12:58,420 --> 00:13:02,503
+and then let me show you the preset instructions
+
+206
+00:13:02,503 --> 00:13:05,756
+which is here it is a mark down file
+
+207
+00:13:05,756 --> 00:13:08,341
+which has basically two components
+
+208
+00:13:08,341 --> 00:13:11,354
+one is your snowflake URL for preset
+
+209
+00:13:11,354 --> 00:13:16,528
+which has the username and the snowflake account
+
+210
+00:13:16,528 --> 00:13:20,465
+and the database and the role and the warehouse
+
+211
+00:13:20,465 --> 00:13:23,396
+why so I just assembled this for you
+
+212
+00:13:23,396 --> 00:13:27,677
+and for the connection preset requires a so called security Jason
+
+213
+00:13:27,677 --> 00:13:31,632
+where I just go and again just take the private key
+
+214
+00:13:31,632 --> 00:13:35,894
+replace new lines with backslash and add this here
+
+215
+00:13:35,894 --> 00:13:38,887
+and also add the private key pass
+
+216
+00:13:38,887 --> 00:13:42,630
+so this is how everything gets together
+
+217
+00:13:42,640 --> 00:13:46,564
+and you will see how we use profiles yaml in dbt
+
+218
+00:13:46,564 --> 00:13:49,535
+and how we use this information for presets
+
+219
+00:13:49,535 --> 00:13:51,090
+when we connect a BI tool
+
+220
+00:13:51,090 --> 00:13:53,336
+congrats and thanks for being with me
+
+221
+00:13:53,336 --> 00:13:55,391
+in this longer more advanced session
+
+222
+00:13:55,391 --> 00:13:59,920
+so let's go on and set up a dbt project
