@@ -1,0 +1,95 @@
+1
+00:00:00,000 --> 00:00:03,492
+Whether you want to get certified or not we got you covered
+
+2
+00:00:03,500 --> 00:00:06,410
+I have added hours of content
+
+3
+00:00:06,410 --> 00:00:14,493
+to ensure that this course covers the updated DBT 1 11 certification released in April 2026
+
+4
+00:00:14,500 --> 00:00:18,345
+Later in the course you will see a dedicated certification section
+
+5
+00:00:18,345 --> 00:00:21,989
+where I share my own experience completing the certification
+
+6
+00:00:22,000 --> 00:00:26,994
+We also run interviews with people who completed the certification
+
+7
+00:00:27,000 --> 00:00:31,997
+And you will be able to get your hands dirty with a short practice test
+
+8
+00:00:32,000 --> 00:00:35,306
+If you go to the course resources on GitHub
+
+9
+00:00:35,306 --> 00:00:37,592
+you will also find a link to this gist
+
+10
+00:00:37,592 --> 00:00:42,171
+where I explicitly map out the different sections of the course
+
+11
+00:00:42,171 --> 00:00:44,971
+to the different certification sections
+
+12
+00:00:45,000 --> 00:00:49,756
+So if you feel that there are a few sections in the certification
+
+13
+00:00:49,756 --> 00:00:51,341
+you want to study more
+
+14
+00:00:51,341 --> 00:00:55,051
+you can just come here and search for it Maybe one more hint
+
+15
+00:00:55,051 --> 00:00:57,995
+Later in the course you will find the capstone project
+
+16
+00:00:58,000 --> 00:01:00,142
+But if you want to get certified
+
+17
+00:01:00,142 --> 00:01:04,188
+I would suggest you to make a super duper capstone project
+
+18
+00:01:04,188 --> 00:01:07,996
+based on the dataset that I give you as part of the capstone
+
+19
+00:01:08,000 --> 00:01:12,086
+So I would certainly implement CI CD with SlimCI
+
+20
+00:01:12,086 --> 00:01:16,987
+and debug errors and try the modified and the retry logic of DBT
+
+21
+00:01:17,000 --> 00:01:20,360
+So very much everything that we cover in the course
+
+22
+00:01:20,360 --> 00:01:23,000
+to ensure that you pass the certification
+
+23
+00:01:23,000 --> 00:01:26,200
+Anyway I give you much more information on the certification
+
+24
+00:01:26,200 --> 00:01:29,000
+once we get there in the course So let's move on

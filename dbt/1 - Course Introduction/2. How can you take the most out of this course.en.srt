@@ -1,0 +1,227 @@
+1
+00:00:00,000 --> 00:00:03,153
+Let's discuss how you will get the most out of this course
+
+2
+00:00:03,160 --> 00:00:06,086
+This course has been on Udemy since 2022
+
+3
+00:00:06,086 --> 00:00:08,480
+and I've been updating it regularly
+
+4
+00:00:08,480 --> 00:00:12,520
+so in the videos you will see different versions of me
+
+5
+00:00:12,520 --> 00:00:14,331
+Also for the theoretical section
+
+6
+00:00:14,331 --> 00:00:17,272
+Mike a friend of mine joined me in this course
+
+7
+00:00:17,280 --> 00:00:21,076
+You will meet him later once we cover the theoretical part
+
+8
+00:00:21,080 --> 00:00:24,883
+Now regarding theory most of you are here to get your hands dirty
+
+9
+00:00:24,883 --> 00:00:30,076
+and get up to speed with dbt in the shortest possible time right
+
+10
+00:00:30,080 --> 00:00:31,958
+And I'll keep that in mind
+
+11
+00:00:31,960 --> 00:00:36,340
+Some of you though might want to explore more of the theoretical background
+
+12
+00:00:36,340 --> 00:00:39,572
+on how the modern data stack evolved
+
+13
+00:00:39,572 --> 00:00:42,555
+and what its main concepts are
+
+14
+00:00:42,560 --> 00:00:47,587
+To cater for both needs we have added a full blown theoretical module
+
+15
+00:00:47,587 --> 00:00:49,345
+to the end of the course
+
+16
+00:00:49,360 --> 00:00:52,108
+You will find it under the Reference Theory section
+
+17
+00:00:52,108 --> 00:00:55,580
+if you scroll down in your Udemy Curriculum
+
+18
+00:00:55,580 --> 00:00:57,580
+If you want to explore that section
+
+19
+00:00:57,580 --> 00:01:00,468
+I suggest you to take some time and go through it
+
+20
+00:01:00,468 --> 00:01:03,120
+before you proceed to the next video
+
+21
+00:01:03,120 --> 00:01:06,570
+If not rest assured we will explain all the theory needed
+
+22
+00:01:06,570 --> 00:01:09,312
+to complete the exercises during the lectures
+
+23
+00:01:09,312 --> 00:01:12,253
+even if you don't jump to the theory section now
+
+24
+00:01:12,260 --> 00:01:14,762
+This will give you the fastest possible way
+
+25
+00:01:14,762 --> 00:01:16,512
+to get your feet wet with dbt
+
+26
+00:01:16,520 --> 00:01:18,464
+Also as stated in the prerequisites
+
+27
+00:01:18,464 --> 00:01:21,727
+this course assumes that you have basic familiarity with Python
+
+28
+00:01:21,727 --> 00:01:24,634
+and know how to set up a virtual environment
+
+29
+00:01:24,640 --> 00:01:25,886
+Could that be not the case
+
+30
+00:01:25,886 --> 00:01:30,400
+we've added reference materials to help you get up to speed with these technologies
+
+31
+00:01:30,400 --> 00:01:33,162
+You will find these again in the Reference section
+
+32
+00:01:33,162 --> 00:01:35,134
+at the end of the course curiculum
+
+33
+00:01:35,140 --> 00:01:39,016
+What you will learn here applies to every modern data warehouse
+
+34
+00:01:39,020 --> 00:01:41,607
+We will use Snowflake but if you use Databricks
+
+35
+00:01:41,607 --> 00:01:45,200
+or any other technology don't worry about Snowflake
+
+36
+00:01:45,200 --> 00:01:47,596
+What you'll learn is directly applicable everywhere
+
+37
+00:01:47,600 --> 00:01:52,200
+Also you will probably have questions throughout this course and this is great
+
+38
+00:01:52,200 --> 00:01:55,611
+I would like to ask you to use the Udemy Q A feature
+
+39
+00:01:55,611 --> 00:01:57,104
+if you have any questions
+
+40
+00:01:57,120 --> 00:01:59,246
+I regularly monitor the Q A
+
+41
+00:01:59,246 --> 00:02:02,553
+and I will respond to questions as soon as possible
+
+42
+00:02:02,560 --> 00:02:05,855
+However I cannot guarantee a timely response
+
+43
+00:02:05,855 --> 00:02:08,389
+to private messages or LinkedIn messages
+
+44
+00:02:08,400 --> 00:02:10,968
+And lastly Udemy provides you with the option
+
+45
+00:02:10,968 --> 00:02:13,536
+to download the course completion certificate
+
+46
+00:02:13,540 --> 00:02:17,140
+but it requires you to watch all the videos to do that
+
+47
+00:02:17,140 --> 00:02:18,260
+But there is a trick
+
+48
+00:02:18,260 --> 00:02:20,795
+If there are sections that aren't your core interest
+
+49
+00:02:20,795 --> 00:02:24,135
+you can simply check the checkbox beside the course title
+
+50
+00:02:24,135 --> 00:02:26,835
+in the Curriculum list and mark it as watched
+
+51
+00:02:26,840 --> 00:02:29,436
+Alright now you know everything to get started
+
+52
+00:02:29,440 --> 00:02:33,798
+Next you will see some links to resources Please bookmark them now
+
+53
+00:02:33,800 --> 00:02:36,696
+We will use the course's GitHub page exclusively
+
+54
+00:02:36,696 --> 00:02:40,035
+for code snippets solutions and other code material
+
+55
+00:02:40,035 --> 00:02:42,396
+so please keep it handy
+
+56
+00:02:42,400 --> 00:02:43,744
+I'll see you in the next video
+
+57
+00:02:43,744 --> 00:02:46,432
+where we will get ready to set up our first DBT project

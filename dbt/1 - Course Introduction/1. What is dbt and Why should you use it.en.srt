@@ -1,0 +1,327 @@
+1
+00:00:00,000 --> 00:00:01,764
+Welcome to your dbt course
+
+2
+00:00:01,764 --> 00:00:06,552
+My name is Zoltan and I'm incredibly excited to have you in this course
+
+3
+00:00:06,560 --> 00:00:09,683
+I'm committed to making you a dbt expert
+
+4
+00:00:09,683 --> 00:00:14,628
+whether you come from an engineering background analytics or anywhere else
+
+5
+00:00:14,640 --> 00:00:17,676
+If you ever were with data you already know the pain
+
+6
+00:00:17,680 --> 00:00:20,386
+It's hundreds of SQL scripts scattered everywhere
+
+7
+00:00:20,386 --> 00:00:22,258
+one change breaks three reports
+
+8
+00:00:22,258 --> 00:00:25,586
+no one knows which queries are actually being used right
+
+9
+00:00:25,600 --> 00:00:27,440
+And then something goes wrong
+
+10
+00:00:27,440 --> 00:00:30,116
+Good luck figuring out what happened Sounds familiar
+
+11
+00:00:30,116 --> 00:00:31,997
+Here is a better question for you
+
+12
+00:00:32,000 --> 00:00:38,333
+What if you could apply software engineering best practices like version control testing
+
+13
+00:00:38,333 --> 00:00:41,913
+documentation directly into your SQL transformations
+
+14
+00:00:41,920 --> 00:00:46,280
+This is exactly why dbt has become the industry standard for modern data teams
+
+15
+00:00:46,280 --> 00:00:51,360
+and in this course you will learn all about it Now what is dbt
+
+16
+00:00:51,360 --> 00:00:53,839
+This course dbt is super super simple
+
+17
+00:00:53,839 --> 00:00:57,219
+It takes select statements and turns them into powerful
+
+18
+00:00:57,219 --> 00:01:00,149
+production ready data transformation workflows
+
+19
+00:01:00,160 --> 00:01:01,861
+Think about it this way
+
+20
+00:01:01,861 --> 00:01:03,806
+dbt is to data transformation
+
+21
+00:01:03,806 --> 00:01:05,994
+what git is to software development
+
+22
+00:01:06,000 --> 00:01:13,918
+It brings all the best practices from software engineering like version control testing documentation modularity you name it
+
+23
+00:01:13,918 --> 00:01:16,145
+directly into your analytics workflow
+
+24
+00:01:16,160 --> 00:01:18,158
+Now how does it do that
+
+25
+00:01:18,160 --> 00:01:23,195
+Instead of writing messy one of SQL scripts you write modular models
+
+26
+00:01:23,195 --> 00:01:26,110
+which are basically select statements
+
+27
+00:01:26,110 --> 00:01:28,230
+and dbt simply handles the rest
+
+28
+00:01:28,240 --> 00:01:30,098
+It figure out the dependencies
+
+29
+00:01:30,098 --> 00:01:32,189
+runs things in the right order
+
+30
+00:01:32,189 --> 00:01:35,673
+and materializes your transformations in your data warehouse
+
+31
+00:01:35,680 --> 00:01:39,184
+And here is what it makes it truly powerful
+
+32
+00:01:39,184 --> 00:01:42,396
+dbt core is open source and database agnostic
+
+33
+00:01:42,400 --> 00:01:46,293
+This means that everything you learn in this course applies
+
+34
+00:01:46,293 --> 00:01:50,672
+whether you use snowflake or big query or redshift or databricks
+
+35
+00:01:50,672 --> 00:01:53,105
+or any other modern data warehouse
+
+36
+00:01:53,120 --> 00:01:56,157
+So you learn once and then use everywhere
+
+37
+00:01:56,160 --> 00:01:59,115
+So why is dbt transforming how data teams work
+
+38
+00:01:59,120 --> 00:02:01,680
+Imagine your current analytics setup
+
+39
+00:02:01,680 --> 00:02:09,360
+It's usually SQL scripts scattered across folders hardcoded dependencies no testing no documentation whatsoever
+
+40
+00:02:09,360 --> 00:02:11,647
+Or if there is documentation
+
+41
+00:02:11,647 --> 00:02:16,473
+is out of date and it comes with a bunch of spaghetti secret code
+
+42
+00:02:16,480 --> 00:02:22,157
+Right Now imagine rather this an organized project structure
+
+43
+00:02:22,157 --> 00:02:30,071
+where every transformation is a modular tested documented building block with reporting included
+
+44
+00:02:30,080 --> 00:02:32,400
+And this is exactly what dbt does for you
+
+45
+00:02:32,400 --> 00:02:34,634
+Here are some of dbt's main features
+
+46
+00:02:34,640 --> 00:02:38,496
+First built in testing so you can automatically test
+
+47
+00:02:38,496 --> 00:02:40,553
+that your data meets expectations
+
+48
+00:02:40,560 --> 00:02:46,266
+For example known are values in key columns referential integrity between tables
+
+49
+00:02:46,266 --> 00:02:48,601
+custom business logic unit tests
+
+50
+00:02:48,601 --> 00:02:51,193
+data tests data contracts you name it
+
+51
+00:02:51,200 --> 00:02:54,525
+This way you can catch data quality issues
+
+52
+00:02:54,525 --> 00:02:58,152
+before they reach your dashboard or your CFO
+
+53
+00:02:58,160 --> 00:03:00,061
+I actually learned that the hard way
+
+54
+00:03:00,061 --> 00:03:02,173
+So our CFO was the data quality check
+
+55
+00:03:02,173 --> 00:03:04,919
+in one of the first companies I worked with
+
+56
+00:03:04,919 --> 00:03:07,664
+And trust me it's not the best setup you can have
+
+57
+00:03:07,680 --> 00:03:12,475
+Anyway so secondly dbt has automatic documentation
+
+58
+00:03:12,480 --> 00:03:16,001
+Your code generates a searchable documentation site
+
+59
+00:03:16,001 --> 00:03:21,029
+with lineage graphs that show exactly how data flows through your transformations
+
+60
+00:03:21,040 --> 00:03:25,965
+So no more rendering like where does this metric come from And there is more
+
+61
+00:03:25,965 --> 00:03:30,159
+With today's dbt extensions you can even work with column level lineage
+
+62
+00:03:30,160 --> 00:03:33,676
+So you will be able to see how certain values
+
+63
+00:03:33,676 --> 00:03:37,192
+of a certain column pass through your pipeline
+
+64
+00:03:37,200 --> 00:03:39,757
+And there is modularity and reusability
+
+65
+00:03:39,760 --> 00:03:44,234
+You write your transformation logic once reference it from everywhere
+
+66
+00:03:44,240 --> 00:03:49,429
+You change it in one place and it will update your entire project
+
+67
+00:03:49,440 --> 00:03:54,796
+And here is the best part dbt has become the industry standard
+
+68
+00:03:54,800 --> 00:03:58,339
+Companies from startups to fortune 500 s use dbt
+
+69
+00:03:58,339 --> 00:04:03,440
+So it's not just a tool it's an actual career skill Who is dbt for
+
+70
+00:04:03,440 --> 00:04:07,600
+If you're a data analyst tired of fragile SQL scripts
+
+71
+00:04:07,600 --> 00:04:10,372
+dbt will give you engineering superpowers
+
+72
+00:04:10,372 --> 00:04:12,312
+just like in data engineering
+
+73
+00:04:12,320 --> 00:04:15,050
+If you're a data engineer building data pipelines
+
+74
+00:04:15,050 --> 00:04:19,040
+you can just think of dbt as a transformation layer of your stack
+
+75
+00:04:19,040 --> 00:04:23,513
+And if you're an analytics engineer well congrats
+
+76
+00:04:23,513 --> 00:04:26,954
+this tool has literally defined your role
+
+77
+00:04:26,960 --> 00:04:29,913
+In this course we are taking you from zero to hero
+
+78
+00:04:29,920 --> 00:04:32,365
+You will implement a real world project
+
+79
+00:04:32,365 --> 00:04:35,034
+covering every major feature and best practice
+
+80
+00:04:35,040 --> 00:04:39,353
+And I'm going to share lessons learned in my project experience along the way
+
+81
+00:04:39,360 --> 00:04:42,675
+And I promise by the end you won't just know dbt
+
+82
+00:04:42,675 --> 00:04:46,960
+you will actually think like an analytics engineer Let's dive right in
