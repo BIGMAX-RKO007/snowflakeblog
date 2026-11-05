@@ -336,6 +336,82 @@ ALTER SECRET dev_demo_api_secret SET SECRET_STRING = '<最新の access_token>';
 > [!TIP]
 > **安全性検証**：`SELECT * FROM DEV_DEMO_API_SECRET;` は文法エラーとなり、`SHOW SECRETS;` でも平文は絶対にマスクされます。
 
+#### 3. 徹底メカニズム比較：Box OAuth 認証 vs Snowflake Secret 体系、なぜ `TYPE = OAUTH2` が使えないのか？
+
+Snowflake の公式ドキュメントを確認すると、`CREATE SECRET` はネイティブで `TYPE = OAUTH2` をサポートしています。これに対して以下の 2 つの疑問が必ず浮上します：
+1. **Box の OAuth 認証と Snowflake の Secret 作成にはどのような根本的違いがあるのか？なぜ Box から得られるのは JSON なのか？なぜ Snowflake の `TYPE = OAUTH2` を直接使えないのか？**
+2. **Snowflake の Secret には複数の認証方式があるが、現代の API / Box 連携において他の方式が推奨されない理由は何か？**
+
+##### 詳細解説 1：Box の OAuth 認証はなぜ JSON なのか？なぜ Snowflake `TYPE = OAUTH2` で直接連携できないのか？
+
+###### A. Box `config.json` の本質：非対称暗号化と JWT 仕様（RFC 7523）
+Box 開発者ポータルで「サーバー認証（JWT使用）」アプリを作成した際に生成される `config.json` は以下を含みます：
+```json
+{
+  "boxAppSettings": {
+    "clientID": "8y6dhg3xzy8tvk648td1pm18a6y8gt09",
+    "clientSecret": "your_client_secret_here",
+    "appAuth": {
+      "publicKeyID": "k9j8h7g6",
+      "privateKey": "-----BEGIN ENCRYPTED PRIVATE KEY-----\n...\n-----END ENCRYPTED PRIVATE KEY-----\n",
+      "passphrase": "your_private_key_passphrase"
+    }
+  },
+  "enterpriseID": "12345678"
+}
+```
+Box は企業向けの **RFC 7523（OAuth 2.0 JWT ベアラートークン仕様）** に準拠しており、マシン間（M2M）の無人自動通信向けに設計されています：
+- **基本設計**：長期間有効な平文トークンをネットワーク上に流さず、クライアント側が秘密鍵を保持します；
+- **署名プロセス**：クライアントはローカルメモリ上で、数十秒の有効期限を持つペイロードを RSA 秘密鍵で RSA-SHA256 署名し、JWT Assertion を生成した上で Box トークンエンドポイントへ送信し、60 分間のみ有効な一時 Access Token を取得します；
+- **結果として**：Box が利用者に提供するものは、RSA 秘密鍵とパスフレーズを含む一連の暗号化エンジン（`config.json`）となります。
+
+###### B. なぜ Snowflake の `TYPE = OAUTH2` では対応できないのか？
+Snowflake の実機上で `TYPE = OAUTH2` の Secret 作成を直接テスト実行しました：
+```sql
+CREATE OR REPLACE SECRET test_oauth2_secret
+  TYPE = OAUTH2
+  OAUTH_REFRESH_TOKEN = 'mock_refresh_token'
+  OAUTH_REFRESH_TOKEN_EXPIRY_TIME = '2026-12-31 00:00:00';
+```
+> **実機エラー出力結果**：
+> ```text
+> 002029 (42601): SQL compilation error:
+> Missing option(s): [API_AUTHENTICATION]
+> ```
+
+ここには Snowflake の基盤アーキテクチャと Box の間に 3 つの技術的ギャップが存在します：
+1. **プロトコル仕様の不一致（RFC 6749 vs RFC 7523）**：Snowflake の `TYPE = OAUTH2` は `SECURITY INTEGRATION (TYPE = API_AUTHENTICATION)` を前提としており、RFC 6749 標準のリフレッシュトークンフロー（`grant_type=refresh_token`）または標準 Client Credentials のみに対応しています。
+2. **非対称 RSA 署名エンジンの欠如**：Snowflake カーネルは **RSA 秘密鍵の平文読み込み、パスフレーズの復号、RSA-SHA256 署名による JWT 生成を行うことができません**。秘密鍵を含む `config.json` を SQL に直接渡すことは仕様上不可能です。
+3. **独自パラメータの要求**：キーペアを使用しない Box Client Credentials Grant（CCG）方式を使用する場合でも、Box はリクエスト本文に独自パラメータ `box_subject_type=enterprise` および `box_subject_id=...` を必須としています。Snowflake の標準 OAuth エンジンは RFC 規定の標準フィールドのみを送信するため、独自拡張フィールドを注入できません。
+
+---
+
+##### 詳細解説 2：Snowflake Secret 認証方式の全貌比較と選定原則
+
+Snowflake が公式にサポートする `CREATE SECRET` の認証タイプは以下の 3 種類です：
+
+| Secret 認証タイプ (`TYPE`) | 格納される内部構造 | Python UDF 取得関数 | ユースケースと推奨レベル | 現代の外部 API / Box で**非推奨**とされる理由 |
+| :--- | :--- | :--- | :--- | :--- |
+| **`GENERIC_STRING`** | 機密文字列（Bearer Token / API Key / PAT） | `_snowflake.get_generic_secret_string('cred')` | **【🌟 唯一の第一推奨】**<br/>すべての現代 REST API | **汎用性 100%・ブラックボックスなし**。<br/>サードパーティ独自の OAuth パラメータや暗号署名に制約されず、Python コード内で自由にヘッダーを制御可能。 |
+| **`PASSWORD`** | `USERNAME = '...'`<br/>`PASSWORD = '...'` | `_snowflake.get_username_password('cred')` | **【❌ 強く非推奨】**<br/>レガシーな社内 Basic 認証専用 | 1. **現代 API は ID/PW を受け付けない**：Box、OpenAI、AWS 等は Basic 認証を全面廃止済み；<br/>2. **最小特権の原則 (PoLP) に違反**：管理者アカウントの ID/PW 漏洩時に全機能が危険に晒される；<br/>3. **MFA との衝突**：2要素認証有効化時に認証が破綻する。 |
+| **`OAUTH2`** | セキュリティ統合と `OAUTH_REFRESH_TOKEN` | `_snowflake.get_oauth_access_token('cred')` | **【⚠️ 標準 OAuth2 限定】**<br/>Salesforce 等の RFC 6749 準拠 API | 1. **事前ハードルが高い**：`ACCOUNTADMIN` によるグローバル統合の作成が必須；<br/>2. **RSA 非対称秘密鍵に対応不能**：Box の `config.json` を処理できない；<br/>3. **トラブルシューティング困難**：更新失敗時のエラーが不透明でデバッグが極めて難しい。 |
+
+---
+
+##### ⚠️ 本番運用・実機検証における【実行不可手順】に関する事前報告義務
+
+本章の演習において、以下の 2 点はクラウド基盤の物理的・セキュリティ的制約による仕様動作です：
+
+1. **【制限 1】：無料試用アカウント（Free Trial）では `CREATE EXTERNAL ACCESS INTEGRATION` を作成不可**
+   - **実機エラー**：`509009 (0A000): SQL compilation error: External access is not supported for trial accounts.`
+   - **公式理由**：Snowflake はスパムや DDoS 攻撃などの不正利用を防止するため、クレジットカード未登録の試用テナントに対して ENA の作成権限をグローバルに封印しています。
+   - **対策**：本番アカウント（Pay-As-You-Go 登録後）で実行するか、検証・学習環境では第 5 節に記載の Python Client パイプライン直結モード（Box 4 大ドキュメントの即時取り込みが可能）を使用します。
+2. **【制限 2】：SQL から `config.json` ファイルを直接 `CREATE SECRET` に渡すことは不可**
+   - **公式理由**：Snowflake SQL はファイルストリームの直接受け入れや RSA 秘密鍵の復号・JWT 生成をサポートしていません。
+   - **対策**：ルート A（Box コンソールから 1 秒で Developer Token を取得）またはルート B（Python スクリプトで `config.json` を署名交換してトークンを取得）により `GENERIC_STRING` に注入します。
+
+---
+
 ---
 
 ### Step 3: 外部アクセス統合 (Integration) の作成と権限付与

@@ -42,7 +42,10 @@ scratch/
 oradata/
 *.dbf
 
-# Temporary upload folder
+# Temporary tokens & dumps
+box_token.txt
+box_root_items.json
+*.token
 upd/
 .backup/
 docs/images/.backup/

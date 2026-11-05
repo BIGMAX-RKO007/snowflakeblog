@@ -20,7 +20,11 @@ TARGET_FILES = [
 def run_box_multidoc_ingestion():
     # 1. 外部调用 Box 官方 API 获取各格式文件元数据与正文流
     print(f"[1/3] 正在调取 Box API 批量获取 {len(TARGET_FILES)} 份核心企业文档正文与元数据...")
-    box_token = "RHUHb1sO523M2iI4RkWgL3L37I2vdDXg" # 替换为你获取的真实 Box Token
+    try:
+        with open("box_token.txt", "r", encoding="utf-8") as f:
+            box_token = f.read().strip()
+    except Exception:
+        box_token = "RHUHb1sO523M2iI4RkWgL3L37I2vdDXg"
     box_headers = {
         "Authorization": f"Bearer {box_token}",
         "Accept": "application/json"
@@ -67,9 +71,9 @@ def run_box_multidoc_ingestion():
     # 2. 建立数仓连接
     print("[2/3] 正在连接 Snowflake 计算仓库...")
     conn = snowflake.connector.connect(
-        user="fanxiao",
+        user="FANXIAO",
         password="SuperCoffee!2026",
-        account="aakjsrd-oq04293",
+        account="mvfryvt-nv04752",
         warehouse="COMPUTE_WH",
         database="DEV_DEMO_DB",
         schema="API_INTEGRATION",

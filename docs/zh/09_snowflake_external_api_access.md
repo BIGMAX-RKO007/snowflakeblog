@@ -343,6 +343,82 @@ ALTER SECRET dev_demo_api_secret SET SECRET_STRING = '<换取出来的 access_to
 > [!TIP]
 > **安全验证**：执行 `SELECT * FROM DEV_DEMO_API_SECRET;` 会直接报错，执行 `SHOW SECRETS;` 也只会显示元数据，任何人都无法通过 SQL 逆向读出你的明文 Token！
 
+#### 3. 深度机理剖析：Box OAuth 认证机制 vs Snowflake Secret 体系，为什么无法使用 `TYPE = OAUTH2`？
+
+很多工程师在查阅 Snowflake 官方文档时会发现 `CREATE SECRET` 原生支持 `TYPE = OAUTH2`，于是自然会产生两个核心疑问：
+1. **Box 的 OAuth 认证与 Snowflake 的 Secret 创建有什么本质不同？为什么 Box 下载的是 JSON 文件？为什么无法直接使用 Snowflake 的 `TYPE = OAUTH2`？**
+2. **Snowflake 的 Secret 提供了多种认证类型，为什么在现代 API / Box 对接中其他方式强烈不推荐？**
+
+##### 深度解答 1：Box 的 OAuth 认证为什么是 JSON？为什么 Snowflake `TYPE = OAUTH2` 无法直接对接？
+
+###### A. Box `config.json` 的本质：非对称加密与 JWT 规范（RFC 7523）
+当在 Box 开发者平台创建“服务器身份验证（带 JWT）”应用时，生成的 `config.json` 包含：
+```json
+{
+  "boxAppSettings": {
+    "clientID": "8y6dhg3xzy8tvk648td1pm18a6y8gt09",
+    "clientSecret": "your_client_secret_here",
+    "appAuth": {
+      "publicKeyID": "k9j8h7g6",
+      "privateKey": "-----BEGIN ENCRYPTED PRIVATE KEY-----\n...\n-----END ENCRYPTED PRIVATE KEY-----\n",
+      "passphrase": "your_private_key_passphrase"
+    }
+  },
+  "enterpriseID": "12345678"
+}
+```
+Box 采用的是企业级 **RFC 7523（OAuth 2.0 JWT Bearer Token）规范**，专为机器对机器（M2M）无人值守通信设计：
+- **核心哲学**：不在公网上传输长期有效明文 Token，而是由客户端持有私钥；
+- **签名过程**：客户端在本地内存中，用 RSA 私钥对包含几十秒有效期的报文执行 RSA-SHA256 签名，生成 JWT Assertion，再去向 Box 接口换取 60 分钟短效 Access Token；
+- **因此**：Box 交付给你的必须是一整套包含 RSA 私钥与 Passphrase 的数字证书机器，即 `config.json`。
+
+###### B. Snowflake `TYPE = OAUTH2` 为什么无法接管？
+我们在 Snowflake 真实环境中直接测试执行创建 `TYPE = OAUTH2` 的 Secret：
+```sql
+CREATE OR REPLACE SECRET test_oauth2_secret
+  TYPE = OAUTH2
+  OAUTH_REFRESH_TOKEN = 'mock_refresh_token'
+  OAUTH_REFRESH_TOKEN_EXPIRY_TIME = '2026-12-31 00:00:00';
+```
+> **真机执行报错回显**：
+> ```text
+> 002029 (42601): SQL compilation error:
+> Missing option(s): [API_AUTHENTICATION]
+> ```
+
+这体现了 Snowflake 底层机制与 Box 的三大技术鸿沟：
+1. **协议规范不兼容（RFC 6749 vs RFC 7523）**：Snowflake 的 `TYPE = OAUTH2` 严格依赖 `SECURITY INTEGRATION (TYPE = API_AUTHENTICATION)`，其内核仅支持 RFC 6749 标准的刷新令牌流（`grant_type=refresh_token`）或标准客户端凭证。
+2. **缺失非对称 RSA 签名引擎**：Snowflake 内核**无法读取 RSA 私钥文本，无法解密 Passphrase，无法执行 RSA-SHA256 算法生成 JWT**。你无法将包含私钥的 `config.json` 直接作为参数传递给 SQL。
+3. **专有参数拦截**：即使换用无需私钥的 Box Client Credentials Grant（CCG）模式，Box 也强行要求在 POST 请求体中附带专有非标准参数 `box_subject_type=enterprise` 和 `box_subject_id=...`。Snowflake 的内置 OAuth 引擎发送的是标准 RFC 字段，不支持自定义扩展注入。
+
+---
+
+##### 深度解答 2：Snowflake Secret 认证方式全景对比与选型原则
+
+Snowflake 官方支持的 `CREATE SECRET` 共有 3 种认证类型：
+
+| Secret 认证类型 (`TYPE`) | 底层数据结构 | Python UDF 提取函数 | 适用场景与推荐评级 | 为什么在现代 API / Box 中**不推荐**？ |
+| :--- | :--- | :--- | :--- | :--- |
+| **`GENERIC_STRING`** | 纯文本敏感字符串（Bearer Token / API Key / PAT） | `_snowflake.get_generic_secret_string('cred')` | **【🌟 唯一首选推荐】**<br/>适用所有现代 REST API | **通用性 100%、零黑盒**。<br/>不受第三方 OAuth 定制参数或 RSA 算法限制，可在 Python 代码中自由装配 Headers。 |
+| **`PASSWORD`** | `USERNAME = '...'`<br/>`PASSWORD = '...'` | `_snowflake.get_username_password('cred')` | **【❌ 强烈不推荐】**<br/>仅限遗留内网 Basic Auth | 1. **现代 API 绝不接受账号密码**：Box、OpenAI、AWS 全面废弃 HTTP Basic Auth；<br/>2. **违反最小权限原则 (PoLP)**：主账号与明文密码一旦泄露全系统遭殃；<br/>3. **MFA 冲突**：企业启用双因子验证后，密码登录直接崩溃。 |
+| **`OAUTH2`** | 关联安全集成与 `OAUTH_REFRESH_TOKEN` | `_snowflake.get_oauth_access_token('cred')` | **【⚠️ 仅限标准 OAuth2】**<br/>仅限 Salesforce 等标准 RFC 6749 接口 | 1. **前置门槛过高**：必须持有 `ACCOUNTADMIN` 建立全局安全集成；<br/>2. **不支持非对称 RSA 私钥**，完全无法处理 Box 的 `config.json`；<br/>3. **黑盒排错困难**：底层刷新失败时，数仓日志报错隐晦，极难定位。 |
+
+---
+
+##### ⚠️ 生产与实操红线：必须向技术主管与读者报备的【无法操作步骤】
+
+在实际执行本章实操时，如果遇到以下两个限制，切勿慌乱，这是系统物理限制的正常现象：
+
+1. **【限制 1】：试用账号（Free Trial）无法执行 `CREATE EXTERNAL ACCESS INTEGRATION`**
+   - **真实报错**：`509009 (0A000): SQL compilation error: External access is not supported for trial accounts.`
+   - **官方原因**：Snowflake 官方全局安全策略禁止未绑信用卡的试用租户出网，以防恶意滥用发起 DDoS 攻击。
+   - **生产应对**：生产正式环境绑定信用卡升级为 Pay-As-You-Go 即可解封；学习验证阶段使用本章第 5 节的 Python Client 管道直连模式（同样能直接抓取 Box 4 大文档入库）。
+2. **【限制 2】：SQL 无法直接将 `config.json` 文件塞入 `CREATE SECRET`**
+   - **官方原因**：Snowflake 的 SQL 语句不接受文件流作为参数，且仓内不支持解析 RSA 私钥。
+   - **生产应对**：使用路径 A（Box 开发者控制台 1 秒提取 Developer Token）或路径 B（3 行 Python 脚本读取 `config.json` 自动换取 Token）注入 `GENERIC_STRING`。
+
+---
+
 ---
 
 ### Step 3: 创建外部访问集成门禁 (Integration) 并授权
