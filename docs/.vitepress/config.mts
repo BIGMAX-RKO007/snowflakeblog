@@ -48,6 +48,7 @@ export default withMermaid(
                 },
                 { text: '09. Snowflake 外部 API アクセス完全ガイド', link: '/09_snowflake_external_api_access' },
                 { text: '10. Streamlit in Snowflake データ可視化', link: '/10_snowflake_streamlit_visualization' },
+                { text: '11. Snowflake コスト計算とガバナンス実践', link: '/11_snowflake_cost_management' },
               ]
             }
           ],
@@ -79,6 +80,7 @@ export default withMermaid(
                 },
                 { text: '09. Snowflake 外部 API アクセス完全ガイド', link: '/09_snowflake_external_api_access' },
                 { text: '10. Streamlit in Snowflake (SiS) データ可視化', link: '/10_snowflake_streamlit_visualization' },
+                { text: '11. Snowflake コスト計算とガバナンス実践', link: '/11_snowflake_cost_management' },
               ]
             }
           ],
@@ -125,6 +127,7 @@ export default withMermaid(
                 },
                 { text: '09. Snowflake 外部 API 调用全流程实战', link: '/zh/09_snowflake_external_api_access' },
                 { text: '10. Streamlit in Snowflake 数据可视化全流程实战', link: '/zh/10_snowflake_streamlit_visualization' },
+                { text: '11. Snowflake 费用成本精算与治理实战', link: '/zh/11_snowflake_cost_management' },
               ]
             }
           ],
@@ -156,6 +159,7 @@ export default withMermaid(
                 },
                 { text: '09. Snowflake 外部 API 调用全流程实战', link: '/zh/09_snowflake_external_api_access' },
                 { text: '10. Streamlit in Snowflake 数据可视化全流程实战', link: '/zh/10_snowflake_streamlit_visualization' },
+                { text: '11. Snowflake 费用成本精算与治理实战', link: '/zh/11_snowflake_cost_management' },
               ]
             }
           ],
