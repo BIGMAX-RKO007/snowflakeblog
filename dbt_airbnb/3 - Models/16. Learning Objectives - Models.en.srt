@@ -1,0 +1,43 @@
+1
+00:00:00,000 --> 00:00:04,961
+Welcome to this section which is all about models
+
+2
+00:00:04,961 --> 00:00:08,151
+the fundamental concept behind dbt
+
+3
+00:00:08,160 --> 00:00:12,003
+In this section you will be able to understand
+
+4
+00:00:12,003 --> 00:00:17,540
+our general data flow and the underlying data for this course
+
+5
+00:00:17,540 --> 00:00:20,411
+And also you will be able to understand
+
+6
+00:00:20,411 --> 00:00:22,134
+how models work in dbt
+
+7
+00:00:22,140 --> 00:00:25,900
+You will have a theoretical introduction
+
+8
+00:00:25,900 --> 00:00:28,969
+And then in a longer practical session
+
+9
+00:00:28,969 --> 00:00:32,317
+we are going to build our first models
+
+10
+00:00:32,317 --> 00:00:39,376
+and you will have the chance to then work with me on a guided exercise
+
+11
+00:00:39,376 --> 00:00:45,120
+and then later also solve an individual lab Let's get started

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Assignment</title>
+    <style>
+        body { font-family: sf pro text, -apple-system, BlinkMacSystemFont, Roboto, segoe ui, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; }
+        h1, h2, h3 { font-weight: bold; }
+        .italic-text { font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>Create the src_hosts model</h1>
+    <div>
+        <h2>Description</h2>
+        <div>Create a model which builds on top of our raw_hosts table.</div>
+        <p><strong>Estimated Duration:</strong> 20 minutes</p>
+    </div>
+    <div>
+        <h2>Instructions</h2>
+        <div><p>Create a model which builds on top of our <code>raw_hosts</code> table.</p><p>1) Name the model <code>models/src/src_hosts.sql</code><br>2) Use a CTE to define an alias called <code>raw_hosts</code>. This CTE will select every column from the raw host table <code>AIRBNB.RAW.RAW_HOSTS</code><br>3) In your final SELECT, select every column and record from raw_hosts and rename the following columns:</p><ul><li><p><code>id</code> to <code>host_id</code> </p></li><li><p><code>name</code> to <code>host_name</code></p></li></ul><p><br></p><p><strong>NEW&nbsp;CHAT&nbsp;TUTOR</strong></p><p>I'm experimenting with a brand-new dbt Chat Tutor solution to give you an even better exercise experience. <a href="https://dbtchat.nordquant.com/" rel="noopener noreferrer" target="_blank">You can check it out here</a>. If you do, please use the feedback box on the site once you are done to tell me how it went. Have fun!&nbsp;:)</p></div>
+    </div>
+    <div>
+        <h2>Questions and Solutions</h2>
+        <div><div class="assignment-question">
+                <h3>Question 1</h3>
+                <div><p>Please provide the SQL you came up with.</p></div>
+                <h4>Solution</h4>
+                <div><pre class="prettyprint linenums">WITH raw_hosts AS ( 
+  SELECT * FROM AIRBNB.RAW.RAW_HOSTS
+)
+SELECT
+  id AS host_id,
+  NAME AS host_name, is_superhost, created_at, updated_at
+FROM
+  raw_hosts</pre></div>
+            </div></div>
+    </div>
+    <div><h2>Instructor Solutions</h2><p><strong>Attachment: </strong>Models.md.pdf</p></div>
+</body>
+</html>

@@ -1,0 +1,579 @@
+1
+00:00:00,000 --> 00:00:04,665
+As we discussed models in dbt are playing SQL files
+
+2
+00:00:04,665 --> 00:00:08,708
+and it's a good assumption to have for the moment
+
+3
+00:00:08,708 --> 00:00:13,995
+that these SQL files will map one to one to models or views
+
+4
+00:00:14,000 --> 00:00:18,147
+You also see if you take a look at our row layer
+
+5
+00:00:18,147 --> 00:00:21,337
+that we have our three input tables
+
+6
+00:00:21,337 --> 00:00:25,165
+and now it's time to create our first layer
+
+7
+00:00:25,165 --> 00:00:28,993
+which we will call staging the staging layer
+
+8
+00:00:29,000 --> 00:00:35,375
+Here we will prefix every staging table or view with the src tag
+
+9
+00:00:35,375 --> 00:00:40,625
+and all we want to do is build three models here
+
+10
+00:00:40,625 --> 00:00:44,000
+src listings hosts and src reviews
+
+11
+00:00:44,000 --> 00:00:48,644
+which will be views on top of row listings
+
+12
+00:00:48,644 --> 00:00:55,997
+after we make some minor changes on those like renaming column names
+
+13
+00:00:56,000 --> 00:01:04,000
+So it's like a first cleansing step of taking our data in
+
+14
+00:01:04,000 --> 00:01:08,996
+So in this section we will implement src listings together
+
+15
+00:01:08,996 --> 00:01:13,992
+and then you'll have the chance to implement src reviews
+
+16
+00:01:13,992 --> 00:01:16,656
+as a form of a guided lab
+
+17
+00:01:16,656 --> 00:01:19,987
+and then src hosts as an individual
+
+18
+00:01:20,000 --> 00:01:22,774
+So let's go ahead take a look
+
+19
+00:01:22,774 --> 00:01:28,940
+The way we will go is that first we express our statement in snowflake
+
+20
+00:01:28,940 --> 00:01:34,180
+we make sure that our SQL file so the SELECT statement works well
+
+21
+00:01:34,180 --> 00:01:38,187
+and then we are going to integrate it into dbt
+
+22
+00:01:38,187 --> 00:01:40,960
+and make sure that dbt can execute it
+
+23
+00:01:41,000 --> 00:01:49,968
+So let us implement our src listings Let's open snowflake Here we are
+
+24
+00:01:49,968 --> 00:01:57,992
+Let's take a look at the Airbnb row tables Here is row listings
+
+25
+00:01:58,000 --> 00:02:00,561
+So again if you take a look
+
+26
+00:02:00,561 --> 00:02:04,403
+you see that most of the column names are good
+
+27
+00:02:04,403 --> 00:02:08,565
+but some of them are a bit ambiguous like the ID
+
+28
+00:02:08,565 --> 00:02:11,447
+We can rename this to listing ID
+
+29
+00:02:11,447 --> 00:02:14,969
+we can rename the name to your listing name
+
+30
+00:02:15,000 --> 00:02:18,331
+And also I want to express explicitly
+
+31
+00:02:18,331 --> 00:02:22,327
+that this price comes in a string format
+
+32
+00:02:22,327 --> 00:02:25,990
+So let's just rename this to price str
+
+33
+00:02:26,000 --> 00:02:29,766
+So let's implement our first SELECT statement
+
+34
+00:02:29,766 --> 00:02:32,994
+where we are changing these column names
+
+35
+00:02:33,000 --> 00:02:38,901
+And it's a standard practice in the analytics community
+
+36
+00:02:38,901 --> 00:02:45,981
+to use CTEs common table expressions for all of our input sources
+
+37
+00:02:46,000 --> 00:02:48,590
+So this is what we will do
+
+38
+00:02:48,590 --> 00:02:54,146
+So first I will create a common table expression
+
+39
+00:02:54,146 --> 00:02:58,220
+which points to the row listings table
+
+40
+00:02:58,220 --> 00:03:03,031
+So I will say that I want to call it row listings
+
+41
+00:03:03,031 --> 00:03:10,736
+and what I want to do is SELECT from the row listings table Here is a protib
+
+42
+00:03:10,736 --> 00:03:16,986
+In snowflake you can click place name in SQL and you have the name
+
+43
+00:03:17,000 --> 00:03:23,600
+So now I have my input source defined as row listings
+
+44
+00:03:23,600 --> 00:03:28,000
+and I will go on and do my SELECT
+
+45
+00:03:28,000 --> 00:03:31,687
+I'm copy pasting this SELECT here There we go
+
+46
+00:03:31,687 --> 00:03:34,758
+And you can also go and copy paste it
+
+47
+00:03:34,758 --> 00:03:39,983
+You can look up this SELECT expression in the class resources
+
+48
+00:03:40,000 --> 00:03:44,160
+So feel free to go open it and just copy paste it
+
+49
+00:03:44,160 --> 00:03:48,000
+into your snowflake instance into a worksheet
+
+50
+00:03:48,000 --> 00:03:51,952
+So let's take a look at what we are doing here
+
+51
+00:03:51,952 --> 00:03:58,032
+So we have row listings as a simple alias to Airbnb row listings right
+
+52
+00:03:58,032 --> 00:04:06,372
+We will SELECT from row listings and do my renames ID to listing ID name to listing name
+
+53
+00:04:06,372 --> 00:04:13,000
+price to price str So let's execute this query
+
+54
+00:04:13,000 --> 00:04:16,180
+Let's see if it works
+
+55
+00:04:16,180 --> 00:04:22,994
+It seems to work right Listing ID listing name All good
+
+56
+00:04:23,000 --> 00:04:28,031
+So now it's time to integrate this query into dbt
+
+57
+00:04:28,031 --> 00:04:31,127
+So let's open our dbt project
+
+58
+00:04:31,127 --> 00:04:34,997
+and let's create our first model
+
+59
+00:04:35,000 --> 00:04:38,234
+So models live here in the models folder
+
+60
+00:04:38,234 --> 00:04:41,762
+and you can organize your models into subfolders
+
+61
+00:04:41,762 --> 00:04:44,996
+or you can just keep them at the top level
+
+62
+00:04:45,000 --> 00:04:48,200
+It really depends on how you like to organize your structure
+
+63
+00:04:48,200 --> 00:04:52,000
+I would suggest you to organize it into subfolders layer by layer
+
+64
+00:04:52,000 --> 00:04:56,640
+So let's create our first layer Our first layer here
+
+65
+00:04:56,640 --> 00:05:00,990
+I will create a new folder for it will be called SRC
+
+66
+00:05:01,000 --> 00:05:04,368
+So now I have an SRC folder
+
+67
+00:05:04,368 --> 00:05:08,999
+and it's time to put in my first SQL file
+
+68
+00:05:09,000 --> 00:05:12,169
+I will call this file the SRC listings
+
+69
+00:05:12,169 --> 00:05:15,691
+as this is the SRC layer for listings
+
+70
+00:05:15,691 --> 00:05:18,155
+and it will be an SQL file
+
+71
+00:05:18,155 --> 00:05:20,973
+So simply SRC listing just SQL
+
+72
+00:05:21,000 --> 00:05:24,330
+And this is a dbt model So simple
+
+73
+00:05:24,330 --> 00:05:27,327
+Now we have a dbt model created
+
+74
+00:05:27,327 --> 00:05:30,991
+and let's paste our SQL statement here
+
+75
+00:05:31,000 --> 00:05:33,055
+We are very much done
+
+76
+00:05:33,055 --> 00:05:40,868
+So now dbt knows that I want to have a view created called SRC listings
+
+77
+00:05:40,868 --> 00:05:44,980
+and this is the definition of the view
+
+78
+00:05:45,000 --> 00:05:47,220
+So this is my first simplest model
+
+79
+00:05:47,220 --> 00:05:50,106
+and we will discuss later how you can manage this
+
+80
+00:05:50,106 --> 00:05:52,992
+to be a table or even something different
+
+81
+00:05:53,000 --> 00:05:59,780
+But by default all our models will be views
+
+82
+00:05:59,780 --> 00:06:05,995
+I saved this and now let's execute dbt
+
+83
+00:06:06,000 --> 00:06:08,495
+So I'm here in my project folder
+
+84
+00:06:08,495 --> 00:06:10,712
+and if you want to execute dbt
+
+85
+00:06:10,712 --> 00:06:15,980
+so if you want dbt to go through your models and tests and everything
+
+86
+00:06:16,000 --> 00:06:20,125
+the best way to go is simply say dbt run
+
+87
+00:06:20,125 --> 00:06:25,375
+and dbt will take a look at the changes in your project
+
+88
+00:06:25,375 --> 00:06:28,000
+and apply all of these
+
+89
+00:06:28,000 --> 00:06:32,104
+So here you see it said it found one model
+
+90
+00:06:32,104 --> 00:06:34,156
+no tests and so on
+
+91
+00:06:34,156 --> 00:06:37,576
+It also found quite a few macros
+
+92
+00:06:37,576 --> 00:06:40,996
+which are built in macros into dbt
+
+93
+00:06:41,000 --> 00:06:44,121
+And then it took my model and it said
+
+94
+00:06:44,121 --> 00:06:47,556
+okay you have a model called SRC listings
+
+95
+00:06:47,556 --> 00:06:50,991
+Let's create a view in the dev schema
+
+96
+00:06:51,000 --> 00:06:54,888
+This is what we defined in our as our target schema right
+
+97
+00:06:54,888 --> 00:06:59,991
+and it created this view called the dev src listings and it completed successfully
+
+98
+00:07:00,000 --> 00:07:02,292
+So we are good to go
+
+99
+00:07:02,292 --> 00:07:07,259
+Let's take a look in snowflake if it works
+
+100
+00:07:07,259 --> 00:07:09,934
+So I'm back to snowflake
+
+101
+00:07:09,934 --> 00:07:12,990
+We are going to refresh now
+
+102
+00:07:13,000 --> 00:07:17,872
+You can do it by pressing dot dot dot refresh
+
+103
+00:07:17,872 --> 00:07:25,992
+and I will go to the dev schema views and here we are Here is SRC listings
+
+104
+00:07:26,000 --> 00:07:29,438
+If I take a look at SRC listings
+
+105
+00:07:29,438 --> 00:07:35,168
+you will see that indeed it is what I wanted Okay congrats
+
+106
+00:07:35,168 --> 00:07:38,988
+You have just created your first model
+
+107
+00:07:39,000 --> 00:07:43,500
+So here comes a quick in class exercise
+
+108
+00:07:43,500 --> 00:07:48,375
+What I'd like you to do is to go and take a look
+
+109
+00:07:48,375 --> 00:07:53,030
+at the raw reviews table which has the listing ID
+
+110
+00:07:53,030 --> 00:07:56,800
+date reviewer name and comments and sentiment right
+
+111
+00:07:56,800 --> 00:07:59,990
+and make some changes and build a model
+
+112
+00:08:00,000 --> 00:08:06,398
+I will put a slide for it on screen Here we go
+
+113
+00:08:06,398 --> 00:08:10,054
+So this is the SRC reviews SQL
+
+114
+00:08:10,054 --> 00:08:15,995
+I'd like to ask you to put it into the SRC folder
+
+115
+00:08:16,000 --> 00:08:22,594
+into models and use a CTE which references the raw reviews table
+
+116
+00:08:22,594 --> 00:08:26,989
+and then make a few changes in column names
+
+117
+00:08:27,000 --> 00:08:28,680
+Convert date to review date
+
+118
+00:08:28,680 --> 00:08:33,000
+comments to review text and rename sentiment to review sentiment
+
+119
+00:08:33,000 --> 00:08:38,127
+And then copy this to dbt once it works in snowflake
+
+120
+00:08:38,127 --> 00:08:43,987
+and execute dbt run and verify that your model has been created
+
+121
+00:08:44,000 --> 00:08:49,447
+Probably the best you can do here is to stop this video now
+
+122
+00:08:49,447 --> 00:08:51,989
+and spend some time on this
+
+123
+00:08:52,000 --> 00:08:55,000
+And when you're done just come back
+
+124
+00:08:55,000 --> 00:08:58,000
+and I will show you the solution
+
+125
+00:08:58,000 --> 00:09:01,786
+If you find this challenging just take a look
+
+126
+00:09:01,786 --> 00:09:07,983
+at the class resources and we will have the solution there for you
+
+127
+00:09:08,000 --> 00:09:19,500
+So good luck and see you back in a minute OK hopefully you're done
+
+128
+00:09:19,500 --> 00:09:24,000
+So let me show you how to do this
+
+129
+00:09:24,000 --> 00:09:28,930
+So what you want to do is to create a simple CTE
+
+130
+00:09:28,930 --> 00:09:32,100
+on top of the Airbnb raw reviews
+
+131
+00:09:32,100 --> 00:09:35,974
+and execute a select on top of the CTE
+
+132
+00:09:36,000 --> 00:09:40,077
+where you take the date and rename it to review date
+
+133
+00:09:40,077 --> 00:09:42,991
+and also rename comments and sentiment
+
+134
+00:09:43,000 --> 00:09:55,000
+And you checked if it works OK looks good
+
+135
+00:09:55,000 --> 00:09:58,997
+Then we can add it to dbt
+
+136
+00:09:59,000 --> 00:10:03,995
+So you probably created the src reviews SQL file
+
+137
+00:10:04,000 --> 00:10:10,996
+You added the same and then executed dbt run
+
+138
+00:10:11,000 --> 00:10:18,000
+So dbt run now says that it found two models right
+
+139
+00:10:18,000 --> 00:10:25,140
+It takes a look at the src listings recreates a few
+
+140
+00:10:25,140 --> 00:10:27,996
+and then also src reviews
+
+141
+00:10:28,000 --> 00:10:35,229
+Then you can go on and validate if this happened There we go
+
+142
+00:10:35,229 --> 00:10:41,000
+We have src listings and src reviews So congrats
+
+143
+00:10:41,000 --> 00:10:45,329
+Now you can get your hands dirty with the src host
+
+144
+00:10:45,329 --> 00:10:49,991
+which is a self guided exercise after this class
+
+145
+00:10:50,000 --> 00:10:52,997
+See you in the next section

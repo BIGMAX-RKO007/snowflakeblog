@@ -1,0 +1,147 @@
+1
+00:00:00,000 --> 00:00:03,998
+Commentable expressions are very easy and simple
+
+2
+00:00:04,000 --> 00:00:10,496
+CTs essentially help us write readable and maintainable code quickly
+
+3
+00:00:10,500 --> 00:00:15,000
+By definition they are a temporary named result set
+
+4
+00:00:15,000 --> 00:00:20,395
+In reality CTs are great because the result remains in memory
+
+5
+00:00:20,400 --> 00:00:26,194
+during the execution of a SELECT INSERT UPDATE DELETE or MERGE statement
+
+6
+00:00:27,300 --> 00:00:30,594
+The syntax of a CT would look something like this
+
+7
+00:00:30,600 --> 00:00:39,591
+The with clause is basically telling the database that we are going to create a commentable expression
+
+8
+00:00:39,600 --> 00:00:45,897
+after which you can give a name to our CT or more precisely to our result set
+
+9
+00:00:45,897 --> 00:00:48,188
+that we can reference later
+
+10
+00:00:48,200 --> 00:00:54,650
+The column names are completely optional and they are used for setting up aliases
+
+11
+00:00:54,650 --> 00:00:58,700
+for the column names that will come out of the commentable expression
+
+12
+00:00:58,700 --> 00:01:06,455
+The CTE query is a SELECT statement and in reality this is just a temporary table
+
+13
+00:01:06,455 --> 00:01:11,697
+that will be referenced from the FROM clause like other everyday tables
+
+14
+00:01:11,700 --> 00:01:19,300
+The reference to CTE part is where we will execute and reference our commentable expression
+
+15
+00:01:20,300 --> 00:01:22,597
+Let's take a look at an example
+
+16
+00:01:22,600 --> 00:01:29,495
+Let's say we extracted raw data from the source systems via Airbnb
+
+17
+00:01:29,500 --> 00:01:35,296
+The data is 100 uncleaned and we will want to do transformations on it
+
+18
+00:01:35,300 --> 00:01:41,500
+In step 1 we create the commentable expression that we named raw listings
+
+19
+00:01:41,500 --> 00:01:47,986
+Then in step 2 we have an inner query where we selected the source listings as they are
+
+20
+00:01:48,600 --> 00:01:51,596
+All the columns that we could get our hands on basically
+
+21
+00:01:51,600 --> 00:01:58,178
+Then in step 3 which is an outer query we query the CT name that we have provided
+
+22
+00:01:58,178 --> 00:02:05,889
+which is raw listings We selected not all columns of the source but only specific columns
+
+23
+00:02:05,900 --> 00:02:09,895
+on which we performed the simplest of all changes
+
+24
+00:02:09,900 --> 00:02:15,799
+a rename of the ID column to listing id to make it more obvious That's it
+
+25
+00:02:16,900 --> 00:02:20,022
+Now keep in mind that we won't dive into more advanced CTs
+
+26
+00:02:20,022 --> 00:02:22,698
+as they are outside the scope of this course
+
+27
+00:02:22,700 --> 00:02:27,200
+However some general takeaways I would like to share
+
+28
+00:02:27,200 --> 00:02:32,737
+So although a CT has very similar functionality to a view
+
+29
+00:02:32,737 --> 00:02:36,890
+CTs will not store the definition in metadata
+
+30
+00:02:36,900 --> 00:02:41,000
+We prefer CTs because they are extremely readable
+
+31
+00:02:41,000 --> 00:02:46,500
+they are easy to maintain and they make complex queries more understandable
+
+32
+00:02:48,100 --> 00:02:55,299
+Furthermore a given query can be divided into separate simple logical building blocks
+
+33
+00:02:55,300 --> 00:03:02,100
+which can be then used to build more complex CTs until a final result set gets generated
+
+34
+00:03:02,100 --> 00:03:10,090
+Lastly CTs can be also defined in functions stored procedures triggers or even views
+
+35
+00:03:11,000 --> 00:03:14,872
+We're going to use CTs many times throughout the course
+
+36
+00:03:14,872 --> 00:03:17,292
+so you will see a ton of examples soon
+
+37
+00:03:17,300 --> 00:03:19,296
+See you in the next video
