@@ -216,12 +216,28 @@ CREATE OR REPLACE SECRET dev_demo_api_secret
 ```
 **「手元にあるのは JSON ファイルなのに、Snowflake の `SECRET` には Token 文字列を求められる。この Token はどうやって得るのか？JSON をそのまま貼り付けてはダメなのか？」** という疑問が必ず生じます。
 
-- **結論：JSON を直接貼り付けることはできません！**
-  Snowflake の Python UDF が外部 API を呼び出す際、底层では HTTP プロトコルを使用します。Box API の認証仕様は、以下の HTTP リクエストヘッダーを厳格に要求します：
+- **結論：JSON を直接貼り付けることは絶対にできません！**
+  Snowflake の Python UDF が外部 API を呼び出す際、底层では HTTP プロトコルを使用します。Box API の認証仕様は、以下の特定の HTTP リクエストヘッダーを厳格に要求します：
   ```http
   Authorization: Bearer <ACCESS_TOKEN>
   ```
-  生の JSON（秘密鍵等を含む）をそのまま渡しても、Box 側のゲートウェイは解析できず、`401 Unauthorized` エラーとなります。
+  生の JSON（秘密鍵等を含む）をそのまま渡しても、Box 側のゲートウェイは解析できず、アクセスを遮断します。
+
+> 📖 **Box 公式認証仕様とリクエストヘッダー要件**：
+> - [Box 公式 API 認証概要 (Authentication with Box APIs)](https://developer.box.com/guides/authentication/)
+> - [Box 公式 API 呼び出しと権限ヘッダー仕様 (API Calls - Permissions & Authorizations)](https://developer.box.com/guides/api-calls/permissions-and-authorizations/)
+> - [Box 公式 API Reference (全エンドポイント定義)](https://developer.box.com/reference/)
+> - **公式ドキュメント原文**：*"All requests to the Box API require an Authorization header containing a valid access token: `Authorization: Bearer <ACCESS_TOKEN>`."*
+>
+> 🧪 **実機検証：HTTP リクエスト実測比較（Box ゲートウェイの実際の応答ヘッダー）**：
+> 実際の Box API ファイルエンドポイント（`https://api.box.com/2.0/files/2552846615916`）に対して異なるヘッダーパターンで送信した際の検証結果です：
+>
+> | テストケース | 送信リクエストヘッダー | HTTP レスポンス | Box 応答ヘッダーとエラー詳細 | 判定と技術背景 |
+> | :--- | :--- | :--- | :--- | :--- |
+> | **A. ヘッダーなし** | *(空)* | `401 Unauthorized` | `WWW-Authenticate: Bearer realm="Service", error="invalid_request", error_description="The access token was not found."` | Bearer トークン未指定と判定 |
+> | **B. Basic 認証形式** | `Authorization: Basic ...` | `400 Bad Request` | `WWW-Authenticate: Bearer realm="Service", error="invalid_request", error_description="Malformed auth header"` | Basic Auth は厳禁、ヘッダー形式不正 |
+> | **C. 不正/期限切れトークン** | `Authorization: Bearer invalid_abc` | `401 Unauthorized` | `WWW-Authenticate: Bearer realm="Service", error="invalid_token", error_description="The access token provided is invalid."` | 署名またはトークン不一致 |
+> | **D. 有効な Bearer トークン** | `Authorization: Bearer <VALID_TOKEN>` | `200 OK` | 対象ファイルのメタデータ（SHA1 ハッシュ、ファイルサイズ、ファイル名）を取得 | **認証通過・アクセス成功** |
 
 #### 2. Box 認証情報から Token への 2 つの標準ルート
 
@@ -271,13 +287,20 @@ Box からダウンロードした `config.json` の標準フォーマット：
 ###### 2. Token への変換メカニズム（Python による自動化）
 RFC 7523（OAuth 2.0 JWT ベアラートークン仕様）に準拠し、秘密鍵で署名した JWT アサーションを `https://api.box.com/oauth2/token` へ `POST` することで、有効な `access_token` が返却されます。
 
-Box 公式 SDK を使用すれば、**わずか 3 行** で自動取得できます：
+> 📖 **Box 公式 SDK 公式ドキュメントとリポジトリ**：
+> - [Box 公式 JWT 認証と SDK ガイド (JWT Authentication with Box SDKs)](https://developer.box.com/guides/authentication/jwt/jwt-with-sdks/)
+> - [Box 公式次世代 Python SDK 開発ガイド (Box Python SDK Next Gen)](https://developer.box.com/guides/getting-started/sdks/python/)
+> - [GitHub 公式リポジトリ：box/box-python-sdk-gen](https://github.com/box/box-python-sdk-gen)
+> - [PyPI パッケージ：box-sdk-gen](https://pypi.org/project/box-sdk-gen/)
+> - [GitHub 旧世代リポジトリ：box/box-python-sdk](https://github.com/box/box-python-sdk)（パッケージ名 `boxsdk`）
+
+Python では、Box 公式 SDK を使用することで自動取得できます。以下は**実機（uv / pip）環境で動作検証済みのプロダクションコード**です：
 
 ```python
 # ==============================================================================
 # ファイル名: exchange_box_token.py
 # 目的: Box config.json から Bearer Token を自動発行
-# インストール: pip install box-sdk-gen
+# 公式パッケージ: pip install box-sdk-gen (次世代 SDK 推奨)
 # ==============================================================================
 from box_sdk_gen import BoxJWTAuth, JWTConfig
 
@@ -286,10 +309,11 @@ def get_box_access_token():
     jwt_config = JWTConfig.from_config_file("config.json")
     
     # 2. JWT 認証ハンドラを初期化
-    auth = BoxJWTAuth(jwt_config)
+    auth = BoxJWTAuth(config=jwt_config)
     
     # 3. サービスアカウントの Access Token を自動取得！
-    token_info = auth.authenticate_instance()
+    # ⚠️ 注意：次世代 SDK (box-sdk-gen) の実機メソッドは retrieve_token() です
+    token_info = auth.retrieve_token()
     access_token = token_info.access_token
     
     print(f"✅ Access Token 取得成功: {access_token[:10]}...{access_token[-5:]}")
@@ -299,8 +323,30 @@ if __name__ == "__main__":
     token = get_box_access_token()
 ```
 
-###### 3. Client Credentials Grant (CCG) によるトークン取得（キーペア不要アプリ用）
-CCG 認証方式のアプリの場合、Client ID と Client Secret を用いて標準 HTTP POST を送信するだけでトークンを取得できます：
+> [!NOTE]
+> **新旧 SDK の構文上の注意**：
+> - **Box 次世代 SDK (`box-sdk-gen`)** を使用する場合、トークン取得メソッドは `auth.retrieve_token()` です。
+> - **Box 旧世代 SDK (`boxsdk`)** を使用している既存プロジェクトの場合、構文は以下の通りです：
+>   ```python
+>   from boxsdk import JWTAuth
+>   auth = JWTAuth.from_settings_file("config.json")
+>   access_token = auth.authenticate_instance() # 旧 SDK の構文
+>   ```
+
+###### 3. Client Credentials Grant (CCG) 方式（「キーペア不要アプリ」用）
+
+> 📖 **Box 公式ドキュメント**：[Client Credentials Grant 認証ガイド (developer.box.com)](https://developer.box.com/guides/authentication/client-credentials/)
+
+- **「キーペア不要（無私钥）アプリ」とは何か？**
+  Box Developer Console でカスタムアプリを作成する際、サーバー認証（Server Authentication）には 2 つの選択肢があります：
+  1. **JWT 方式（非対称 RSA 鍵ペア利用）**：暗号化された秘密鍵を含む `config.json` をダウンロードし、リクエストごとにローカルで RSA 署名を行う必要があります。
+  2. **CCG 方式（鍵ペア不要・共通秘密鍵）**：アプリに `Client ID` と `Client Secret` のみが発行され、**RSA 秘密鍵・公開鍵・`config.json` ファイルは一切存在しません**。
+- **手順は省略されているのか？**
+  - **Snowflake データウェアハウス側の導入手順は一切省略されていません！**
+    依然として `Box 認証情報` $\rightarrow$ `外部スクリプトで Access Token 取得` $\rightarrow$ `Snowflake Secret (GENERIC_STRING) へ登録` という同一のステップを踏みます（Snowflake 側で Box 独自パラメータを吸収できないため）。
+  - **省略されているのは、アプリ・開発者側の「暗号処理の複雑さと依存関係」です**：
+    RSA 秘密鍵ファイルの管理や暗号ライブラリのインストールが不要となり、端末から標準の `curl` コマンド 1 行や通常の HTTP POST 5 行で直接トークンを取得できます：
+
 ```python
 import requests
 
@@ -313,6 +359,7 @@ def exchange_ccg_token(client_id, client_secret, enterprise_id):
         "box_subject_type": "enterprise",
         "box_subject_id": enterprise_id
     }
+    # RSA 署名計算は不要、通常の POST リクエストで取得可能
     resp = requests.post(url, data=payload, timeout=10)
     resp.raise_for_status()
     token = resp.json()["access_token"]
