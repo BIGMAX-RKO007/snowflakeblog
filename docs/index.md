@@ -133,5 +133,7 @@ flowchart LR
    Snowflake Airbnb DB 初期化、44.1 万件データ投入、RSA 2048 鍵認証、`uv` 高速環境構築。
 3. [**03. モデル基礎と Staging 層実装**](/dbt/03_models_and_staging_layer)  
    「Everything is a SELECT」、CTE 規約、Airbnb 3 大ソースの Staging ビュー構築、`dbt run` 倉内実行検証。
+4. [**04. マテリアライゼーション戦略と依存関係**](/dbt/04_materializations)  
+   4 つのマテリアライゼーション（view/table/incremental/ephemeral）選定、`ref()` マクロ DAG 依存関係解決、ディメンションと増分ファクト実装、秒速差分更新。
 
 </div>

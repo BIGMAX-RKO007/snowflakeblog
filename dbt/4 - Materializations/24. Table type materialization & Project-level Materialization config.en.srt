@@ -1,0 +1,171 @@
+1
+00:00:00,000 --> 00:00:07,119
+So far the only materialization we used is the view materialization so the default
+
+2
+00:00:07,120 --> 00:00:10,776
+So we have now these five views in Snowflake
+
+3
+00:00:10,780 --> 00:00:12,657
+So let's reorganize these a little bit
+
+4
+00:00:12,660 --> 00:00:20,052
+Well first of all let's be explicit about our default materialization
+
+5
+00:00:20,060 --> 00:00:25,296
+So what I'd like to ask you is to open now the dbtproject yml file
+
+6
+00:00:25,296 --> 00:00:28,139
+and come to the end of this file
+
+7
+00:00:28,140 --> 00:00:35,840
+The dbtproject is the file where you can set subfolder and global configurations
+
+8
+00:00:35,840 --> 00:00:38,815
+And here in Modules dbtlearn
+
+9
+00:00:38,815 --> 00:00:45,191
+I want to specify that my default materialization is view
+
+10
+00:00:45,200 --> 00:00:51,419
+So for this I can add the new line
+
+11
+00:00:51,419 --> 00:00:58,330
+and just say materialized will be a view
+
+12
+00:00:58,340 --> 00:01:01,863
+So this is now just reinforcing the defaults
+
+13
+00:01:01,863 --> 00:01:05,385
+but I just want to be explicit about it
+
+14
+00:01:05,400 --> 00:01:09,064
+So this means that everything here in the dbtlearn project
+
+15
+00:01:09,064 --> 00:01:12,500
+should be materialized as a view by default
+
+16
+00:01:12,500 --> 00:01:17,111
+And this plus means that this is a built in property for dbt
+
+17
+00:01:17,111 --> 00:01:22,384
+so I don't reference a subfolder which is called materialized
+
+18
+00:01:22,384 --> 00:01:26,550
+but I want to use the materialization functionality of dbt
+
+19
+00:01:26,560 --> 00:01:29,638
+Okay so now we are where we were
+
+20
+00:01:29,638 --> 00:01:32,374
+but we have the defaults explicit
+
+21
+00:01:32,380 --> 00:01:34,072
+And what I want to do
+
+22
+00:01:34,072 --> 00:01:37,175
+and in this case what you would like to do
+
+23
+00:01:37,175 --> 00:01:40,260
+is that these source host listings and reviews
+
+24
+00:01:40,260 --> 00:01:42,790
+these are very lightweight transformations
+
+25
+00:01:42,790 --> 00:01:46,660
+and probably won't be accessed directly too often
+
+26
+00:01:46,660 --> 00:01:49,695
+So these are cool to be views
+
+27
+00:01:49,700 --> 00:01:52,869
+But then I have my dim host and dim listings
+
+28
+00:01:52,869 --> 00:01:55,465
+which are already clean stables
+
+29
+00:01:55,465 --> 00:01:58,340
+so these will be accessed quite often
+
+30
+00:01:58,340 --> 00:02:02,394
+So I want to make sure that these models are materialized as stables
+
+31
+00:02:02,400 --> 00:02:14,360
+So I will come now and define it as a table materialization So here we go
+
+32
+00:02:14,360 --> 00:02:18,752
+So I'm saying now that for the dim subfolder
+
+33
+00:02:18,752 --> 00:02:23,917
+it should be materialized as a table That's it super simple
+
+34
+00:02:23,920 --> 00:02:28,114
+So everything now in dim will be materialized as a table
+
+35
+00:02:28,114 --> 00:02:32,899
+and everything in source will be materialized as a view
+
+36
+00:02:32,900 --> 00:02:43,220
+So let's execute dbt run and let's make sure this is the case
+
+37
+00:02:43,220 --> 00:02:47,060
+It found five models that's great
+
+38
+00:02:47,060 --> 00:02:50,900
+Three views for the SRCs that's great too
+
+39
+00:02:50,900 --> 00:02:56,100
+And then two tables for dim host and dim listings Great
+
+40
+00:02:56,100 --> 00:02:58,539
+Let's take a look at snowflake
+
+41
+00:02:58,540 --> 00:03:05,940
+So here it says views still so I need to go and refresh this And there we go
+
+42
+00:03:05,940 --> 00:03:12,932
+We have now three views and two tables with the cleansed listings
+
+43
+00:03:12,940 --> 00:03:32,576
+Okay So let's go on and make some more sophisticated materializations in the next lesson

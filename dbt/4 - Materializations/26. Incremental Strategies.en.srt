@@ -1,0 +1,123 @@
+1
+00:00:00,000 --> 00:00:02,857
+Let's talk a little bit about incremental strategies
+
+2
+00:00:02,857 --> 00:00:06,350
+What you've seen so far is the so called append strategy
+
+3
+00:00:06,350 --> 00:00:11,563
+where we simply expressed our incremental predicate
+
+4
+00:00:11,563 --> 00:00:15,081
+in an incremental block right in SQL
+
+5
+00:00:15,081 --> 00:00:17,783
+But if you take db 2 to production
+
+6
+00:00:17,783 --> 00:00:21,026
+you probably want to use a more advanced strategy
+
+7
+00:00:21,040 --> 00:00:25,467
+For example Snowflake and most of the data warehouse technologies
+
+8
+00:00:25,467 --> 00:00:28,330
+support the so called merge operation
+
+9
+00:00:28,330 --> 00:00:31,168
+So you can just replace append with merge
+
+10
+00:00:31,168 --> 00:00:35,247
+and this way you can have automatically duplicate detection
+
+11
+00:00:35,247 --> 00:00:38,274
+and just ensure that only new records are inserted
+
+12
+00:00:38,274 --> 00:00:40,680
+and all the records will be updated
+
+13
+00:00:40,680 --> 00:00:43,415
+For warehouses without merge support
+
+14
+00:00:43,415 --> 00:00:47,792
+there is delete and insert which is like two operations
+
+15
+00:00:47,792 --> 00:00:52,960
+deleting all the old records or the records that we would like to update
+
+16
+00:00:52,960 --> 00:00:56,371
+and then re adding everything in this incremental batch
+
+17
+00:00:56,371 --> 00:00:59,193
+And for tables which are partitioned by date
+
+18
+00:00:59,193 --> 00:01:05,147
+you can also update full partitions with using the insert override strategy
+
+19
+00:01:05,147 --> 00:01:08,415
+I left you a link in course resources
+
+20
+00:01:08,415 --> 00:01:12,265
+to see which platform supports which strategy in dbt
+
+21
+00:01:12,265 --> 00:01:16,241
+Here we go you see the Snowflake supports all of them
+
+22
+00:01:16,241 --> 00:01:21,461
+and I also left you an example of how to define a merge strategy
+
+23
+00:01:21,461 --> 00:01:26,784
+by specifying a unique key which will be the decisive column
+
+24
+00:01:26,784 --> 00:01:32,000
+on the update or insert decision as new or updated records come in
+
+25
+00:01:32,000 --> 00:01:33,680
+You see it's very much the same
+
+26
+00:01:33,680 --> 00:01:37,391
+we just changed the incremental strategy and added a unique key
+
+27
+00:01:37,391 --> 00:01:40,015
+There is also another strategy called micro batch
+
+28
+00:01:40,015 --> 00:01:42,640
+which is a very production ready strategy
+
+29
+00:01:42,640 --> 00:01:45,520
+is for larger tables that you want to scale
+
+30
+00:01:45,520 --> 00:01:50,368
+and we will cover this in detail in the production part of the course
+
+31
+00:01:50,368 --> 00:01:52,480
+I'll see you in the next lecture

@@ -59,6 +59,7 @@ export default withMermaid(
                 { text: '01. dbt 入門とモダンデータスタック', link: '/dbt/01_what_is_dbt' },
                 { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                 { text: '03. モデル基礎とStaging層実装', link: '/dbt/03_models_and_staging_layer' },
+                { text: '04. マテリアライゼーションと依存関係', link: '/dbt/04_materializations' },
               ]
             }
           ],
@@ -71,6 +72,7 @@ export default withMermaid(
                   { text: '01. dbt 入門とモダンデータスタック', link: '/dbt/01_what_is_dbt' },
                   { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. モデル基礎とStaging層実装', link: '/dbt/03_models_and_staging_layer' },
+                  { text: '04. マテリアライゼーションと依存関係', link: '/dbt/04_materializations' },
                 ]
               },
               {
@@ -158,6 +160,7 @@ export default withMermaid(
                   { text: '01. dbt 入門とモダンデータスタック', link: '/dbt/01_what_is_dbt' },
                   { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. モデル基礎とStaging層実装', link: '/dbt/03_models_and_staging_layer' },
+                  { text: '04. マテリアライゼーションと依存関係', link: '/dbt/04_materializations' },
                 ]
               }
             ]
@@ -216,6 +219,7 @@ export default withMermaid(
                 { text: '01. 初识 dbt 与现代数据栈', link: '/zh/dbt/01_what_is_dbt' },
                 { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                 { text: '03. 模型基础与Staging暂存层实战', link: '/zh/dbt/03_models_and_staging_layer' },
+                { text: '04. 物化策略与模型依赖关系实战', link: '/zh/dbt/04_materializations' },
               ]
             }
           ],
@@ -228,6 +232,7 @@ export default withMermaid(
                   { text: '01. 初识 dbt 与现代数据栈', link: '/zh/dbt/01_what_is_dbt' },
                   { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. 模型基础与Staging暂存层实战', link: '/zh/dbt/03_models_and_staging_layer' },
+                  { text: '04. 物化策略与模型依赖关系实战', link: '/zh/dbt/04_materializations' },
                 ]
               },
               {
@@ -315,6 +320,7 @@ export default withMermaid(
                   { text: '01. 初识 dbt 与现代数据栈', link: '/zh/dbt/01_what_is_dbt' },
                   { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. 模型基础与Staging暂存层实战', link: '/zh/dbt/03_models_and_staging_layer' },
+                  { text: '04. 物化策略与模型依赖关系实战', link: '/zh/dbt/04_materializations' },
                 ]
               }
             ]

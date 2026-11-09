@@ -297,3 +297,4 @@ GRANT USAGE ON INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT TO ROLE OPENFLOW_ADMIN_R
 
 > 🚀 **下一站实战导航**：
 > 掌握了 Openflow 的底层架构与运行机制后，请紧接着进入 [第 07-2 讲：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战](./07_02_openflow_box_integration.md)，手把手跑通企业级非结构化文档从 Box 到 Snowflake Stage 与 Cortex 向量知识库的完整闭环！
+

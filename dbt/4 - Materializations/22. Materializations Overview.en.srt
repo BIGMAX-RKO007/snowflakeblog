@@ -1,0 +1,203 @@
+1
+00:00:00,000 --> 00:00:04,993
+Materializations are different ways how your models can be stored and managed in the data warehouse
+
+2
+00:00:05,000 --> 00:00:11,996
+There are four built in materializations View Table Incremental and Ephemeral
+
+3
+00:00:12,000 --> 00:00:20,994
+View is the default and this is the materialization you already saw in our previous lectures
+
+4
+00:00:21,000 --> 00:00:31,000
+When you pick the materialization view then your model will be represented as a view It's so simple
+
+5
+00:00:31,000 --> 00:00:34,996
+There are other materializations like the Table
+
+6
+00:00:35,000 --> 00:00:42,994
+If you pick the Table materialization your model will be materialized as an actual table
+
+7
+00:00:43,000 --> 00:00:49,993
+And every time you re execute your dbtflow this table will be recreated
+
+8
+00:00:50,000 --> 00:01:00,212
+Then there is an incremental materialization which is still a table but a materialization type created for incremental loads
+
+9
+00:01:00,212 --> 00:01:02,989
+like event data or any fact data
+
+10
+00:01:03,000 --> 00:01:06,992
+In our case in our Airbnb use case this will be reviews
+
+11
+00:01:07,000 --> 00:01:12,990
+So as reviews flow in we will increment our tables with the new reviews
+
+12
+00:01:13,000 --> 00:01:20,000
+And then there is the Ephemeral materialization which is very much a virtual materialization
+
+13
+00:01:20,000 --> 00:01:23,000
+It is a no materialization materialization
+
+14
+00:01:23,000 --> 00:01:29,000
+It means that if you tell a model to be an Ephemeral materialization
+
+15
+00:01:29,000 --> 00:01:35,995
+it will be converted into a CTE in any downstream model
+
+16
+00:01:36,000 --> 00:01:39,994
+but it won't be in the data warehouse per se
+
+17
+00:01:40,000 --> 00:01:43,994
+So when do you want to use these materializations
+
+18
+00:01:44,000 --> 00:01:49,992
+I believe if you have experience with data warehousing it's very much common sense
+
+19
+00:01:50,000 --> 00:01:53,000
+But let me just sum it up real quick
+
+20
+00:01:53,000 --> 00:01:59,994
+So as you know a view materialization a view is a very lightweight thing in a data warehouse
+
+21
+00:02:00,000 --> 00:02:06,000
+It's more like a select which acts as if it was a table kind of right
+
+22
+00:02:06,000 --> 00:02:09,993
+So you want to use it if you want to have a lightweight representation
+
+23
+00:02:10,000 --> 00:02:15,990
+when you don't want to recreate a table at every execution
+
+24
+00:02:16,000 --> 00:02:21,190
+But you don't want to use it if you read from the same view
+
+25
+00:02:21,190 --> 00:02:24,996
+many times repeatedly in the same pipeline
+
+26
+00:02:25,000 --> 00:02:28,996
+Because remember the view is just a select
+
+27
+00:02:29,000 --> 00:02:31,400
+Every time you access a view
+
+28
+00:02:31,400 --> 00:02:35,000
+the underlying select needs to be executed
+
+29
+00:02:35,000 --> 00:02:40,076
+If you want to have an efficient way to work
+
+30
+00:02:40,076 --> 00:02:45,998
+with a materialization that can be accessed repeatedly
+
+31
+00:02:46,000 --> 00:02:48,997
+you probably want to go with the table materialization
+
+32
+00:02:49,000 --> 00:02:51,994
+Now what are the cons of the table materialization
+
+33
+00:02:52,000 --> 00:02:57,991
+It's that it needs to be recreated every time you execute your pipeline
+
+34
+00:02:58,000 --> 00:03:02,306
+So it takes some extra time Because when it's there
+
+35
+00:03:02,306 --> 00:03:05,380
+your transform data is there
+
+36
+00:03:05,380 --> 00:03:09,989
+so it will be quite fast to read from that data
+
+37
+00:03:10,000 --> 00:03:15,085
+But in many cases you have data which is incrementing
+
+38
+00:03:15,085 --> 00:03:17,992
+so event level data right
+
+39
+00:03:18,000 --> 00:03:21,876
+For example orders in a store solution
+
+40
+00:03:21,876 --> 00:03:23,989
+or in our case reviews
+
+41
+00:03:24,000 --> 00:03:27,000
+In this case you don't want to have your table
+
+42
+00:03:27,000 --> 00:03:29,000
+to be recreated every time
+
+43
+00:03:29,000 --> 00:03:30,800
+You only want to ingest the new data
+
+44
+00:03:30,800 --> 00:03:33,000
+and append it to the end of the table
+
+45
+00:03:33,000 --> 00:03:35,996
+So incremental materializations will help you there
+
+46
+00:03:36,000 --> 00:03:42,987
+And as you will see dbt manages much of the heavy lifting for you here
+
+47
+00:03:43,000 --> 00:03:48,662
+And then it can happen that you simply define an intermediate step
+
+48
+00:03:48,662 --> 00:03:52,250
+between models and you just don't want to publish
+
+49
+00:03:52,250 --> 00:03:55,000
+and advertise it in the data warehouse
+
+50
+00:03:55,000 --> 00:03:59,997
+And in this case ephemeral materializations can work very well
+
+51
+00:04:00,000 --> 00:04:07,998
+So we will see an example to all of those in the upcoming lessons So let's get started

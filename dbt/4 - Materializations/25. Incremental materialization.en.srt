@@ -1,0 +1,383 @@
+1
+00:00:00,000 --> 00:00:09,400
+Let's create our fact table fact reviews and make an incremental materialization out of it
+
+2
+00:00:09,400 --> 00:00:12,445
+Here we have SLC reviews which you are already familiar with
+
+3
+00:00:12,445 --> 00:00:18,396
+which has the listing ID review date reviewer name reviewer class and also the sentiment
+
+4
+00:00:18,400 --> 00:00:21,990
+Now we will do now two steps in the same model
+
+5
+00:00:22,000 --> 00:00:24,000
+First a little bit of cleansing
+
+6
+00:00:24,000 --> 00:00:28,488
+We want to make sure that only those reviews get to our fact table
+
+7
+00:00:28,488 --> 00:00:33,400
+where there is an actual review text in them
+
+8
+00:00:33,400 --> 00:00:38,933
+And also we want to make sure that this table will be updated incrementally
+
+9
+00:00:38,933 --> 00:00:43,040
+and not recreated at every dbt run
+
+10
+00:00:43,040 --> 00:00:46,760
+So let's go and execute this
+
+11
+00:00:46,760 --> 00:00:51,809
+So here I will come to my project folder
+
+12
+00:00:51,809 --> 00:00:57,317
+and let's create a new folder called fct
+
+13
+00:00:57,320 --> 00:01:06,592
+I will put my fact tables here and this will be called fact reviews dot sql
+
+14
+00:01:06,600 --> 00:01:13,954
+Okay so first let's create a standard table without any increments
+
+15
+00:01:13,960 --> 00:01:21,433
+I will copy paste this and you will find this in the lessons resources
+
+16
+00:01:21,440 --> 00:01:23,600
+So this is what you would do right
+
+17
+00:01:23,600 --> 00:01:28,118
+Normally you would say SLC reviews is a reference to SLC reviews
+
+18
+00:01:28,118 --> 00:01:34,393
+and then just select from SLC reviews where the review text is not null
+
+19
+00:01:34,400 --> 00:01:37,836
+That would be a proper view materialization
+
+20
+00:01:37,840 --> 00:01:42,675
+Now what we want it to be is an incremental materialization
+
+21
+00:01:42,680 --> 00:01:51,200
+And for incremental materializations you can specify a configuration on the top of your file
+
+22
+00:01:51,200 --> 00:01:54,980
+If you want to do this you have a ginger tag for this
+
+23
+00:01:54,980 --> 00:01:58,760
+and a built in dbt function called config
+
+24
+00:01:58,760 --> 00:02:06,800
+So we create a template tag and we say we want to pass a model level configuration
+
+25
+00:02:06,800 --> 00:02:09,486
+The materialization should be incremental
+
+26
+00:02:09,486 --> 00:02:15,198
+and we also need to specify what should happen if the schema changes
+
+27
+00:02:15,200 --> 00:02:21,647
+Now we need to specify this because until now all the views and tables were recreated
+
+28
+00:02:21,660 --> 00:02:23,958
+every time we executed dbt run
+
+29
+00:02:23,960 --> 00:02:30,267
+But now we will have a table this factory views table that's already there
+
+30
+00:02:30,267 --> 00:02:32,200
+and data should be appended
+
+31
+00:02:32,200 --> 00:02:36,313
+So if upstream source tables change in schema
+
+32
+00:02:36,313 --> 00:02:41,920
+so my select changes in schema we need to react on this somehow
+
+33
+00:02:41,920 --> 00:02:49,396
+So we will tell dbt to simply fail if there are any fishy changes out there
+
+34
+00:02:49,400 --> 00:02:52,580
+So this is now an incremental materialization
+
+35
+00:02:52,580 --> 00:02:56,757
+But I also need to tell dbt how to increment
+
+36
+00:02:56,760 --> 00:02:59,951
+I need to tell dbt what are the new records
+
+37
+00:02:59,951 --> 00:03:04,680
+how it knows from record that it's new or not
+
+38
+00:03:04,680 --> 00:03:11,107
+And here I can go and simply create a ginger if statement for this
+
+39
+00:03:11,120 --> 00:03:20,072
+I can say if this is an incremental load then append this SQL condition
+
+40
+00:03:20,080 --> 00:03:26,958
+And the SQL condition says that I'm only interested on those records
+
+41
+00:03:26,958 --> 00:03:40,440
+where the review date from the original table is more current than our latest review date in this table
+
+42
+00:03:40,440 --> 00:03:48,075
+So here this refers to this model factory views
+
+43
+00:03:48,080 --> 00:03:52,850
+Now notice for a second how much freedom this leaves you
+
+44
+00:03:52,850 --> 00:03:55,394
+because here if you want to have
+
+45
+00:03:55,400 --> 00:04:00,041
+some more sophisticated logic like working on an updated field
+
+46
+00:04:00,041 --> 00:04:02,074
+or anything doing with IDs
+
+47
+00:04:02,074 --> 00:04:07,594
+whatever you're free to express it here in simple SQL
+
+48
+00:04:07,600 --> 00:04:11,960
+So that's why dbt is a great tool
+
+49
+00:04:11,960 --> 00:04:16,283
+It's just so simple pieces put together
+
+50
+00:04:16,283 --> 00:04:20,319
+giving you so much freedom All right
+
+51
+00:04:20,320 --> 00:04:28,818
+So we have our factory views table now Let's execute dbt run
+
+52
+00:04:28,820 --> 00:04:33,052
+With dbt run now it will tell us that it found six models
+
+53
+00:04:33,052 --> 00:04:35,425
+and it will recreate our views
+
+54
+00:04:35,425 --> 00:04:38,749
+and recreate our two dimension tables
+
+55
+00:04:38,749 --> 00:04:44,840
+and then create our incremental table So here it comes
+
+56
+00:04:44,840 --> 00:04:48,956
+It said create a incremental model factory views
+
+57
+00:04:48,960 --> 00:04:53,760
+If I come to snowflake and refresh
+
+58
+00:04:53,760 --> 00:04:59,040
+I will have factory views here in tables
+
+59
+00:04:59,040 --> 00:05:03,120
+Okay so that's standard so far
+
+60
+00:05:03,120 --> 00:05:05,240
+So let's create an incremental load
+
+61
+00:05:05,240 --> 00:05:11,320
+Now for an incremental load we need some incremental data right
+
+62
+00:05:11,320 --> 00:05:19,836
+I added two SQL comments to the class resources
+
+63
+00:05:19,840 --> 00:05:28,920
+So first of all we can take a look at reviews for listing ID 1376 So here we are
+
+64
+00:05:28,920 --> 00:05:31,692
+We have a bunch of reviews here
+
+65
+00:05:31,692 --> 00:05:37,320
+and let's go and execute a comment which adds a new review
+
+66
+00:05:37,320 --> 00:05:39,998
+So I will just insert into the rule reviews table
+
+67
+00:05:40,000 --> 00:05:43,843
+So let's just simulate as if we had raw data coming in
+
+68
+00:05:43,843 --> 00:05:46,567
+for this listing with the current timestamp
+
+69
+00:05:46,567 --> 00:05:49,453
+this review is from me and it says Excel and stay
+
+70
+00:05:49,453 --> 00:05:56,140
+which is obviously a positive review So let's execute this Okay
+
+71
+00:05:56,140 --> 00:06:01,014
+So this row is now inserted into the fact table
+
+72
+00:06:01,020 --> 00:06:08,999
+I can check if it's in the factory views table And it's not
+
+73
+00:06:09,000 --> 00:06:11,530
+Of course it's not because it's only a row
+
+74
+00:06:11,530 --> 00:06:16,200
+and I need to execute dbt in order to populate this
+
+75
+00:06:16,200 --> 00:06:19,539
+So I will re execute dbt run now
+
+76
+00:06:19,540 --> 00:06:24,190
+And now dbt run will pick up and recreate our first reviews
+
+77
+00:06:24,190 --> 00:06:26,980
+and then the two dimension tables
+
+78
+00:06:26,980 --> 00:06:31,432
+and execute an incremental load on this six model the factory views
+
+79
+00:06:31,440 --> 00:06:35,486
+Later in the course I will show you how you can make a dbt run
+
+80
+00:06:35,486 --> 00:06:41,180
+which only refreshes certain tables Okay
+
+81
+00:06:41,180 --> 00:06:45,239
+So it says that it incremented one model
+
+82
+00:06:45,240 --> 00:06:49,110
+If I come and just take a look now
+
+83
+00:06:49,110 --> 00:06:54,980
+you'll see that this is my review Okay Great
+
+84
+00:06:54,980 --> 00:07:01,700
+So this has been populated
+
+85
+00:07:01,700 --> 00:07:07,235
+Now just one more trick before we go to our next session
+
+86
+00:07:07,240 --> 00:07:11,118
+What happens if you want to rebuild the whole table
+
+87
+00:07:11,120 --> 00:07:17,938
+You can go and say dbt run minus minus full refresh
+
+88
+00:07:17,940 --> 00:07:21,235
+This is the way to rebuild every incremental table
+
+89
+00:07:21,240 --> 00:07:29,750
+And later in the course I will show you how you can only rebuild tables of your choice
+
+90
+00:07:29,760 --> 00:07:36,956
+So now with full refresh every incremental table has been rebuilt
+
+91
+00:07:36,960 --> 00:07:40,740
+Now I won't see any change here of course
+
+92
+00:07:40,740 --> 00:07:44,520
+because this has gotten me to the same state
+
+93
+00:07:44,520 --> 00:07:46,896
+But if you ever change the schema of a file
+
+94
+00:07:46,896 --> 00:07:50,294
+so a source file so a source table a source model
+
+95
+00:07:50,294 --> 00:07:54,285
+then a full refresh will just pass everything through
+
+96
+00:07:54,285 --> 00:07:57,680
+and rebuild the incremental table from scratch

@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:05,872
+In this section we are going to learn about materializations
+
+2
+00:00:05,880 --> 00:00:09,494
+You will understand how models can be connected
+
+3
+00:00:09,494 --> 00:00:11,996
+and how they can be interdependent
+
+4
+00:00:12,000 --> 00:00:16,395
+You'll also understand the different types of materializations
+
+5
+00:00:16,400 --> 00:00:20,120
+This is the core of this section
+
+6
+00:00:20,120 --> 00:00:24,280
+And also you will be able to understand how you can configure
+
+7
+00:00:24,280 --> 00:00:28,479
+and change configuration properties of materializations
+
+8
+00:00:28,480 --> 00:00:32,324
+And also as we cover these in the hands on section
+
+9
+00:00:32,324 --> 00:01:06,120
+we will show you more advanced usage of the dbt run command So let's see Video playing

@@ -285,3 +285,4 @@ Snowsight の左側メニュー **`Data Products -> Openflow`** へアクセス�
 
 > 🚀 **実践編へのナビゲーション**：
 > Openflow の基本アーキテクチャを習得したところで、次章 [第 07-2 章：Snowflake Openflow による Box クラウド連携と Cortex ナレッジ検索実践](./07_02_openflow_box_integration.md) へ進み、Box ドキュメントの同期から原本保管、チャンク分割、Cortex 検索までのエンドツーエンド実機検証を体験しましょう！
+

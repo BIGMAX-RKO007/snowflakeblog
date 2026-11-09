@@ -1,0 +1,567 @@
+1
+00:00:00,000 --> 00:00:04,496
+We are going to build out our new layer the core layer
+
+2
+00:00:04,500 --> 00:00:07,854
+The core layer comes with a bunch of tables
+
+3
+00:00:07,860 --> 00:00:13,140
+From src listings we are going to create dim listings cleansed
+
+4
+00:00:13,140 --> 00:00:16,906
+On the top of src hosts we are going to create
+
+5
+00:00:16,906 --> 00:00:19,596
+the cleansed dim hosts cleansed table
+
+6
+00:00:19,600 --> 00:00:24,423
+And from the src reviews we are going to create
+
+7
+00:00:24,423 --> 00:00:27,391
+the fct so fact reviews table
+
+8
+00:00:27,400 --> 00:00:30,507
+Once you are done with that we are going to create
+
+9
+00:00:30,507 --> 00:00:36,437
+our final dimension table by joining these two tables together
+
+10
+00:00:36,440 --> 00:00:39,875
+Now as we are moving on you will see how we can define
+
+11
+00:00:39,875 --> 00:00:46,071
+dependencies between models and how we can create different
+
+12
+00:00:46,071 --> 00:00:52,193
+materializations and apply them in Snowflake
+
+13
+00:00:52,200 --> 00:00:56,984
+At this point what I want to make sure is that you take a look
+
+14
+00:00:56,984 --> 00:01:00,448
+and you make sure that you have the src hosts
+
+15
+00:01:00,448 --> 00:01:03,400
+src listing and src reviews table
+
+16
+00:01:03,400 --> 00:01:06,840
+If you don't have any of these it means that you missed
+
+17
+00:01:06,840 --> 00:01:10,160
+some of the exercises from our earlier section
+
+18
+00:01:10,160 --> 00:01:14,208
+This case I'd like to ask you to download the references
+
+19
+00:01:14,208 --> 00:01:18,664
+the class references and just copy the source code
+
+20
+00:01:18,664 --> 00:01:23,916
+into dbt into your project folder and execute dbt run
+
+21
+00:01:23,920 --> 00:01:27,840
+The same stands for the source code so you should have
+
+22
+00:01:27,840 --> 00:01:31,640
+at this point src hosts src listing and src reviews
+
+23
+00:01:31,640 --> 00:01:36,516
+Okay So let's go and build out our next table
+
+24
+00:01:36,516 --> 00:01:44,000
+and this is going to be the dim listings cleansed table
+
+25
+00:01:44,000 --> 00:01:46,317
+So let's go and do this
+
+26
+00:01:46,320 --> 00:01:52,831
+For our dimension tables I'm going to create a new folder
+
+27
+00:01:52,831 --> 00:01:56,278
+in models which is called dim
+
+28
+00:01:56,280 --> 00:02:02,022
+And let's create our first model here
+
+29
+00:02:02,022 --> 00:02:06,720
+and this will be dim listings cleansed
+
+30
+00:02:06,720 --> 00:02:10,920
+And that's an SQL file right
+
+31
+00:02:10,920 --> 00:02:15,465
+Here I want to build on top of the src listings layer
+
+32
+00:02:15,465 --> 00:02:18,194
+and do additional data cleansing
+
+33
+00:02:18,200 --> 00:02:24,877
+So first of all let's reference our src listings layer
+
+34
+00:02:24,880 --> 00:02:29,500
+You already know that for importing we use CTEs
+
+35
+00:02:29,500 --> 00:02:31,120
+So I will get started with the CTE
+
+36
+00:02:31,120 --> 00:02:35,441
+I will say read src listings as
+
+37
+00:02:35,441 --> 00:02:38,682
+and then select star from
+
+38
+00:02:38,682 --> 00:02:44,760
+well here comes src listings somehow right
+
+39
+00:02:44,760 --> 00:02:48,660
+And then I want to execute my select Something like this
+
+40
+00:02:48,660 --> 00:02:50,958
+Now here comes the trick
+
+41
+00:02:50,960 --> 00:02:56,724
+The way to reference our src listings here
+
+42
+00:02:56,724 --> 00:03:00,916
+this comes through template tags
+
+43
+00:03:00,920 --> 00:03:02,474
+And this is the way to go
+
+44
+00:03:02,480 --> 00:03:13,800
+I can go and say I want to reference the src listings model There you go
+
+45
+00:03:13,800 --> 00:03:17,773
+This is a dbt specific template tag in SQL
+
+46
+00:03:17,773 --> 00:03:22,110
+which tells dbt to substitute this template
+
+47
+00:03:22,120 --> 00:03:28,193
+tag with the view name the src listings view name
+
+48
+00:03:28,200 --> 00:03:30,865
+What you see here technically speaking
+
+49
+00:03:30,865 --> 00:03:33,233
+it is a Jinja template tag
+
+50
+00:03:33,240 --> 00:03:37,640
+Jinja is a template engine
+
+51
+00:03:37,640 --> 00:03:40,760
+It comes through this website
+
+52
+00:03:40,760 --> 00:03:42,960
+It is an open source project
+
+53
+00:03:42,960 --> 00:03:45,445
+If you're more interested in it
+
+54
+00:03:45,445 --> 00:03:49,033
+feel free to come to the website and check it out
+
+55
+00:03:49,040 --> 00:03:51,770
+The main idea behind Jinja is that you can define
+
+56
+00:03:51,770 --> 00:03:55,171
+these template variables and also some control structures
+
+57
+00:03:55,171 --> 00:03:57,753
+like loops and conditional statements
+
+58
+00:03:57,753 --> 00:04:00,075
+and Jinja will parse it for you
+
+59
+00:04:00,080 --> 00:04:03,680
+dbt heavily relies on Jinja
+
+60
+00:04:03,680 --> 00:04:06,630
+When we get to macros I will show you
+
+61
+00:04:06,630 --> 00:04:09,875
+a more sophisticated use case of Jinja
+
+62
+00:04:09,880 --> 00:04:15,640
+For now it's enough that we have the template tags here So the reference tag
+
+63
+00:04:15,640 --> 00:04:19,000
+Okay so this is the way to go
+
+64
+00:04:19,000 --> 00:04:25,436
+And now I can go on and execute my statement
+
+65
+00:04:25,440 --> 00:04:28,160
+I'm coming here and copy pasting
+
+66
+00:04:28,160 --> 00:04:34,520
+So you don't need to wait until I type it in So here it is
+
+67
+00:04:34,520 --> 00:04:38,806
+I want to take the listing ID the listing name room type
+
+68
+00:04:38,806 --> 00:04:40,950
+all of the columns right
+
+69
+00:04:40,960 --> 00:04:44,196
+So all the columns I have in src listings
+
+70
+00:04:44,200 --> 00:04:47,040
+And then I want to make a few changes
+
+71
+00:04:47,040 --> 00:04:52,796
+Let me go to Snowflake
+
+72
+00:04:52,800 --> 00:04:57,714
+So here if I take a look at listings src listings
+
+73
+00:04:57,714 --> 00:05:01,494
+you see that we have the minimum nights
+
+74
+00:05:01,494 --> 00:05:05,420
+and sometimes the minimum nights are zero right
+
+75
+00:05:05,420 --> 00:05:07,620
+This is a problem in the data
+
+76
+00:05:07,620 --> 00:05:10,320
+That means the minimum nights is one
+
+77
+00:05:10,320 --> 00:05:14,181
+There is at least one night that needs to be pooped
+
+78
+00:05:14,181 --> 00:05:16,353
+in order to resolve this Airbnb
+
+79
+00:05:16,360 --> 00:05:19,179
+And also the price now called price str
+
+80
+00:05:19,179 --> 00:05:21,229
+it is in a string format
+
+81
+00:05:21,240 --> 00:05:24,516
+So let's just parse this into a numeric format
+
+82
+00:05:24,520 --> 00:05:27,095
+This is what we want to do in our cleansing step
+
+83
+00:05:27,100 --> 00:05:29,251
+So we will take and use standard SQL
+
+84
+00:05:29,251 --> 00:05:32,119
+for making sure that if minimum nights is zero
+
+85
+00:05:32,119 --> 00:05:33,960
+then we set it to one
+
+86
+00:05:33,960 --> 00:05:35,906
+And then we take the price
+
+87
+00:05:35,906 --> 00:05:38,964
+and we replace the dollar sign to nothing
+
+88
+00:05:38,964 --> 00:05:47,196
+so to an empty string and convert it into a number of two decimals
+
+89
+00:05:47,200 --> 00:05:51,036
+So this is the src listings cleansed
+
+90
+00:05:51,040 --> 00:05:56,640
+Let me go on and execute it
+
+91
+00:05:56,640 --> 00:06:05,120
+So I will come and say dbtrun
+
+92
+00:06:05,120 --> 00:06:13,756
+Okay now you can see that I have the dev dim listing cleansed created
+
+93
+00:06:13,760 --> 00:06:28,074
+I'm going to go to Snowflake and I make a refresh
+
+94
+00:06:28,080 --> 00:06:36,240
+Then you will see that I have dim listings cleansed There we go
+
+95
+00:06:36,240 --> 00:06:40,920
+And now the minimum nights is fixed
+
+96
+00:06:40,920 --> 00:06:42,558
+This used to be zero right
+
+97
+00:06:42,560 --> 00:06:48,240
+And also the price looks proper So very good here
+
+98
+00:06:48,240 --> 00:06:53,399
+Okay so here's a quick exercise for you
+
+99
+00:06:53,400 --> 00:06:59,912
+Let me go back to the slides and show you the exercise
+
+100
+00:06:59,920 --> 00:07:01,480
+This is a guided exercise again
+
+101
+00:07:01,480 --> 00:07:04,425
+which means that I would like to ask you to stop the video
+
+102
+00:07:04,440 --> 00:07:07,438
+after I explained what to do
+
+103
+00:07:07,440 --> 00:07:09,078
+Just try to solve it
+
+104
+00:07:09,080 --> 00:07:11,116
+If you're not able to solve it
+
+105
+00:07:11,116 --> 00:07:17,040
+just go to the lesson resources and copy and paste the solution
+
+106
+00:07:17,040 --> 00:07:20,948
+So I'd like to ask you to create a new dimensional table
+
+107
+00:07:20,948 --> 00:07:22,902
+which you call dim host cleansed
+
+108
+00:07:22,902 --> 00:07:26,715
+and use a CTE to reference the src host model
+
+109
+00:07:26,720 --> 00:07:30,009
+Select every column and just keep every record
+
+110
+00:07:30,009 --> 00:07:33,799
+the original value of the records except for hostname
+
+111
+00:07:33,800 --> 00:07:40,112
+Hostname will have some empty strings so null values to be exact
+
+112
+00:07:40,120 --> 00:07:42,319
+And if the hostname is null
+
+113
+00:07:42,319 --> 00:07:47,347
+then I'd like to ask you to replace the value with anonymous
+
+114
+00:07:47,360 --> 00:07:51,021
+Now if you are not an expert in SQL
+
+115
+00:07:51,021 --> 00:07:53,950
+here is a little hint for you
+
+116
+00:07:53,960 --> 00:07:56,147
+There is a function called nvl
+
+117
+00:07:56,147 --> 00:07:59,792
+where you can paste the hostname and the value to pick
+
+118
+00:07:59,792 --> 00:08:06,158
+in case the column name is null
+
+119
+00:08:06,160 --> 00:08:08,351
+Then please execute dbt run
+
+120
+00:08:08,351 --> 00:08:11,794
+and verify that your model has been created
+
+121
+00:08:11,800 --> 00:08:17,120
+Good luck and I'll be back in a second
+
+122
+00:08:17,120 --> 00:08:23,518
+Okay so hopefully you had some time to check this out
+
+123
+00:08:23,520 --> 00:08:26,880
+Let me show you the solution
+
+124
+00:08:26,880 --> 00:08:33,000
+I will create a new file here in dim right
+
+125
+00:08:33,000 --> 00:08:40,398
+And I will call it dim host cleansed
+
+126
+00:08:40,400 --> 00:08:47,275
+And I will simply copy paste the SQL now
+
+127
+00:08:47,280 --> 00:08:54,624
+So this will say let's import our src host as src host in a cte
+
+128
+00:08:54,624 --> 00:08:57,653
+and then select the host id
+
+129
+00:08:57,653 --> 00:09:03,718
+this nvl statement make sure you renamed it to hostname
+
+130
+00:09:03,718 --> 00:09:06,750
+all the rest of the columns
+
+131
+00:09:06,760 --> 00:09:08,237
+And that's very much it
+
+132
+00:09:08,240 --> 00:09:16,038
+Let's go and execute it
+
+133
+00:09:16,040 --> 00:09:22,777
+You will see that now I have five models right there
+
+134
+00:09:22,777 --> 00:09:26,627
+and dim host cleansed is created
+
+135
+00:09:26,640 --> 00:09:32,758
+So if I go to snowflake and refresh here it is
+
+136
+00:09:32,760 --> 00:09:46,160
+It's a few dim host cleansed And there we go Alright so congrats
+
+137
+00:09:46,160 --> 00:09:50,156
+And now we have quite a good pipeline already
+
+138
+00:09:50,160 --> 00:09:55,640
+We have our row tables and then our source views and our dimension views
+
+139
+00:09:55,640 --> 00:09:57,570
+And now in the upcoming lessons
+
+140
+00:09:57,570 --> 00:10:01,430
+we will go and clean up how all of these are materialized
+
+141
+00:10:01,440 --> 00:10:05,293
+and we will prepare to add our fax table into reviews
+
+142
+00:10:05,300 --> 00:10:05,800
+So I'll see you then

@@ -133,5 +133,7 @@ flowchart LR
    Snowflake Airbnb 数据库初始化、44.1 万条源数据入库、RSA 2048 密钥对服务账号认证、`uv` 极速虚拟环境配置。
 3. [**03. 模型基础与 Staging 暂存层实战**](/zh/dbt/03_models_and_staging_layer)  
    “Everything is a SELECT”、CTE 模块化编写规范、Airbnb 三大源表 Staging 视图构建、`dbt run` 仓内物化全流程验证。
+4. [**04. 物化策略与模型依赖关系实战**](/zh/dbt/04_materializations)  
+   4 种物化类型（view/table/incremental/ephemeral）取舍心智模型、`ref()` 宏 DAG 依赖解析、Cleanse 维度表与 Incremental 事实表实战、秒级增量切片与避险。
 
 </div>
