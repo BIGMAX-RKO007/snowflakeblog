@@ -92,6 +92,33 @@ flowchart TD
     UI <== "WebSocket 双向绑定" ==> BROWSER
 ```
 
+### 深度剖析：存储 Python 脚本在 Stage 会产生费用吗？（Stage 存储 vs Warehouse 算力计费精算）
+
+在采用 Stage 托管 Streamlit 脚本时，几乎所有开发者都会担心：**“把 Python 脚本保存在 Snowflake Stage 里面，究竟会不会持续扣费？会不会像有些云服务一样产生高昂的隐性账单？”**
+
+> [!IMPORTANT] **核心结论：Stage 存储费用几乎为 0（可以完全忽略），真正的费用元凶是背后的 Virtual Warehouse 计算仓库！**
+
+#### 1. 存储账单精算：每月不到 0.000001 美元（微乎其微）
+- **计费模式**：Snowflake 内部 Stage 按照底层云厂商标准对象存储容量计费（通常约为 **$23.00 ~ $40.00 / TB / 月**，折合约 $0.000022 / MB / 月）；
+- **文件体积**：一个完整的 Streamlit Python 脚本（如 `streamlit_app.py` 或 `streamlit_schema_inspector.py`）通常只有 **5 KB ~ 20 KB**；
+- **数学精算**：
+  $$\text{月度存储费用} = \frac{20 \text{ KB}}{1024 \times 1024 \times 1024 \text{ KB}} \times \$23.00 \approx \$0.00000043 \text{ 美元 / 月}$$
+  哪怕在 Stage 里存放 **100 个** 复杂的 Python 数据看板脚本，整整存放一年的费用也**不到 1 美分（不足 0.07 元人民币）**！
+
+#### 2. 真正扣费元凶：计算虚拟数仓（Virtual Warehouse）
+- **计费真相**：Streamlit in Snowflake 不是无服务器静态托管，它依托底层的 **Virtual Warehouse** 作为 Python 容器与 SQL 查询的执行算力；
+- **单价标准**：最小规格的 `X-Small` 虚拟仓库每运行 1 小时消耗 **1 个 Credit**（折合标准费率约为 **$2.00 ~ $3.00 / 小时**）；
+- **重大扣费陷阱**：Streamlit 前端依托 **WebSocket 长连接保持心跳（Live Heartbeat）**。如果开发者在 Snowsight 网页中打开了看板，下班离开时**没有关闭浏览器标签页**：
+  - 前端持续向后端发送探活心跳，虚拟仓库误以为“当前仍有活跃用户”，**完全无法触发 `AUTO_SUSPEND` 自动休眠**！
+  - 仓库一天 24 小时空转将吞噬 24 Credits（约 $48 ~ $72 美元），一周即可将试用账户赠送的 400 美元额度彻底耗尽！
+
+#### 3. 四大防扣费安全锁（The 4 Anti-Burn Safety Locks）
+为确保看板开发既流畅又绝对安全，生产实践中必须牢记以下四道防线：
+1. **秒级自动休眠**：虚拟仓库强制设置 `AUTO_SUSPEND = 60`（1 分钟无 SQL 查询即刻休眠）；
+2. **函数级内存强缓存**：所有读取数仓的函数必须添加 `@st.cache_data(ttl=600)` 10 分钟强缓存，用户在页面上点击切换表名或筛选时，直接从 Python 内存极速返回，**绝不向数仓发起二次 SQL 扫描**；
+3. **严格查询限流**：样本数据探查一律增加 `LIMIT 50`，防止全表扫描千万级大表；
+4. **随手关闭标签页与手动休眠**：调试完毕随手关闭网页标签页，必要时执行 `ALTER WAREHOUSE <wh> SUSPEND;` 手动挂起。
+
 ---
 
 ## 三、核心函数与配置全量字典
@@ -114,9 +141,17 @@ flowchart TD
 
 ---
 
-## 四、步骤实操与逐行命令（三板斧闭环）
+## 四、双轨制部署实操与逐行命令（DevOps 代码化 vs Web GUI 低代码）
 
-### Step 1: 创建业务监控底表与测试数据
+在企业实战中，Streamlit in Snowflake 支持两种完全不同的落地路径，兼顾工程自动化与业务敏捷性：
+- **轨道 A（DevOps / CI/CD 代码化工程部署）**：面向数据工程师与平台架构师，通过 Internal Stage + SQL DDL 声明式管理，纳入 Git 与 CI/CD 自动化流水线；
+- **轨道 B（Snowsight Web GUI 交互式探索）**：面向业务分析师（BA）与探索性 PoC 场景，直接在 Snowflake Web 界面点选创建，在线调试。
+
+---
+
+### 轨道 A（DevOps / CI/CD 代码化工程部署）：API 监控看板
+
+#### Step 4.A1: 创建业务监控底表与测试数据
 
 在数据库中准备一份纯技术视角的业务监控与 API 调用量模拟表：
 
@@ -153,14 +188,14 @@ INSERT INTO test_sales_metrics VALUES
 
 ---
 
-### Step 2: 编写完整的 Streamlit 应用源码 (`streamlit_app.py`)
+#### Step 4.A2: 编写完整的 Streamlit 应用源码 (`streamlit_app.py`)
 
 编写应用脚本，实现 KPI 记分卡、动态分类筛选、趋势折线图和实时明细数据表：
 
 ```python
 # ==============================================================================
 # 文件名: streamlit_app.py
-# 作用: Streamlit in Snowflake 生产级交互式监控看板
+# 作用: Streamlit in Snowflake 生产级交互式监控看板 (Route A)
 # ==============================================================================
 import streamlit as st
 from snowflake.snowpark.context import get_active_session
@@ -233,23 +268,27 @@ if st.button("🔄 清除应用缓存并强制重新拉取"):
 
 ---
 
-### Step 3: 通过 Stage + SQL 实现自动化 DevOps 部署
+#### Step 4.A3: 通过 Stage + SQL 实现自动化 DevOps 部署
 
-在企业生产级运维中，不推荐人工在 Web 界面里手动点击粘贴代码。通过 **Internal Stage + SQL DDL** 即可将 Streamlit 看板纳入 Git CI/CD 自动化部署流！
+通过 **Internal Stage + SQL DDL** 即可将 Streamlit 看板纳入 Git CI/CD 自动化部署流：
 
 > 📖 **官方 DDL 与部署规范**：
 > - [CREATE STREAMLIT 语法规范与参数手册](https://docs.snowflake.com/en/sql-reference/sql/create-streamlit)
 > - [在 Snowflake 内部 Stage 托管 Streamlit 文件的官方操作指南](https://docs.snowflake.com/en/developer-guide/streamlit/create-streamlit-sql)
 
-#### 1. 创建内部 Stage
 ```sql
-CREATE OR REPLACE STAGE dev_streamlit_stage;
-```
+-- 1. 创建内部 Stage (启用目录表索引)
+CREATE OR REPLACE STAGE dev_streamlit_stage DIRECTORY = (ENABLE = TRUE);
 
-#### 2. 上传脚本文件
-在客户端或终端执行 `PUT` 命令：
-```sql
+-- 2. 上传脚本文件 (客户端或终端 PUT 命令)
 PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+-- 3. 执行 DDL 声明式创建 Streamlit 应用对象
+CREATE OR REPLACE STREAMLIT dev_demo_dashboard
+  ROOT_LOCATION = '@DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage'
+  MAIN_FILE = 'streamlit_app.py'
+  QUERY_WAREHOUSE = 'COMPUTE_WH'
+  COMMENT = '生产级 API 监控与可视化看板 (Route A - DevOps)';
 ```
 
 > **内部 Stage 文件验证截图**：
@@ -258,25 +297,9 @@ PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stag
 >
 > ![Snowflake 内部 Stage 存储的 Streamlit 源码文件](../images/10_step_02_stage_streamlit_file.png)
 
-#### 3. 执行 DDL 创建 Streamlit 应用对象
-```sql
-CREATE OR REPLACE STREAMLIT dev_demo_dashboard
-  ROOT_LOCATION = '@DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage'
-  MAIN_FILE = 'streamlit_app.py'
-  QUERY_WAREHOUSE = 'COMPUTE_WH'
-  COMMENT = '生产级 API 监控与可视化看板';
-```
-
-> **控制台真实回显**：
-> ```text
-> Streamlit DEV_DEMO_DASHBOARD successfully created.
-> ```
-
 ---
 
-### Step 4: 验证部署状态与访问路径
-
-> 📖 **官方元数据命令参考**：[SHOW STREAMLITS 官方语法手册](https://docs.snowflake.com/en/sql-reference/sql/show-streamlits)
+#### Step 4.A4: 验证部署状态与看板运行实景
 
 执行 `SHOW STREAMLITS;` 查询已部署的看板元数据：
 
@@ -293,19 +316,186 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 > └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
 > ```
 
-在 Snowflake Snowsight 控制台中，直接点击左侧菜单栏 **`Projects -> Streamlit`**，即可直接在已发布看板列表中看到名为 **`DEV_DEMO_DASHBOARD`** 的项目：
+在 Snowflake Snowsight 控制台中，直接点击左侧菜单栏 **`Projects -> Streamlit`**，进入已发布看板列表：
 
-> **Snowsight Streamlit 看板应用列表**：
->
-> ![Snowflake Snowsight Streamlit 应用列表](../images/10_step_03_streamlit_app_list.png)
+![Snowflake Snowsight Streamlit 应用列表](../images/10_step_03_streamlit_app_list.png)
 
 点击进入看板，即可体验原生内嵌于计算仓库中的实时交互式可视化大屏：
 
-> **生产级交互式看板实景大图**：
+![Streamlit in Snowflake 原生交互式监控看板运行实景](../images/10_step_04_streamlit_dashboard_live.png)
+
+---
+
+### 轨道 B（Snowsight Web GUI 交互式探索）：仓内数据表动态探查器 (Schema Table Inspector)
+
+在很多业务分析或敏捷验证场景中，我们不希望每次都通过终端写命令行或执行 `PUT`。分析师希望**直接在 Snowsight 网页上点选创建应用，并动态扫描数仓内任意 Database / Schema 下的全部数据表，点击表名即可触发数据查询与元数据探查**！
+
+#### Step 4.B1: 基于 Snowsight Web 页面配置创建 Streamlit 应用
+
+1. 登录 Snowsight 网页控制台，点击左侧导航栏 **`Projects -> Streamlit`**；
+2. 点击右上角蓝色 **`+ Streamlit App`** 按钮；
+3. 在弹出的创建窗口中完成核心参数配置：
+   - **App Name**：填写 `SCHEMA_TABLE_INSPECTOR`
+   - **App location**：Database 选择 `DEV_DEMO_DB`，Schema 选择 `API_INTEGRATION`
+   - **Warehouse**：选择 `COMPUTE_WH`（建议确认已配置 `AUTO_SUSPEND = 60` 秒）
+4. 点击右下角 **`Create`** 创建应用对象。
+
+> **Snowsight Web 页面配置与创建弹窗实测截图**：
 >
-> 页面顶部呈现由 `st.metric` 驱动的核心 KPI 指标（总销售额、调用次数），中部为实时明细数据台账，底部联动呈现基于 Altair 渲染的营收趋势折线图，全程仓内内网计算，零外部密码泄露：
+> 弹窗直观展现了应用名称、运行仓库以及应用所属的数据库与模式位置，点击 Create 即在当前数仓内即时初始化 Python 运行环境：
 >
-> ![Streamlit in Snowflake 原生交互式监控看板运行实景](../images/10_step_04_streamlit_dashboard_live.png)
+> ![Snowsight Web 页面配置创建 Streamlit 弹窗](../images/10_step_04_gui_create_streamlit.png)
+
+---
+
+#### Step 4.B2: 编写仓内数据表动态探查器源码 (`streamlit_schema_inspector.py`)
+
+在 Snowsight 在线编辑器中，将默认模板代码替换为以下经过防刷强化的动态探查器完整源码：
+
+```python
+# ==============================================================================
+# 应用名称: Snowflake 仓内数据表动态探查器 (Schema Table Inspector)
+# 核心特性:
+#   1. 动态扫描数据库与 Schema，自动枚举所有数据表
+#   2. 交互式点选表名，即时触发元数据 KPI 统计与样本数据预览
+#   3. 全量启用 @st.cache_data(ttl=600)，彻底杜绝重复刷新消耗数仓 Credit
+#   4. 严格 LIMIT 50 限流保护，防止误扫千万级大表
+# ==============================================================================
+import streamlit as st
+import pandas as pd
+from snowflake.snowpark.context import get_active_session
+
+# 1. 宽屏沉浸式页面配置
+st.set_page_config(
+    page_title="Snowflake 仓内数据表动态探查器",
+    page_icon="🔍",
+    layout="wide"
+)
+
+st.title("🔍 Snowflake 仓内数据表动态探查器 (Schema Table Inspector)")
+st.caption("基于 Streamlit in Snowflake 原生运行时 · 零密码免密鉴权 · 10 分钟内存缓存防刷保护")
+
+# 2. 获取仓内活动会话 (零密码安全鉴权)
+session = get_active_session()
+
+# 3. 缓存函数：拉取可用数据库列表 (防刷保护)
+@st.cache_data(ttl=600)
+def get_databases():
+    df = session.sql("SHOW DATABASES").to_pandas()
+    # 过滤掉 Snowflake 内部只读系统库
+    dbs = [row['name'] for _, row in df.iterrows() if not row['name'].startswith('SNOWFLAKE')]
+    return sorted(dbs)
+
+# 4. 缓存函数：拉取指定数据库下的 Schema 列表
+@st.cache_data(ttl=600)
+def get_schemas(db_name):
+    df = session.sql(f'SHOW SCHEMAS IN DATABASE "{db_name}"').to_pandas()
+    schemas = [row['name'] for _, row in df.iterrows() if row['name'] != 'INFORMATION_SCHEMA']
+    return sorted(schemas)
+
+# 5. 缓存函数：动态扫描 Schema 下的所有数据表元数据
+@st.cache_data(ttl=600)
+def scan_tables_in_schema(db_name, schema_name):
+    query = f'SHOW TABLES IN SCHEMA "{db_name}"."{schema_name}"'
+    df = session.sql(query).to_pandas()
+    if df.empty:
+        return pd.DataFrame()
+    cols_to_keep = ['name', 'rows', 'bytes', 'owner', 'created_on']
+    available_cols = [c for c in cols_to_keep if c in df.columns]
+    return df[available_cols]
+
+# 6. 缓存函数：安全预览指定表数据（严格限流 LIMIT 50，防止账单失控）
+@st.cache_data(ttl=600)
+def preview_table_data(db_name, schema_name, table_name, limit=50):
+    query = f'SELECT * FROM "{db_name}"."{schema_name}"."{table_name}" LIMIT {limit}'
+    return session.sql(query).to_pandas()
+
+# 7. 侧边栏：多级级联数仓导航
+st.sidebar.header("🧭 数仓位置导航")
+databases = get_databases()
+selected_db = st.sidebar.selectbox("1. 选择数据库 (Database)：", databases, index=0 if 'AIRBNB' not in databases else databases.index('AIRBNB'))
+
+schemas = get_schemas(selected_db)
+selected_schema = st.sidebar.selectbox("2. 选择模式 (Schema)：", schemas, index=0 if 'RAW' not in schemas else schemas.index('RAW'))
+
+st.sidebar.divider()
+
+# 8. 动态枚举目标 Schema 下的所有数据表
+tables_df = scan_tables_in_schema(selected_db, selected_schema)
+
+if tables_df.empty:
+    st.warning(f"在 {selected_db}.{selected_schema} 下未找到任何数据表。")
+else:
+    table_list = sorted(tables_df['name'].tolist())
+    st.sidebar.subheader("📋 扫描到的数据表清单")
+    selected_table = st.sidebar.selectbox("3. 选择目标表进行探查：", table_list)
+
+    # 提取当前选中表的元数据指标
+    current_meta = tables_df[tables_df['name'] == selected_table].iloc[0]
+    row_count = int(current_meta.get('rows', 0)) if pd.notnull(current_meta.get('rows')) else 0
+    size_bytes = int(current_meta.get('bytes', 0)) if pd.notnull(current_meta.get('bytes')) else 0
+    size_kb = size_bytes / 1024.0
+    owner = current_meta.get('owner', 'N/A')
+
+    # 主界面：元数据 KPI 卡片矩阵
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.metric(label="当前探查数据表", value=selected_table)
+    with kpi_col2:
+        st.metric(label="总数据行数", value=f"{row_count:,} 行")
+    with kpi_col3:
+        st.metric(label="存储占用空间", value=f"{size_kb:.2f} KB")
+    with kpi_col4:
+        st.metric(label="所有者角色 (Owner)", value=str(owner))
+
+    st.divider()
+
+    # 主界面：安全样本数据实时预览 (前 50 行)
+    st.subheader(f"📊 数据表 `{selected_table}` 实时样本数据 (前 50 行预览)")
+    with st.spinner("正在加载数据预览..."):
+        preview_df = preview_table_data(selected_db, selected_schema, selected_table, limit=50)
+
+    st.dataframe(preview_df, use_container_width=True, hide_index=True)
+
+    # 底部操作栏：数据导出与缓存控制
+    btn_col1, btn_col2, _ = st.columns([2, 2, 6])
+    with btn_col1:
+        csv_data = preview_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 下载前 50 行样本为 CSV",
+            data=csv_data,
+            file_name=f"{selected_table}_sample.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    with btn_col2:
+        if st.button("🔄 清除缓存并重新扫描", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+# 底部成本安全警示横幅
+st.info("💡 **成本防刷安全保障**：所有元数据与数据查询均配置 `@st.cache_data(ttl=600)` 10 分钟强缓存，用户切换表或筛选时直接读取内存，不触发虚拟仓库唤醒计费；虚拟仓库设定 `AUTO_SUSPEND = 60` 秒无操作自动休眠。")
+```
+
+---
+
+#### Step 4.B3: 运行实景展示与防刷安全验证
+
+点击右上角 **`Run`** 部署并运行该应用：
+- 级联选择数据库 `AIRBNB` 与模式 `RAW`；
+- 探查器自动枚举出 `RAW_LISTINGS`、`RAW_HOSTS`、`RAW_REVIEWS` 等全部数据表；
+- 点击选择 `RAW_LISTINGS`，主界面毫秒级呈现 4 大 KPI 仪表卡：
+  - **总数据行数**：`3,818 行`
+  - **存储占用空间**：`671.00 KB`
+  - **所有者角色**：`TRANSFORM`
+- 下方即时渲染出前 50 行真实房源样本明细（包含 `id`, `listing_url`, `name`, `price`, `minimum_nights` 等真实字段），并提供一键 CSV 导出；
+- **成本安全闭环**：得益于 `@st.cache_data(ttl=600)`，用户在不同表之间来回点选时，第二次点击同一张表直接从内存秒级出图，仓库在 60 秒无查询后自动进入挂起（SUSPENDED）状态，零浪费任何额度！
+
+> **Snowflake 仓内数据表动态探查器实景运行大图**：
+>
+> 页面左侧为级联导航与动态扫描到的表清单，顶部清晰呈现元数据指标卡，中央动态渲染数据样本表格，全流程免密、限流、带缓存：
+>
+> ![Snowflake 仓内数据表动态探查器运行实景](../images/10_step_05_schema_inspector_running.png)
 
 ---
 

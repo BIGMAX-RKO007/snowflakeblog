@@ -113,7 +113,176 @@ flowchart TD
 
 ---
 
-## 三、Box データソース側の準備と認証情報の取得
+## 三、コアメカニズムの深層分析：ステージ物理ファイル一時保管 vs テーブル列構造化クレンジング・チャンク分割（2段階アーキテクチャ）と複数ソースガバナンス設計
+
+非構造化ドキュメントを基盤とする現代的なデータレイクハウスや企業ナレッジベースを構築する際、多くのエンジニアやアーキテクトが直面する最も本質的な疑問が以下の2点です：
+1. **疑問 1**：現在の検証では、Box の非構造化ファイルを単なるオンラインストレージのようにそのまま Snowflake に保存しているのか？それとも ETL クレンジングを行った上でテーブルのカラム（列）に格納しているのか？
+2. **疑問 2**：企業内に Box だけでなく、AWS S3、SharePoint、Google Drive、社内 SFTP など複数の非構造化データソースが存在する場合、どのような統一データガバナンスアーキテクチャを設計すべきか？
+
+本節では、この2大疑問に対してエンタープライズ本番環境レベルの技術メカニズムを解説します。
+
+---
+
+### メカニズム解剖 1：データレイクハウスにおける2段階（Two-Stage）ELT アーキテクチャの真実
+
+> [!IMPORTANT] **核心結論：両方を実施し、前後で有機的に連携します（二者択一ではありません）！**  
+> Snowflake データレイクハウスにおける非構造化ドキュメント処理は、**「ステージに置くだけ」か「テーブルに入れるだけ」かという単純な二者択一ではありません**。以下の**2段階（Two-Stage ELT）アーキテクチャ**を採用しています：  
+> - **第1段階（EL - 物理原本のレイク格納）**：ファイルをそのまま変更せず Snowflake 管理/外部ステージ（Stage）に格納し、完全なバイナリデータと法的証拠性を保持します；  
+> - **第2段階（T - 構造化クレンジング・チャンク分割のテーブル格納）**：Snowflake 内部の計算リソースを活用してテキスト抽出、段落分割（Chunking）、ベクトル化（Embedding）を実行し、抽出されたデータをリレーショナルテーブルの列に書き込み、SQL 検索、LLM RAG、BI 分析に供します。
+
+#### 2段階データフローの全体像と責任境界
+
+```mermaid
+flowchart TD
+    subgraph S1["データソース層 (Raw Sources)"]
+        SRC["Box / S3 / SharePoint<br/>(PDF, DOCX, TXT 原本ファイル)"]
+    end
+
+    subgraph S2["第1段階：EL 物理原本の格納 (Storage Layer)"]
+        direction TB
+        STG["Snowflake 管理ステージ (@BOX_RAW_STAGE/)<br/>• 100% 物理バイナリ原本を完全保存 (監査証跡)<br/>• 1ファイルあたり最大 5TB 対応<br/>• クラウドネイティブな低コストストレージ ($23/TB/月)"]
+        DIR["Directory Table (ディレクトリメタデータ索引)<br/>• 相対パス、MD5、ファイルサイズを自動インデックス<br/>• BUILD_SCOPED_FILE_URL でセキュアな一時リンクを発行"]
+        STG <--> DIR
+    end
+
+    subgraph S3["第2段階：T 計算・解析・チャンク分割・テーブル格納 (Compute Layer)"]
+        direction TB
+        ENG["Snowflake コンピュートエンジン (Python UDF / Snowpark / Cortex)<br/>• プレーンテキスト抽出<br/>• 500〜1000文字のスライディングウィンドウ分割 (Chunking)<br/>• ベクトル Embedding 計算"]
+        T_META[("メタデータ台帳テーブル BOX_DOCUMENT_METADATA<br/>• FILE_ID, SIZE, SHA256, SYNC_TIME<br/>• USER_EMAILS (権限リスト)")]
+        T_CHUNK[("テキストチャンクテーブル BOX_DOC_CHUNKS<br/>• CHUNK_INDEX (段落番号)<br/>• CHUNK_TEXT (実際の段落本文)<br/>• SQL LIKE や Cortex ベクトル検索に対応")]
+        ENG --> T_META
+        ENG --> T_CHUNK
+    end
+
+    subgraph S4["データ利活用層 (Consumption Layer)"]
+        C1["SQL リレーショナル・全文検索<br/>WHERE CHUNK_TEXT ILIKE '%...'"]
+        C2["LLM RAG ナレッジ検索<br/>(Snowflake Cortex Search)"]
+        C3["ブラウザからの原本セキュア閲覧・ダウンロード<br/>(Scoped URL による PDF プレビュー)"]
+    end
+
+    SRC ==>|Openflow / API 取得| STG
+    STG ==>|イベント駆動 / バッチ計算| ENG
+    T_CHUNK --> C1
+    T_CHUNK --> C2
+    DIR --> C3
+
+    style S1 fill:#f0f5ff,stroke:#adc6ff
+    style S2 fill:#fff7e6,stroke:#ffd591
+    style S3 fill:#f6ffed,stroke:#b7eb8f
+    style S4 fill:#f9f0ff,stroke:#d3adf7
+```
+
+#### なぜステージへの物理原本保存が不可欠なのか？
+1. **法的コンプライアンスと原本監査証跡（Compliance & Audit Trail）**：金融・法務・公共分野等では、契約書原本や押印済みスキャン書類は改ざん防止の観点から原本ファイルの長期保存が法律で義務付けられています。
+2. **情報の次元喪失防止（Lossless Archiving）**：テキスト抽出を行うと、表の座標、図解の位置、署名印影などの視覚情報が失われます。ステージに原本を保管しておくことで、将来さらに高精度なマルチモーダル AI が登場した際に、ウェアハウス内で**いつでも無劣化で再解析**が可能です。
+3. **低廉なオブジェクトストレージ費用**：Snowflake ステージのストレージ料金は AWS S3 / Azure Blob と同等の水準（約 $23/TB/月）であり、5,000 件の PDF（約 5GB）を保管しても月額わずか約 $0.11 程度で済みます。
+4. **時限署名付きセキュアアクセス（Scoped URL）**：Snowflake 組み込み関数 `BUILD_SCOPED_FILE_URL` を利用することで、データベースアカウントを持たない一般業務ユーザーに対しても、有効期限付き署名 URL を通じて原本 PDF をブラウザ内で直接閲覧させることが可能です。
+
+#### なぜテーブルの列にクレンジング・分割格納することが不可欠なのか？
+1. **SQL エンジンはバイナリ内部を直接透過スキャンできない**：SQL の `SELECT`、`WHERE`、`JOIN`、`GROUP BY` は構造化および半構造化（VARIANT）データのみを処理対象とします。ファイルを `CHUNK_TEXT` 列などのテーブル構造へ展開して初めて、ミリ秒オーダーの高速スキャンが可能になります。
+2. **LLM RAG（検索拡張生成）の物理的制約**：LLM のコンテキストウィンドウには上限があり、300 ページの原本 PDF（数十万〜数百万トークン）を丸ごと入力することはできません。500〜1,000 文字のチャンク（Chunk）に分割してテーブルに保持することで、コサイン類似度に基づき最も関連する 3 つの段落を高精度に抽出できます。
+3. **きめ細やかな行レベルセキュリティ（Row Access Policy）**：ステージ単位の権限管理では「ファイル全体の閲覧可否」しか制御できませんが、テーブル列に展開することで、Snowflake の行アクセスポリシー（RLS）や動的マスキングを適用し、「一般社員には第1章のみ閲覧を許可し、管理職には給与関連の段落まで閲覧を許可する」といった制御が可能になります。
+
+---
+
+### メカニズム解剖 2：複数非構造化データソースのエンタープライズ統合管理設計 (Multi-Source Lakehouse Blueprint)
+
+大企業では、データは **Box（オフィスコラボレーション）、AWS S3（アプリログ/添付ファイル）、SharePoint（社内ポータル）、社内 SFTP（基幹システム連携）** など多種多様なシステムに分散しています。
+
+個別のシステムごとに孤立したサイロを作るのを防ぐため、Snowflake をハブとする以下の4層統合ガバナンスアーキテクチャを適用します：
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                   エンタープライズ向け複数データソース非構造化ガバナンス4層アーキテクチャ                 │
+├────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1. 物理アクセス層 (Multi-Stage Isolation)                                                       │
+│    @BOX_STAGE          @S3_CORP_STAGE          @SHAREPOINT_STAGE       @SFTP_INTERNAL_STAGE    │
+│    (個別の Storage / External Access Integration により、認証情報とネットワーク境界を物理分離)   │
+├────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 2. 全社統一アセットカタログ層 (Global Unstructured Catalog)                                    │
+│    統一物理テーブル：UNSTRUCTURED_DOCUMENT_CATALOG                                               │
+│    (全ソース横断の DOC_GLOBAL_ID、SOURCE_SYSTEM、SHA-256 重複排除、MIME、ACL、パース状態)        │
+├────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 3. イベント駆動型プラグイン処理パイプライン (Pluggable Parsing Pipeline)                        │
+│    Directory Table Streams ──> Tasks ──> 動的ディスパッチ (PDF解析 / DOCX解析 / TXT分割)         │
+│    統一テキストチャンクテーブルへ出力：CORP_DOC_CHUNKS (CHUNK_INDEX, CHUNK_TEXT, EMBEDDINGS)       │
+├────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 4. 統一セキュリティ・消費層 (Unified RBAC & Dynamic RLS)                                       │
+│    統一 Row Access Policy を適用し、ACL_PERMISSIONS に基づき権限外ユーザーのアクセスを自動遮断     │
+└────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 1. 全社統一非構造化ドキュメントカタログテーブルの設計（本番用 DDL）
+
+ファイルが Box 由来であれ S3 由来であれ、レイク格納後は以下のカタログテーブルに統一登録されます：
+
+```sql
+CREATE OR REPLACE TABLE UNSTRUCTURED_DOCUMENT_CATALOG (
+    -- ドキュメント全体で一意の ID (SHA-256 または UUID、全ソース横断での重複排除キー)
+    doc_global_id         VARCHAR(64) PRIMARY KEY,
+    
+    -- 送信元システムと元の識別子
+    source_system         VARCHAR(32) NOT NULL,   -- 'BOX', 'AWS_S3', 'SHAREPOINT', 'LOCAL_SFTP'
+    source_file_id        VARCHAR(256) NOT NULL,  -- ソース側固有 ID (例: Box File ID: 123456789)
+    
+    -- 物理ストレージマッピング
+    stage_name            VARCHAR(128) NOT NULL,  -- '@BOX_RAW_STAGE', '@S3_CORP_STAGE'
+    stage_relative_path   VARCHAR(1024) NOT NULL, -- ステージ内部の相対パス
+    file_name             VARCHAR(256) NOT NULL,  -- 実ファイル名
+    mime_type             VARCHAR(64) NOT NULL,   -- 'application/pdf', 'application/vnd.openxmlformats...'
+    file_size_bytes       NUMBER(38,0) NOT NULL,  -- 正確なバイトサイズ
+    
+    -- データ整合性と同一性検証
+    content_sha256        VARCHAR(64) NOT NULL,   -- 物理ファイルの SHA-256 ハッシュ値
+    ingestion_timestamp   TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    
+    -- 解析ステータス管理
+    parsing_status        VARCHAR(32) DEFAULT 'PENDING', -- 'PENDING', 'PARSED', 'FAILED', 'SKIPPED'
+    parsed_timestamp      TIMESTAMP_LTZ,
+    
+    -- 拡張プロパティ・ソース固有メタデータ (JSON 半構造化データ)
+    source_metadata       VARIANT,                -- Box のフォルダ階層、S3 タグ、SharePoint サイト情報等
+    
+    -- アクセス制御権限リスト (ソース側の権限体系を継承)
+    acl_permissions       ARRAY                   -- 閲覧権限を持つユーザーメール/グループ一覧 ['alice@corp.com', 'group_legal']
+);
+```
+
+#### 2. イベント駆動型プラグイン処理パイプラインの動作手順
+
+1. **変更検知**：各ステージで Directory Table の自動リフレッシュ（`AUTO_REFRESH = TRUE`）を有効化し、Directory Table 上に Snowflake Stream を定義；
+2. **パイプライン起動**：いずれかのステージに新規ファイルが書き込まれると、Snowflake Task が自動的に Snowpark Python タスクを呼び出し；
+3. **MIME タイプに応じた動的ディスパッチ**：
+   - `application/pdf` の場合：OCR やレイアウト解析エンジン（PyPDF2、pdfplumber、または Snowflake AI Document Parse）を呼び出し；
+   - `application/vnd.openxmlformats-officedocument.wordprocessingml.document` の場合：python-docx で本文テキストを抽出；
+   - `text/plain` の場合：ステージから直接ストリーム読み取りを実行；
+4. **一括登録と整合性コミット**：
+   - 抽出した段落データを `CORP_DOC_CHUNKS` に一括挿入；
+   - `UNSTRUCTURED_DOCUMENT_CATALOG.parsing_status` を `'PARSED'` に更新し、処理完了日時を記録。
+
+#### 3. 統一クロスソース行レベルセキュリティ（Row Access Policy）
+
+全文テキスト検索時に一般ユーザーが権限を迂回して機密ファイルを閲覧するのを防止するため、カタログおよびチャンクテーブルに行アクセスポリシーを適用します：
+
+```sql
+-- ACL 配列に基づく行レベルアクセスポリシーの作成
+CREATE OR REPLACE ROW ACCESS POLICY RAP_UNSTRUCTURED_DOC_ACCESS
+AS (doc_acls ARRAY) RETURNS BOOLEAN ->
+    -- 1. 管理者およびコンプライアンス監査ロールは全件閲覧可能
+    CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SECURITY_ADMIN', 'COMPLIANCE_OFFICER')
+    -- 2. 一般ユーザーは自身のメールアドレスが許可リストに含まれている場合のみ閲覧可能
+    OR ARRAY_CONTAINS(CURRENT_USER()::VARIANT, doc_acls);
+
+-- カタログテーブルにポリシーを適用
+ALTER TABLE UNSTRUCTURED_DOCUMENT_CATALOG 
+ADD ROW ACCESS POLICY RAP_UNSTRUCTURED_DOC_ACCESS ON (acl_permissions);
+```
+
+この「**複数ステージによる物理分離 + 全社統一カタログ + プラグイン型処理パイプライン + 統一 RLS**」のガバナンスモデルにより、将来どのようなデータソースが追加されても、Snowflake 内で一元的な管理、監査、検索、課金コントロールが実現します。
+
+---
+
+## 四、Box データソース側の準備と認証情報の取得
 
 ### Step 3.1: バックエンドサービスアプリ（Custom App）の作成
 1. [Box Developer Console (開発者コンソール)](https://app.box.com/developers/console) へログインします。
@@ -186,7 +355,7 @@ flowchart TD
 
 ---
 
-## 四、Snowflake ターゲット環境の構築（RBAC と階層ストレージ）
+## 五、Snowflake ターゲット環境の構築（RBAC と階層ストレージ）
 
 Snowflake 側では、最小特権の原則に基づき、専用のロール・サービスユーザー・仮想ウェアハウス・内部ステージ・テーブルを作成します。
 
@@ -276,7 +445,7 @@ COMMENT = '長文ドキュメントを分割した段落単位のテキストデ
 
 ---
 
-## 五、Openflow コネクタ設定の全パラメータ対応表
+## 六、Openflow コネクタ設定の全パラメータ対応表
 
 **Openflow Connector for Box** を設定する際に求められる 3 大カテゴリのパラメータ対応表です：
 
@@ -313,7 +482,7 @@ COMMENT = '長文ドキュメントを分割した段落単位のテキストデ
 
 ---
 
-## 六、データ同期の閉ループ実機検証（3 ステップ方式）
+## 七、データ同期の閉ループ実機検証（3 ステップ方式）
 
 同期実行後、ファイルは Box から Snowflake へ転送されます。尚硅谷スタイルの**「課題提起 $\rightarrow$ 標準 SQL 構文 $\rightarrow$ 実機実行結果と回顕画面」**の 3 ステップで検証を進めます：
 
@@ -408,7 +577,7 @@ FROM DIRECTORY(@BOX_RAW_STAGE);
 
 ---
 
-## 七、実戦での落とし穴とトラブルシューティング（重点）
+## 八、実戦での落とし穴とトラブルシューティング（重点）
 
 初学者が現場で最も遭遇しやすい 3 つの課題と、その確実な回避策を明示します：
 

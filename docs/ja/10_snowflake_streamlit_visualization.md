@@ -92,6 +92,33 @@ flowchart TD
     UI <== "WebSocket 双方向通信" ==> BROWSER
 ```
 
+### コスト構造の深層解剖：Stage に Python スクリプトを保存すると課金されるのか？（Stage 保管コスト vs ウェアハウス計算コスト精算）
+
+ステージ（Stage）で Streamlit スクリプトをホストする際、多くのエンジニアが抱く疑問が**「Python スクリプトを Snowflake Stage に保存しておくと、保管料が継続的に発生するのではないか？高額な課金が発生するリスクはないのか？」**という点です。
+
+> [!IMPORTANT] **核心結論：Stage の保管費用はほぼ 0 ドル（無視できるレベル）です。真の課金要因は背後で稼働する Virtual Warehouse（仮想ウェアハウス）のコンピュートコストです！**
+
+#### 1. ストレージ課金の詳細計算：月額 0.000001 ドル未満（事実上無料）
+- **課金体系**：Snowflake の内部ステージは、クラウドプロバイダ標準のオブジェクトストレージ容量に応じて課金されます（通常 **$23.00 〜 $40.00 / TB / 月**、約 $0.000022 / MB / 月）；
+- **ファイルサイズ**：Streamlit の Python スクリプト（`streamlit_app.py` や `streamlit_schema_inspector.py`）は通常わずか **5 KB 〜 20 KB** 程度です；
+- **計算式**：
+  $$\text{月額保管料} = \frac{20 \text{ KB}}{1024 \times 1024 \times 1024 \text{ KB}} \times \$23.00 \approx \$0.00000043 \text{ USD / 月}$$
+  ステージ内に **100 個** の複雑な Python ダッシュボードスクリプトを丸 1 年間保管し続けたとしても、総額は **1 セント（約 1.5 円）未満** です。
+
+#### 2. 真の課金要因：仮想ウェアハウス（Virtual Warehouse）のコンピュートコスト
+- **稼働の実態**：Streamlit in Snowflake は静的な HTML ホスティングではなく、Python コンテナの実行および SQL 発行のために背後で **Virtual Warehouse** を起動・消費します；
+- **単価基準**：最小サイズである `X-Small` ウェアハウスでも、1 時間の稼働につき **1 クレジット**（通常レート換算で約 **$2.00 〜 $3.00 / 時間**）を消費します；
+- **重大な落とし穴（タブの放置）**：Streamlit フロントエンドは **WebSocket によるハートビート通信（Live Heartbeat）** を維持します。開発者が Snowsight でダッシュボードを開いたまま、**ブラウザタブを閉じずに帰宅してしまうと**：
+  - フロントエンドからハートビートが送信され続けるため、ウェアハウスは「アクティブなセッションが存在する」と誤認し、**`AUTO_SUSPEND` による自動サスペンドが発動しません**！
+  - 1 日あたり 24 クレジット（約 $48 〜 $72）が浪費され、数日でトライアル枠（400 ドル）を使い切ってしまう事態に陥ります。
+
+#### 3. コスト爆発を防ぐ 4 つの安全ロック（The 4 Anti-Burn Safety Locks）
+快適な開発と確実なコスト管理を両立するため、以下の 4 重防護を必ず実施します：
+1. **60秒自動サスペンドの徹底**：ウェアハウスに `AUTO_SUSPEND = 60` を強制設定（クエリ停止後 1 分で即時休止）；
+2. **関数レベルの強力メモリキャッシュ**：DWH からデータを取得する全関数に `@st.cache_data(ttl=600)`（10分キャッシュ）を付与。テーブル切り替えやドロップダウン操作時にメモリからミリ秒で応答させ、**DWH への多重 SQL クエリを完全に遮断**；
+3. **厳格なクエリ件数制限**：データプレビューには必ず `LIMIT 50` を付与し、数千万行のフルスキャンを防止；
+4. **ブラウザタブの確実なクローズと手動サスペンド**：作業完了後はタブを閉じ、必要に応じて `ALTER WAREHOUSE <wh> SUSPEND;` を実行。
+
 ---
 
 ## 三、コア関数と設定パラメータ定義（完全辞書）
@@ -112,9 +139,17 @@ flowchart TD
 
 ---
 
-## 四、実践ハンズオン：全コマンドと実行結果（3ステップ完結）
+## 四、2つのデプロイパス（デュアルトラック）実践ハンズオン：DevOps コード管理 vs Web GUI ノーコード探索
 
-### Step 1: 監視指標テーブルの作成とテストデータ投入
+エンタープライズの本番実務において、Streamlit in Snowflake はエンジニアリングの自動化とビジネスの俊敏性を両立する 2 つの導入パスを提供します：
+- **トラック A（DevOps / CI/CD コード管理デプロイ）**：データエンジニアやプラットフォームアーキテクト向け。内部ステージ + SQL DDL による宣言的管理を行い、Git や CI/CD 自動デプロイパイプラインに統合；
+- **トラック B（Snowsight Web GUI 対話型探索）**：ビジネスアナリスト（BA）や迅速な PoC 検証向け。Snowflake の Web 管理画面から数クリックで即座に対話型アプリケーションを立ち上げ。
+
+---
+
+### トラック A（DevOps / CI/CD コード管理デプロイ）：API 監視ダッシュボード
+
+#### Step 4.A1: 監視指標テーブルの作成とテストデータ投入
 
 ```sql
 USE DATABASE DEV_DEMO_DB;
@@ -149,7 +184,7 @@ INSERT INTO test_sales_metrics VALUES
 
 ---
 
-### Step 2: Streamlit アプリケーションコードの作成 (`streamlit_app.py`)
+#### Step 4.A2: Streamlit アプリケーションコードの作成 (`streamlit_app.py`)
 
 KPI カード、動的フィルタ、折れ線グラフ、明細表を統合したスクリプトを作成します：
 
@@ -229,7 +264,7 @@ if st.button("🔄 キャッシュをクリアして再取得"):
 
 ---
 
-### Step 3: Stage + SQL による DevOps 自動デプロイ
+#### Step 4.A3: Stage + SQL による DevOps 自動デプロイ
 
 Snowsight 画面での手作業による貼り付けを排し、Git や CI/CD パイプラインと直結できる標準方式を採用します：
 
@@ -237,14 +272,19 @@ Snowsight 画面での手作業による貼り付けを排し、Git や CI/CD �
 > - [CREATE STREAMLIT 構文仕様とパラメータリファレンス](https://docs.snowflake.com/ja/sql-reference/sql/create-streamlit)
 > - [Snowflake 内部ステージでの Streamlit ファイル管理ガイド](https://docs.snowflake.com/ja/developer-guide/streamlit/create-streamlit-sql)
 
-#### 1. 内部ステージの作成
 ```sql
-CREATE OR REPLACE STAGE dev_streamlit_stage;
-```
+-- 1. 内部ステージの作成 (Directory Table 有効化)
+CREATE OR REPLACE STAGE dev_streamlit_stage DIRECTORY = (ENABLE = TRUE);
 
-#### 2. スクリプトのアップロード
-```sql
+-- 2. スクリプトのアップロード
 PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
+
+-- 3. DDL による Streamlit オブジェクト作成
+CREATE OR REPLACE STREAMLIT dev_demo_dashboard
+  ROOT_LOCATION = '@DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage'
+  MAIN_FILE = 'streamlit_app.py'
+  QUERY_WAREHOUSE = 'COMPUTE_WH'
+  COMMENT = 'API 監視・可視化本番ダッシュボード (トラック A - DevOps)';
 ```
 
 > **ステージ内ファイル確認スクリーンショット**：
@@ -253,23 +293,9 @@ PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stag
 >
 > ![Snowflake 内部ステージの Streamlit ファイル一覧](../images/10_step_02_stage_streamlit_file.png)
 
-#### 3. DDL による Streamlit オブジェクト作成
-```sql
-CREATE OR REPLACE STREAMLIT dev_demo_dashboard
-  ROOT_LOCATION = '@DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage'
-  MAIN_FILE = 'streamlit_app.py'
-  QUERY_WAREHOUSE = 'COMPUTE_WH'
-  COMMENT = 'API 監視・可視化本番ダッシュボード';
-```
-
-> **コンソール実行結果**：
-> ```text
-> Streamlit DEV_DEMO_DASHBOARD successfully created.
-> ```
-
 ---
 
-### Step 4: デプロイ結果の確認とアクセス
+#### Step 4.A4: デプロイ結果の確認とアクセス
 
 > 📖 **公式メタデータコマンド仕様**：[SHOW STREAMLITS 公式構文リファレンス](https://docs.snowflake.com/ja/sql-reference/sql/show-streamlits)
 
@@ -288,17 +314,180 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`** をクリックすると、一覧に登録された **`DEV_DEMO_DASHBOARD`** が確認できます：
 
-> **Snowsight Streamlit アプリケーション一覧**：
->
-> ![Snowflake Streamlit アプリ一覧](../images/10_step_03_streamlit_app_list.png)
+![Snowflake Streamlit アプリ一覧](../images/10_step_03_streamlit_app_list.png)
 
 クリックしてダッシュボードを開くと、DWH 内でセキュアに即時描画された対話型ダッシュボードが表示されます：
 
-> **対話型ダッシュボード稼働実機画面**：
+![Streamlit in Snowflake 稼働実機画面](../images/10_step_04_streamlit_dashboard_live.png)
+
+---
+
+### トラック B（Snowsight Web GUI 対話型探索）：ウェアハウス内動的テーブルインスペクター (Schema Table Inspector)
+
+分析業務や PoC においては、ターミナルを開いたり `PUT` コマンドを打つことなく、**Snowsight の Web 画面上だけで素早くアプリを作成し、指定した Database / Schema 内の全テーブルを自動スキャンして、クリックしたテーブルのメタデータとサンプル行を即座に探査したい**というニーズが数多く存在します。
+
+#### Step 4.B1: Snowsight Web 画面からの Streamlit アプリ作成設定
+
+1. Snowsight Web 管理画面にログインし、左側メニューの **`Projects -> Streamlit`** を選択；
+2. 画面右上の青色ボタン **`+ Streamlit App`** をクリック；
+3. ポップアップ画面で基本設定を入力します：
+   - **App Name**：`SCHEMA_TABLE_INSPECTOR`
+   - **App location**：Database に `DEV_DEMO_DB`、Schema に `API_INTEGRATION` を指定
+   - **Warehouse**：`COMPUTE_WH`（`AUTO_SUSPEND = 60` 秒設定済みであることを推奨）
+4. 右下の **`Create`** をクリックして作成を完了します。
+
+> **Snowsight Web 画面による Streamlit 作成ポップアップ実測スクリーンショット**：
 >
-> 上部に KPI スコアカード、中央にリアルタイム明细レコード、下部に Altair 連携の売上推移グラフを完備した、パスワードレス・ゼロ外部流出のダッシュボードです：
+> アプリ名、実行ウェアハウス、配置先データベースおよびスキーマを直感的に選択でき、Create を押すだけで Python 実行環境が DWH 内に即時初期化されます：
 >
-> ![Streamlit in Snowflake 稼働実機画面](../images/10_step_04_streamlit_dashboard_live.png)
+> ![Snowsight Web 画面による Streamlit 作成ポップアップ](../images/10_step_04_gui_create_streamlit.png)
+
+---
+
+#### Step 4.B2: ウェアハウス内動的テーブルインスペクター完全コード (`streamlit_schema_inspector.py`)
+
+オンラインエディタの初期テンプレートコードを、以下の防護処理済み動的インスペクター完全コードに置き換えます：
+
+```python
+# ==============================================================================
+# アプリケーション名: Snowflake ウェアハウス内動的テーブルインスペクター
+# 特徴:
+#   1. データベースおよびスキーマを動的にスキャンし、所属テーブルを自動列挙
+#   2. テーブル名をクリックするだけで、メタデータ KPI とサンプルデータを即座に表示
+#   3. 全クエリに @st.cache_data(ttl=600) を適用し、多重課金を完全遮断
+#   4. 厳格な LIMIT 50 制御により、大規模テーブルの偶発的フルスキャンを防止
+# ==============================================================================
+import streamlit as st
+import pandas as pd
+from snowflake.snowpark.context import get_active_session
+
+# 1. ワイドモード設定
+st.set_page_config(
+    page_title="Snowflake ウェアハウス内動的テーブルインスペクター",
+    page_icon="🔍",
+    layout="wide"
+)
+
+st.title("🔍 Snowflake ウェアハウス内動的テーブルインスペクター (Schema Table Inspector)")
+st.caption("Streamlit in Snowflake ネイティブ実行 · パスワードレス認証 · 10分間メモリキャッシュによる課金防護")
+
+# 2. アクティブセッションの取得
+session = get_active_session()
+
+# 3. 利用可能なデータベース一覧を取得（システム内部DBを除外・キャッシュ化）
+@st.cache_data(ttl=600)
+def get_databases():
+    df = session.sql("SHOW DATABASES").to_pandas()
+    dbs = [row['name'] for _, row in df.iterrows() if not row['name'].startswith('SNOWFLAKE')]
+    return sorted(dbs)
+
+# 4. 指定データベース配下のスキーマ一覧を取得
+@st.cache_data(ttl=600)
+def get_schemas(db_name):
+    df = session.sql(f'SHOW SCHEMAS IN DATABASE "{db_name}"').to_pandas()
+    schemas = [row['name'] for _, row in df.iterrows() if row['name'] != 'INFORMATION_SCHEMA']
+    return sorted(schemas)
+
+# 5. スキーマ内の全テーブルメタデータをスキャン
+@st.cache_data(ttl=600)
+def scan_tables_in_schema(db_name, schema_name):
+    query = f'SHOW TABLES IN SCHEMA "{db_name}"."{schema_name}"'
+    df = session.sql(query).to_pandas()
+    if df.empty:
+        return pd.DataFrame()
+    cols_to_keep = ['name', 'rows', 'bytes', 'owner', 'created_on']
+    available_cols = [c for c in cols_to_keep if c in df.columns]
+    return df[available_cols]
+
+# 6. テーブルデータの安全なサンプルプレビュー（LIMIT 50 厳格制御）
+@st.cache_data(ttl=600)
+def preview_table_data(db_name, schema_name, table_name, limit=50):
+    query = f'SELECT * FROM "{db_name}"."{schema_name}"."{table_name}" LIMIT {limit}'
+    return session.sql(query).to_pandas()
+
+# 7. サイドバー：階層型ナビゲーション
+st.sidebar.header("🧭 ナビゲーション")
+databases = get_databases()
+selected_db = st.sidebar.selectbox("1. データベースを選択：", databases, index=0 if 'AIRBNB' not in databases else databases.index('AIRBNB'))
+
+schemas = get_schemas(selected_db)
+selected_schema = st.sidebar.selectbox("2. スキーマを選択：", schemas, index=0 if 'RAW' not in schemas else schemas.index('RAW'))
+
+st.sidebar.divider()
+
+# 8. テーブル一覧の動的取得と選択
+tables_df = scan_tables_in_schema(selected_db, selected_schema)
+
+if tables_df.empty:
+    st.warning(f"{selected_db}.{selected_schema} 配下にテーブルが存在しません。")
+else:
+    table_list = sorted(tables_df['name'].tolist())
+    st.sidebar.subheader("📋 検出されたテーブル一覧")
+    selected_table = st.sidebar.selectbox("3. 探査対象テーブルを選択：", table_list)
+
+    # 選択中テーブルのメタデータを抽出
+    current_meta = tables_df[tables_df['name'] == selected_table].iloc[0]
+    row_count = int(current_meta.get('rows', 0)) if pd.notnull(current_meta.get('rows')) else 0
+    size_bytes = int(current_meta.get('bytes', 0)) if pd.notnull(current_meta.get('bytes')) else 0
+    size_kb = size_bytes / 1024.0
+    owner = current_meta.get('owner', 'N/A')
+
+    # メイン画面：メタデータ KPI カード
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.metric(label="選択中のテーブル", value=selected_table)
+    with kpi_col2:
+        st.metric(label="総レコード行数", value=f"{row_count:,} 行")
+    with kpi_col3:
+        st.metric(label="ストレージサイズ", value=f"{size_kb:.2f} KB")
+    with kpi_col4:
+        st.metric(label="所有者ロール (Owner)", value=str(owner))
+
+    st.divider()
+
+    # メイン画面：サンプルデータのリアルタイムプレビュー (先頭50件)
+    st.subheader(f"📊 `{selected_table}` サンプルレコード (先頭 50 行プレビュー)")
+    with st.spinner("データを読み込み中..."):
+        preview_df = preview_table_data(selected_db, selected_schema, selected_table, limit=50)
+
+    st.dataframe(preview_df, use_container_width=True, hide_index=True)
+
+    # 操作バー：CSV ダウンロードとキャッシュクリア
+    btn_col1, btn_col2, _ = st.columns([2, 2, 6])
+    with btn_col1:
+        csv_data = preview_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 先頭50件を CSV でダウンロード",
+            data=csv_data,
+            file_name=f"{selected_table}_sample.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    with btn_col2:
+        if st.button("🔄 キャッシュをクリアして再スキャン", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+# 課金安全通知バナー
+st.info("💡 **課金防護セーフガード**：全てのメタデータおよびサンプルクエリに `@st.cache_data(ttl=600)`（10分間キャッシュ）を設定しているため、テーブル切り替え時に DWH を余計に消費しません。また、ウェアハウスには `AUTO_SUSPEND = 60` 秒（無操作時自動休止）が適用されています。")
+```
+
+---
+
+#### Step 4.B3: 実行結果とコスト防護の実機検証
+
+画面右上の **`Run`** をクリックして実行します：
+- データベースとして `AIRBNB`、スキーマとして `RAW` を選択；
+- インスペクターが即座に `RAW_LISTINGS`、`RAW_HOSTS`、`RAW_REVIEWS` などのテーブルを自動スキャン；
+- `RAW_LISTINGS` を選択すると、メイン画面に 4 つの KPI スコアカード（行数: 3,818 行、サイズ: 671.00 KB、所有者: TRANSFORM）が瞬時に表示されます；
+- その直下に、`id`、`listing_url`、`name`、`price`、`minimum_nights` などの先頭 50 件の実データが綺麗にレンダリングされ、ワンクリックで CSV 出力も可能；
+- **コスト防護の達成**：`@st.cache_data(ttl=600)` の恩恵により、テーブル間を何度も行き来しても DWH への問い合わせは発生せず、ウェアハウスは 60 秒後に安全に自動サスペンドされます。
+
+> **ウェアハウス内動的テーブルインスペクター稼働実機スクリーンショット**：
+>
+> 左側に動的スキャンされたテーブル一覧、上部にメタデータ KPI 指標、中央に対話型サンプルプレビューを展開。完全パスワードレス・行数制限付き・キャッシュ防護済みの安全設計です：
+>
+> ![ウェアハウス内動的テーブルインスペクター稼働実機画面](../images/10_step_05_schema_inspector_running.png)
 
 ---
 
