@@ -111,8 +111,9 @@ flowchart LR
    金融監査水準の 4 段階突合 SQL マトリクスと 100% 整合性エビデンス。
 7. [**06. トラブルシューティングとベストプラクティス**](/06_troubleshooting_tips)  
    文字コード溢れ、NUMBER 精度、日付文字化け防止とクエリプロファイル分析。
-8. [**07. Snowflake Openflow による Box 連携と Cortex 検索**](/07_openflow_box_integration)  
-   Box 連携、非構造化ドキュメント管理と Cortex Search AI による知識検索。
+8. [**07. Snowflake Openflow 統合データ連携 (07-1 〜 07-2)**](/07_01_openflow_architecture_and_concepts)  
+   - [07-1. Openflow コアアーキテクチャとマルチモーダル統合](/07_01_openflow_architecture_and_concepts)：Apache NiFi エンジン、SPCS コンテナホスティングと統合データ基盤。
+   - [07-2. Box クラウド連携と Cortex ナレッジ検索実践](/07_02_openflow_box_integration)：非構造化ファイルのステージ原本保管、チャンク分割と AI ナレッジ検索。
 9. [**08. Box API 実践ガイド (8-1 〜 8-8)**](/08_01_box_content_management)  
    Content Management、Auth、Sharing、Metadata、AI、Workflows などの企業 API 網羅。
 10. [**09. Snowflake 外部 API アクセス完全ガイド (ENA)**](/09_snowflake_external_api_access)  

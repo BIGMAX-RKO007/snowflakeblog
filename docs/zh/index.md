@@ -111,8 +111,9 @@ flowchart LR
    编写并执行经受金融审计检验的 4 级对账 SQL 矩阵，出具 100% 吻合的对账验收报告。
 7. [**06. 故障排查与最佳实践避坑指南**](/zh/06_troubleshooting_tips)  
    文字编码溢出根因、NUMBER 精度把控、业务日期字符化深度解析与查询画像优化。
-8. [**07. Snowflake Openflow 接入 Box 与 Cortex 知识检索**](/zh/07_openflow_box_integration)  
-   企业级云盘 Box 架构、OAuth 2.0 / JWT 认证、非结构化文档入库与 Cortex Search AI 问答。
+8. [**07. Snowflake Openflow 统一数据集成 (07-1 〜 07-2)**](/zh/07_01_openflow_architecture_and_concepts)  
+   - [07-1. Openflow 核心原理与多模态架构总览](/zh/07_01_openflow_architecture_and_concepts)：Apache NiFi 内核、SPCS 容器托管与全模态接入基座。
+   - [07-2. Box 云盘同步与 Cortex 知识检索实战](/zh/07_02_openflow_box_integration)：非结构化文档 Stage 暂存、切块清洗与 AI 知识检索。
 9. [**08. Box API 实战指南 (8-1 〜 8-8)**](/zh/08_01_box_content_management)  
    涵盖 Content Management、Auth、Sharing、Metadata、AI、Workflows 等全量企业接口实操。
 10. [**09. Snowflake 外部 API 调用全流程实战 (ENA)**](/zh/09_snowflake_external_api_access)  
