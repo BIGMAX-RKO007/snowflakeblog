@@ -1,0 +1,51 @@
+1
+00:00:00,000 --> 00:00:04,032
+Models are the basic building blocks of your business logic
+
+2
+00:00:04,032 --> 00:00:09,197
+and also the basic building blocks of a DPT project
+
+3
+00:00:09,200 --> 00:00:12,585
+You can think about models as SQL definitions
+
+4
+00:00:12,585 --> 00:00:15,710
+which then materialize as tables or views
+
+5
+00:00:15,720 --> 00:00:20,556
+but we will see that there are much more to them
+
+6
+00:00:20,560 --> 00:00:23,563
+Probably for now what you need to know about models
+
+7
+00:00:23,563 --> 00:00:27,548
+is that they are stored as SQL files in the models folder
+
+8
+00:00:27,548 --> 00:00:31,162
+and they are not only simple SQL SELECT statements
+
+9
+00:00:31,162 --> 00:00:33,638
+but they come with some extra features
+
+10
+00:00:33,640 --> 00:00:37,338
+For example models can reference other models
+
+11
+00:00:37,338 --> 00:00:41,387
+so DBT knows some semantic dependencies between those
+
+12
+00:00:41,387 --> 00:00:46,713
+and also you can use different scripts and macros in your models
+
+13
+00:00:46,720 --> 00:00:48,520
+Now let's see how they work in action

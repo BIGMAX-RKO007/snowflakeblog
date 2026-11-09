@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeprecationWarning - a dbt bug</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f9f9f9;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --code-bg: #282c34;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.8;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 50px 60px;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.05);
+        }
+
+        /* --- Header --- */
+        h1.article-title {
+            font-family: 'Merriweather', serif;
+            font-size: 2.4em;
+            color: var(--primary-color);
+            margin-bottom: 30px; /* Tăng margin lên chút vì đã bỏ dòng meta */
+            line-height: 1.3;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+
+        /* --- Body Content --- */
+        .content { font-family: 'Merriweather', serif; font-size: 1.1em; color: #2c3e50; }
+        
+        .content h2 { margin-top: 40px; font-family: 'Roboto', sans-serif; font-weight: 700; color: var(--primary-color); border-left: 4px solid var(--accent-color); padding-left: 15px; }
+        .content h3 { margin-top: 30px; font-family: 'Roboto', sans-serif; font-weight: 600; }
+        .content p { margin-bottom: 20px; }
+
+        /* --- Links & Icons --- */
+        a { color: var(--accent-color); text-decoration: none; font-weight: 500; border-bottom: 1px dotted transparent; transition: all 0.2s; }
+        a:hover { border-bottom-color: var(--accent-color); color: #2980b9; }
+
+        /* Tự động thêm icon cho link */
+        .content a[href^="http"]:not([href*="udemy.com"])::after {
+            content: '\f35d'; /* Icon External Link */
+            font-family: "Font Awesome 6 Free"; font-weight: 900;
+            margin-left: 5px; font-size: 0.8em; opacity: 0.7;
+        }
+        .content a[href$=".pdf"]::before {
+            content: '\f1c1'; /* PDF Icon */
+            font-family: "Font Awesome 6 Free"; font-weight: 900;
+            margin-right: 5px; color: #e74c3c;
+        }
+        .content a[href$=".zip"]::before, .content a[href$=".rar"]::before {
+            content: '\f1c6'; /* Archive Icon */
+            font-family: "Font Awesome 6 Free"; font-weight: 900;
+            margin-right: 5px; color: #f39c12;
+        }
+
+        /* --- Images --- */
+        .content img {
+            max-width: 100%; height: auto; display: block;
+            margin: 30px auto; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* --- Code Blocks --- */
+        pre {
+            background: var(--code-bg); color: #abb2bf;
+            padding: 20px; border-radius: 8px;
+            overflow-x: auto; font-family: 'Consolas', monospace; font-size: 0.95em;
+            margin: 25px 0; border: 1px solid #3e4451;
+        }
+        code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.9em; color: #c7254e; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+
+        /* --- Lists & Quotes --- */
+        ul, ol { margin-bottom: 20px; padding-left: 25px; }
+        li { margin-bottom: 8px; }
+        blockquote {
+            border-left: 4px solid var(--accent-color);
+            margin: 30px 0; padding: 15px 25px;
+            background: #eef6fa; border-radius: 0 8px 8px 0;
+            font-style: italic; color: #555;
+        }
+        
+        /* --- Tables --- */
+        table { width: 100%; border-collapse: collapse; margin: 25px 0; font-family: 'Roboto', sans-serif; font-size: 0.95em; }
+        th, td { border: 1px solid #e1e4e8; padding: 12px 15px; text-align: left; }
+        th { background-color: #f8f9fa; font-weight: 700; color: var(--primary-color); }
+        tr:nth-child(even) { background-color: #fcfcfc; }
+
+        @media (max-width: 768px) {
+            .container { padding: 30px 20px; }
+            h1.article-title { font-size: 1.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="article-title">DeprecationWarning - a dbt bug</h1>
+        <div class="content">
+            <p>When you remove the example definitions from your <code>dbt_project.yml</code> file and run <code>dbt run</code> during the next video, you might see a <code>[WARNING][MissingPlusPrefixDeprecation]</code> warning.</p><p><br></p><p>This is a reported bug in dbt and a fix will be released in the next major dbt version. <strong>Feel free to ignore this warning</strong>. </p>
+        </div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const content = document.querySelector('.content');
+            const links = content.querySelectorAll('a');
+            links.forEach(link => {
+                if(link.innerText.toLowerCase().includes('download') || link.innerText.toLowerCase().includes('tải về')) {
+                    link.style.fontWeight = 'bold';
+                    link.style.textDecoration = 'underline';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

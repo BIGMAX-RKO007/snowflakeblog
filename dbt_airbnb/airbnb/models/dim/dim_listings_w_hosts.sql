@@ -23,3 +23,4 @@ SELECT
     GREATEST(l.updated_at, h.updated_at) as updated_at
 FROM l
 LEFT JOIN h ON (h.host_id = l.host_id)
+
