@@ -135,5 +135,7 @@ flowchart LR
    “Everything is a SELECT”、CTE 模块化编写规范、Airbnb 三大源表 Staging 视图构建、`dbt run` 仓内物化全流程验证。
 4. [**04. 物化策略与模型依赖关系实战**](/zh/dbt/04_materializations)  
    4 种物化类型（view/table/incremental/ephemeral）取舍心智模型、`ref()` 宏 DAG 依赖解析、Cleanse 维度表与 Incremental 事实表实战、秒级增量切片与避险。
+5. [**05. 种子（Seeds）与数据源（Sources）实战**](/zh/dbt/05_seeds_and_sources)  
+   静态字典表版本化、外部 RAW 库逻辑解耦、`source()` 宏血缘治理、数据新鲜度监控（Source Freshness）与 CI/CD 熔断。
 
 </div>

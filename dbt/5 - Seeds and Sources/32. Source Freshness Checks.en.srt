@@ -1,0 +1,267 @@
+1
+00:00:00,000 --> 00:00:07,751
+In a production setting you might be able to create the most perfect dbt pipeline
+
+2
+00:00:07,760 --> 00:00:11,698
+but there is one thing you don't have control over
+
+3
+00:00:11,698 --> 00:00:13,667
+and these are your sources
+
+4
+00:00:13,680 --> 00:00:21,110
+The sources are in production many times managed by other teams or third parties
+
+5
+00:00:21,120 --> 00:00:26,556
+So you don't really have control on like in what format they come in
+
+6
+00:00:26,560 --> 00:00:31,512
+if the format changes or if the source is fresh or stale
+
+7
+00:00:31,520 --> 00:00:35,608
+So for example your third party or the other team
+
+8
+00:00:35,608 --> 00:00:38,236
+it just stops updating the source
+
+9
+00:00:38,240 --> 00:00:42,867
+We will take a look later at how you can test sources of course
+
+10
+00:00:42,880 --> 00:00:49,596
+but here I want to show you a dbt feature that helps you check for source freshness
+
+11
+00:00:49,600 --> 00:00:54,560
+We are going to create a simple configuration property to the source
+
+12
+00:00:54,560 --> 00:00:57,475
+and with the help of this we will be able to
+
+13
+00:00:57,475 --> 00:01:01,189
+check if the data in the source is fresh enough
+
+14
+00:01:01,200 --> 00:01:05,192
+Now how do you know if the data in a source is fresh
+
+15
+00:01:05,200 --> 00:01:07,552
+What you can do is that you define a column
+
+16
+00:01:07,552 --> 00:01:09,512
+we will call it a loaded ad field
+
+17
+00:01:09,520 --> 00:01:11,400
+and dbt will take a look at this column
+
+18
+00:01:11,400 --> 00:01:13,280
+in our case this will be the date column
+
+19
+00:01:13,280 --> 00:01:21,678
+and simply check how old the most recent date record in that column is
+
+20
+00:01:21,680 --> 00:01:25,424
+It's always a good practice to have a date column
+
+21
+00:01:25,424 --> 00:01:28,880
+either for fact data or also for dimension data
+
+22
+00:01:28,880 --> 00:01:32,718
+to have an update to that or create that column
+
+23
+00:01:32,718 --> 00:01:35,669
+so you can see when your data gets stale
+
+24
+00:01:35,680 --> 00:01:41,040
+If you remember in earlier videos we added an extra row to row reviews
+
+25
+00:01:41,040 --> 00:01:43,926
+but based on how you're pacing out this course
+
+26
+00:01:43,926 --> 00:01:47,034
+that might be maybe just a few minutes in the past
+
+27
+00:01:47,040 --> 00:01:50,145
+but maybe a few days or even weeks in the past right
+
+28
+00:01:50,145 --> 00:01:54,494
+Now we're going to implement a source freshness check and find it out
+
+29
+00:01:54,494 --> 00:01:58,570
+This requires a few lines of code so let me just paste this here for you
+
+30
+00:01:58,570 --> 00:02:02,560
+So what you want to do is that for the reviews column
+
+31
+00:02:02,560 --> 00:02:06,108
+you create a new config and under the config
+
+32
+00:02:06,108 --> 00:02:11,268
+you specify the loaded ad field which in our case remember is date right
+
+33
+00:02:12,080 --> 00:02:17,706
+Date as the name of the column and then for the freshness
+
+34
+00:02:17,706 --> 00:02:23,821
+we can decide how strict we want to be with the source freshness
+
+35
+00:02:23,821 --> 00:02:26,085
+So we can say that for example
+
+36
+00:02:26,085 --> 00:02:30,051
+if the most recent record in our source table
+
+37
+00:02:30,051 --> 00:02:33,877
+is older than one hour in this case
+
+38
+00:02:33,877 --> 00:02:37,278
+then we want to have a warning
+
+39
+00:02:37,278 --> 00:02:40,581
+but if it's older than 24 hours
+
+40
+00:02:40,581 --> 00:02:42,557
+then we want to have an error
+
+41
+00:02:42,557 --> 00:02:45,274
+Let's save this file and save it in action
+
+42
+00:02:45,280 --> 00:02:50,965
+I can say dbt source freshness and by executing this
+
+43
+00:02:50,965 --> 00:02:56,800
+let's see how old my most recent record is in the table
+
+44
+00:02:56,800 --> 00:03:00,640
+Oh no I received an error so it's very old
+
+45
+00:03:00,640 --> 00:03:03,200
+When you take this to production
+
+46
+00:03:03,200 --> 00:03:06,035
+you should know that if there is an error
+
+47
+00:03:06,035 --> 00:03:09,343
+then the exit code of this dbt source freshness command
+
+48
+00:03:09,360 --> 00:03:11,028
+will be non zero right
+
+49
+00:03:11,028 --> 00:03:13,530
+So if I say give me the exit code
+
+50
+00:03:13,530 --> 00:03:17,150
+it's 1 which means that if this was integrated
+
+51
+00:03:17,150 --> 00:03:20,741
+into a CI CD pipeline then the pipeline would fail
+
+52
+00:03:20,741 --> 00:03:24,480
+Now this specific comment is Linux and Mac specific
+
+53
+00:03:24,480 --> 00:03:29,920
+but I'm giving you the Windows comment too in course resources
+
+54
+00:03:29,920 --> 00:03:32,209
+So let me just comment this out
+
+55
+00:03:32,209 --> 00:03:35,992
+so I can demo a warning for you okay Let's execute this
+
+56
+00:03:35,992 --> 00:03:38,737
+Obviously our source will be stale
+
+57
+00:03:38,737 --> 00:03:42,082
+it will be older than one hour in the past
+
+58
+00:03:42,082 --> 00:03:44,820
+So now that gives me a warning
+
+59
+00:03:44,820 --> 00:03:47,366
+that you can pick up from the logs if you want
+
+60
+00:03:47,366 --> 00:03:50,149
+but if I ask if this source freshness failed
+
+61
+00:03:50,149 --> 00:03:52,205
+then you will see a zero exit code
+
+62
+00:03:52,205 --> 00:03:55,018
+which means that from the for example
+
+63
+00:03:55,018 --> 00:03:57,830
+a CI CD point of view that's okay
+
+64
+00:03:57,840 --> 00:04:00,582
+you don't need to fail the whole pipeline
+
+65
+00:04:00,582 --> 00:04:03,323
+All in all you want to ensure that anytime
+
+66
+00:04:03,323 --> 00:04:05,085
+you take dbt to production
+
+67
+00:04:05,085 --> 00:04:09,353
+you want to apply source freshness on third party sources

@@ -135,5 +135,7 @@ flowchart LR
    「Everything is a SELECT」、CTE 規約、Airbnb 3 大ソースの Staging ビュー構築、`dbt run` 倉内実行検証。
 4. [**04. マテリアライゼーション戦略と依存関係**](/dbt/04_materializations)  
    4 つのマテリアライゼーション（view/table/incremental/ephemeral）選定、`ref()` マクロ DAG 依存関係解決、ディメンションと増分ファクト実装、秒速差分更新。
+5. [**05. シード（Seeds）とデータソース（Sources）**](/dbt/05_seeds_and_sources)  
+   静的マスタ表の Git バージョン管理、外部 RAW 層の論理疎結合、`source()` マクロによるリネージ統制、データ鮮度監査（Source Freshness）と CI/CD ブロック。
 
 </div>

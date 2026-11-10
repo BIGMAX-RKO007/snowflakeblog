@@ -1,0 +1,51 @@
+1
+00:00:00,000 --> 00:00:04,680
+When you do modeling your input data can come from two sources
+
+2
+00:00:04,680 --> 00:00:07,430
+Either it's already in the data warehouse
+
+3
+00:00:07,430 --> 00:00:11,081
+because it has been integrated by an integration tool
+
+4
+00:00:11,081 --> 00:00:17,500
+like 5 Fran or AirBike or any custom ETL tool or ETL process
+
+5
+00:00:17,500 --> 00:00:21,860
+or it's a smaller dataset that you want to send
+
+6
+00:00:21,860 --> 00:00:25,556
+from your laptop directly to the data warehouse
+
+7
+00:00:25,560 --> 00:00:27,840
+The latter is called a seed
+
+8
+00:00:27,840 --> 00:00:31,830
+and if you have the data already in the data warehouse
+
+9
+00:00:31,830 --> 00:00:34,876
+that will be called a source in dbt
+
+10
+00:00:34,880 --> 00:00:38,800
+And dbt provides tools for defining seeds and sources
+
+11
+00:00:38,800 --> 00:00:42,974
+and also to make sure that your sources are up to date
+
+12
+00:00:42,974 --> 00:00:47,033
+and get alerting on stale outdated sources
+
+13
+00:00:47,040 --> 00:00:48,998
+So let's see how this works in practice

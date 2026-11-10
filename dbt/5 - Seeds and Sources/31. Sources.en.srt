@@ -1,0 +1,223 @@
+1
+00:00:00,000 --> 00:00:04,279
+Let's convert our role tables into sources
+
+2
+00:00:04,280 --> 00:00:08,760
+Sources are an abstraction on top of your input data
+
+3
+00:00:08,760 --> 00:00:14,498
+It gives you a few extra features just like checking the data freshness
+
+4
+00:00:14,500 --> 00:00:18,549
+And also as you will see later in the documentation
+
+5
+00:00:18,549 --> 00:00:21,153
+sources come up as special entities
+
+6
+00:00:21,160 --> 00:00:24,488
+So what we are going to do here in this video
+
+7
+00:00:24,488 --> 00:00:30,061
+it won't change the actual behavior of dbt or the queries it executes
+
+8
+00:00:30,061 --> 00:00:33,633
+but our project will be more structured
+
+9
+00:00:33,640 --> 00:00:37,060
+So let's define a few sources
+
+10
+00:00:37,060 --> 00:00:41,353
+Sources can be defined in any YAML file in Models
+
+11
+00:00:41,360 --> 00:00:44,660
+I will come here and create a new YAML file
+
+12
+00:00:44,660 --> 00:00:47,660
+and I encourage you to do the same
+
+13
+00:00:47,660 --> 00:00:54,537
+This will be sources yml
+
+14
+00:00:54,540 --> 00:00:57,452
+And as always I will simply go and copy my code
+
+15
+00:00:57,452 --> 00:01:04,420
+and you can go and check it out in the plus resources
+
+16
+00:01:04,420 --> 00:01:09,914
+So here I'm giving aliases to actual tables in Snowflake
+
+17
+00:01:09,920 --> 00:01:13,000
+This is very much what sources are about
+
+18
+00:01:13,000 --> 00:01:20,280
+So I can say that I create a source namespace which I call Airbnb
+
+19
+00:01:20,280 --> 00:01:23,580
+And the schema I'm picking data from is row
+
+20
+00:01:23,580 --> 00:01:28,000
+So here I define only a single database and a single schema
+
+21
+00:01:28,000 --> 00:01:32,203
+And here the tables in this database and schema will be
+
+22
+00:01:32,203 --> 00:01:35,441
+row listings which I want to call listings
+
+23
+00:01:35,441 --> 00:01:38,304
+row hosts which I want to call hosts
+
+24
+00:01:38,304 --> 00:01:41,920
+and row reviews which I want to call reviews
+
+25
+00:01:41,920 --> 00:01:45,677
+Well that's very much it
+
+26
+00:01:45,680 --> 00:01:52,069
+So with this I added an extra abstraction on top of my row layer
+
+27
+00:01:52,080 --> 00:01:56,560
+And now I can reference my row tables as source tables
+
+28
+00:01:56,560 --> 00:01:59,553
+So let's take a look how this works in action
+
+29
+00:01:59,560 --> 00:02:01,345
+Let's go to my source tables
+
+30
+00:02:01,345 --> 00:02:04,916
+because here I found those models which reference row tables
+
+31
+00:02:04,920 --> 00:02:10,345
+If I open row listings then you will see that here
+
+32
+00:02:10,345 --> 00:02:16,680
+we use a direct reference to our Snowflake instance
+
+33
+00:02:16,680 --> 00:02:19,480
+right But what happens if these tables move
+
+34
+00:02:19,480 --> 00:02:24,660
+or you have different instances which use different schemas and so on
+
+35
+00:02:24,660 --> 00:02:28,475
+And this is where sources and this abstraction helps you
+
+36
+00:02:28,480 --> 00:02:36,440
+So using a source comes through the template tag source It's quite simple
+
+37
+00:02:36,440 --> 00:02:45,400
+We will pass Airbnb and then in our case listings And there we go
+
+38
+00:02:45,400 --> 00:02:51,640
+So now we reference instead of the direct reference to a table we reference our sources
+
+39
+00:02:51,640 --> 00:02:56,538
+And here you see it will look up Airbnb listings
+
+40
+00:02:56,538 --> 00:03:03,280
+and then dbt will know that I'm after row row listings
+
+41
+00:03:03,280 --> 00:03:05,997
+So I have this here with Airbnb and listings
+
+42
+00:03:06,000 --> 00:03:15,557
+I can do the same with Airbnb hosts in the hosts file and also refuse
+
+43
+00:03:15,560 --> 00:03:22,398
+So I can go and replace this to Airbnb reviews
+
+44
+00:03:22,400 --> 00:03:28,317
+Okay so now I have a more structured project
+
+45
+00:03:28,320 --> 00:03:30,198
+Let's see if it works
+
+46
+00:03:30,200 --> 00:03:32,919
+I will not execute this with dbt run
+
+47
+00:03:32,919 --> 00:03:36,547
+because we have another command just for checking
+
+48
+00:03:36,560 --> 00:03:39,200
+if all the template tags and the connections
+
+49
+00:03:39,200 --> 00:03:43,320
+and everything we defined in our project makes sense
+
+50
+00:03:43,320 --> 00:03:49,120
+And this is called dbt compile
+
+51
+00:03:49,120 --> 00:03:52,500
+With dbt compile dbt goes through all of your models
+
+52
+00:03:52,500 --> 00:04:01,840
+and YAML files and tests and so on
+
+53
+00:04:01,840 --> 00:04:07,320
+And it says okay It's okay So we are good
+
+54
+00:04:07,320 --> 00:04:09,296
+We have our sources defined now
+
+55
+00:04:09,296 --> 00:04:11,519
+and you will see in the next session
+
+56
+00:04:11,519 --> 00:04:15,320
+how we can check for data staleness in sources

@@ -1,0 +1,243 @@
+1
+00:00:00,000 --> 00:00:08,755
+SIDS are smaller datasets that live in the SIDS folder as CSV files
+
+2
+00:00:08,760 --> 00:00:14,835
+Now let's make sure that if you open your dbt project yaml file
+
+3
+00:00:14,835 --> 00:00:18,997
+that your SIDS path it is set to the SIDS folder
+
+4
+00:00:19,000 --> 00:00:22,948
+If you have a data folder here please rename it to SIDS folder
+
+5
+00:00:22,960 --> 00:00:26,276
+And what we are going to do is that we take a CSV file
+
+6
+00:00:26,276 --> 00:00:29,166
+which you can get from the class resources
+
+7
+00:00:29,166 --> 00:00:33,593
+but I can also show you a direct way of importing them
+
+8
+00:00:33,600 --> 00:00:37,210
+We will copy that to the SIDS folder
+
+9
+00:00:37,210 --> 00:00:44,359
+and then upload it to Snowflake through dbt So simple
+
+10
+00:00:44,360 --> 00:00:50,573
+So let's go and populate our SIDS folder with the CSV file
+
+11
+00:00:50,580 --> 00:00:56,026
+I have a CSV file here and let me go to my terminal
+
+12
+00:00:56,026 --> 00:01:02,400
+at our S 3 bucket and it's called SIDS Fullmoon Dates
+
+13
+00:01:02,400 --> 00:01:10,520
+I will now go and use this curl command to copy it straight to the SIDS folder
+
+14
+00:01:10,520 --> 00:01:15,300
+If you don't have a curl command simply take it from the class resources
+
+15
+00:01:15,300 --> 00:01:21,837
+or download it from this URL and copy it to the SIDS folder manually
+
+16
+00:01:21,840 --> 00:01:23,436
+So now it must be here
+
+17
+00:01:23,440 --> 00:01:32,023
+So this is SIDS Fullmoon Dates and here are all the dates for the last 10 years or so
+
+18
+00:01:32,040 --> 00:01:35,320
+where there was a full moon
+
+19
+00:01:35,320 --> 00:01:45,047
+Now what we are after is to check if people give more negative results after full moons
+
+20
+00:01:45,060 --> 00:01:48,518
+So is it true that full moon affects your sleep
+
+21
+00:01:48,518 --> 00:01:53,960
+and probably no it affects your mood We see this later
+
+22
+00:01:53,960 --> 00:02:00,680
+Let's copy this CSV to Snowflake but before we do that just one more remark
+
+23
+00:02:00,680 --> 00:02:03,406
+You see that this CSV is a single column CSV
+
+24
+00:02:03,406 --> 00:02:08,760
+but you don't necessarily need to work with single column CSVs when you work with SIDS
+
+25
+00:02:08,760 --> 00:02:15,276
+We just have a single column CSV here as a simple example
+
+26
+00:02:15,280 --> 00:02:21,826
+If you want to go and work with a seed you simply say dbtseed
+
+27
+00:02:21,826 --> 00:02:28,679
+and the seeds will be populated to Snowflake So simple
+
+28
+00:02:28,680 --> 00:02:33,555
+Ok so it says dev SIDS Fullmoon Dates is getting imported
+
+29
+00:02:33,555 --> 00:02:37,600
+and the import completed successfully
+
+30
+00:02:37,600 --> 00:02:43,683
+So let me go to Snowflake and refresh
+
+31
+00:02:43,683 --> 00:02:53,280
+and here in the tables you will see that I have a seed Fullmoon Date
+
+32
+00:02:53,280 --> 00:03:00,720
+If we take a look I can see that I have the data in here
+
+33
+00:03:00,720 --> 00:03:05,016
+You also see that the Fullmoon Date column itself
+
+34
+00:03:05,016 --> 00:03:07,522
+it is a date type column
+
+35
+00:03:07,522 --> 00:03:12,399
+and it's a date type column because dbt internally makes a pass
+
+36
+00:03:12,399 --> 00:03:17,160
+on your CSV and figures out the schema automatically
+
+37
+00:03:17,160 --> 00:03:20,506
+So now we are ready to implement our fourth layer
+
+38
+00:03:20,506 --> 00:03:22,290
+which will be our mart layer
+
+39
+00:03:22,300 --> 00:03:26,770
+The mart layer usually hoists those tables and views
+
+40
+00:03:26,770 --> 00:03:29,751
+which are accessible by the itools
+
+41
+00:03:29,760 --> 00:03:33,057
+So let's create our mart folder
+
+42
+00:03:33,057 --> 00:03:38,550
+and in this mart folder I'm going to create a new file
+
+43
+00:03:38,560 --> 00:03:45,395
+which is called mart Fullmoon Reviews sql
+
+44
+00:03:45,400 --> 00:03:49,480
+You can get this file from the class resources
+
+45
+00:03:49,480 --> 00:03:54,632
+I want to make sure that this table will be a table
+
+46
+00:03:54,632 --> 00:03:59,712
+and here in this table I want to prove or refute
+
+47
+00:03:59,712 --> 00:04:05,560
+the hypothesis that Fullmoon has a bad effect on people's moods
+
+48
+00:04:05,560 --> 00:04:10,750
+So what I will do is that I will reference the reviews
+
+49
+00:04:10,750 --> 00:04:14,571
+and Fullmoon dates and join them together
+
+50
+00:04:14,571 --> 00:04:24,551
+so I'm matching every Fullmoon date with the review date of the upcoming day
+
+51
+00:04:24,560 --> 00:04:26,808
+And I will add this property
+
+52
+00:04:26,808 --> 00:04:35,200
+if for a certain review the previous night was a Fullmoon or not
+
+53
+00:04:35,200 --> 00:04:43,000
+So the idea here is that we reference the seeds directly
+
+54
+00:04:43,000 --> 00:04:47,680
+as if it was a single model
+
+55
+00:04:47,680 --> 00:04:54,265
+So let's run our dbtick Ok
+
+56
+00:04:54,265 --> 00:04:58,315
+and there you see I have the dev mart Fullmoon Reviews table created
+
+57
+00:04:58,320 --> 00:05:04,632
+So if I go to snowflake hopefully if I make a refresh
+
+58
+00:05:04,632 --> 00:05:09,360
+then in tables now I have mart Fullmoon reviews
+
+59
+00:05:09,360 --> 00:05:13,312
+Perfect It has all the review columns
+
+60
+00:05:13,312 --> 00:05:16,633
+and also if it's a Fullmoon or not
+
+61
+00:05:16,640 --> 00:05:24,878
+We can check the results later

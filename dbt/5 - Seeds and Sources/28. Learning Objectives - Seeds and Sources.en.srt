@@ -1,0 +1,19 @@
+1
+00:00:00,000 --> 00:00:03,016
+Welcome to our section on sources and seeds
+
+2
+00:00:03,020 --> 00:00:04,849
+In this section you will understand
+
+3
+00:00:04,849 --> 00:00:12,476
+what's the difference between these two concepts sources and seeds Also you will understand what is source freshness
+
+4
+00:00:12,476 --> 00:00:15,812
+and how you can work against stale input data
+
+5
+00:00:15,820 --> 00:00:18,900
+and you will see how we can put all of this in action

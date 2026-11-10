@@ -60,6 +60,7 @@ export default withMermaid(
                 { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                 { text: '03. モデル基礎とStaging層実装', link: '/dbt/03_models_and_staging_layer' },
                 { text: '04. マテリアライゼーションと依存関係', link: '/dbt/04_materializations' },
+                { text: '05. Seeds と Sources 鮮度監視', link: '/dbt/05_seeds_and_sources' },
               ]
             }
           ],
@@ -73,6 +74,7 @@ export default withMermaid(
                   { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. モデル基礎とStaging層実装', link: '/dbt/03_models_and_staging_layer' },
                   { text: '04. マテリアライゼーションと依存関係', link: '/dbt/04_materializations' },
+                  { text: '05. Seeds と Sources 鮮度監視', link: '/dbt/05_seeds_and_sources' },
                 ]
               },
               {
@@ -161,6 +163,7 @@ export default withMermaid(
                   { text: '02. 開発基盤構築とKey-Pair認証', link: '/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. モデル基礎とStaging層実装', link: '/dbt/03_models_and_staging_layer' },
                   { text: '04. マテリアライゼーションと依存関係', link: '/dbt/04_materializations' },
+                  { text: '05. Seeds と Sources 鮮度監視', link: '/dbt/05_seeds_and_sources' },
                 ]
               }
             ]
@@ -220,6 +223,7 @@ export default withMermaid(
                 { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                 { text: '03. 模型基础与Staging暂存层实战', link: '/zh/dbt/03_models_and_staging_layer' },
                 { text: '04. 物化策略与模型依赖关系实战', link: '/zh/dbt/04_materializations' },
+                { text: '05. Seeds种子与Sources新鲜度监控', link: '/zh/dbt/05_seeds_and_sources' },
               ]
             }
           ],
@@ -233,6 +237,7 @@ export default withMermaid(
                   { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. 模型基础与Staging暂存层实战', link: '/zh/dbt/03_models_and_staging_layer' },
                   { text: '04. 物化策略与模型依赖关系实战', link: '/zh/dbt/04_materializations' },
+                  { text: '05. Seeds种子与Sources新鲜度监控', link: '/zh/dbt/05_seeds_and_sources' },
                 ]
               },
               {
@@ -321,6 +326,7 @@ export default withMermaid(
                   { text: '02. 工程底座搭建与Key-Pair安全认证', link: '/zh/dbt/02_environment_setup_and_snowflake' },
                   { text: '03. 模型基础与Staging暂存层实战', link: '/zh/dbt/03_models_and_staging_layer' },
                   { text: '04. 物化策略与模型依赖关系实战', link: '/zh/dbt/04_materializations' },
+                  { text: '05. Seeds种子与Sources新鲜度监控', link: '/zh/dbt/05_seeds_and_sources' },
                 ]
               }
             ]
