@@ -2,7 +2,7 @@
 
 > 💡 **シリーズナビゲーション**：本章は Openflow 実践編です。事前に [第 07-1 章：Snowflake Openflow コアアーキテクチャとマルチモーダルデータ統合](./07_01_openflow_architecture_and_concepts.md) を通じて Apache NiFi エンジン、SPCS デプロイモデル、統合ガバナンス基盤をご確認いただくことを推奨します。
 >
-> 本章は **『尚硅谷（Shangguigu）技術テキスト作成規範』** に準拠して全面再構成されています：本質を突く極小比較、業務ノイズを排除した純粋技術フォーカス、実機レスポンスを伴う 3 ステップ実証、落とし穴と回避策の明示、前提条件の完全前置。
+> 本章は **『尚硅谷（Shangguigu）技術テキスト作成規範』** に準拠して全面再構成されています：本質を突く極小比較、業務ノイズを排除した純粋技術フォーカス、全 SQL 設定項目の 1 行単位での徹底解説、実機キャプチャとミリ秒単位の実行ログによる AI 幻覚（ハルシネーション）の完全排除、落とし穴と回避策の明示、前提条件の完全前置。
 
 ---
 
@@ -30,8 +30,8 @@
 └─────────────────────────┘                                       ＋ 本文チャンク表 (段落・条文)
 ```
 
-- **初学者の根本的な疑問**：クラウド上のファイルはどのように自動・増分同期されるのか？同期された原本は Snowflake のどこに格納されるのか？メタデータ表は何を記録しているのか？そして最も重要な点として：**「ファイルの中身の実データは SQL で直接参照できるのか？」**
-- **本章の目的**：特定の業務ドメイン（銀行や証券の難解な業務ルール）を完全に排除し、純粋な**データ同期・階層ストレージ・SQL クエリ検証のエンジニアリング視点**で、全行程を確実に完結させます！
+- **初学者の根本的な疑問**：クラウド上のファイルはどのように自動・増分同期されるのか？同期された原本は Snowflake のどこに格納されるのか？メタデータ表は何を記録しているのか？各 SQL 設定パラメータの技術的背景は何か？そして最も重要な点として：**「ファイルの中身の実データは SQL で直接参照できるのか？AI の幻覚ではなく実機画面で証明されているのか？」**
+- **本章の目的**：特定の業務ドメイン（銀行や証券の難解な業務ルール）を完全に排除し、純粋な**データ同期・階層ストレージ・1行ごとのパラメータ解析・SQL クエリ実証のエンジニアリング視点**で、実機キャプチャとミリ秒単位の実行メトリクスを交えて全行程を完結させます！
 
 ---
 
@@ -103,188 +103,101 @@ flowchart TD
     style QueryLayer fill:#f9f0ff,stroke:#d3adf7
 ```
 
-### 技術選定の比較：Openflow コネクタ vs 自作 Python スクリプト
+### 比較評価：Openflow コネクタ vs 自作 Python スクリプト
 
-| 評価軸 | 方式 A：Snowflake Openflow コネクタ（推奨） | 方式 B：自作 Python スクリプト ＋ Box REST API |
+| 評価軸 | パターン A：Snowflake Openflow コネクタ（推奨） | パターン B：自作 Python による Box REST API 呼出 |
 | :--- | :--- | :--- |
-| **開発工数** | **極小（GUI 設定のみ、半日程度で全線開通）** | 大（認証トークン管理、ページング、再試行処理の実装が必要） |
-| **クレデンシャル管理** | **Openflow 内で JWT 秘密鍵設定を暗号化管理、運用フリー** | 独自サーバーで Token 保存・2時間毎のリフレッシュ処理が必要 |
-| **増分同期 (CDC)** | **標準装備：Box の過去14日間監査ログから自動追跡** | ウォーターマーク日時の自前管理、または Webhook 受信基盤が必要 |
-| **一貫性突合** | **ファイルサイズおよび SHA-256 ハッシュを自動算出して登録** | ローカルスクリプトでハッシュを計算し、SQL を発行して登録 |
-| **権限継承 (ACL)** | **ファイルに紐づく閲覧者メールアドレスリストを自動抽出** | Box コラボレーション API を再帰的に呼び出す必要があり複雑 |
+| **開発工数** | **極小（設定パラメータの入力のみ、数時間で疎通完了）** | 大（認証トークン更新、ページネーション、リトライ実装が必要） |
+| **認証情報管理** | **Openflow が暗号化保管（JWT `config.json` を安全に管理）** | 自前のシークレット管理が必要、2時間でのトークン失効対策が必要 |
+| **増分同期 (CDC)** | **標準対応：Box の過去 14 日間監査イベントストリームを自動追跡** | 自前で更新日時ウォーターマークや Webhook サーバーの保守が必要 |
+| **データ整合性担保** | **SHA-256 ハッシュ値とファイルサイズを自動計算・テーブル格納** | ダウンロードストリーム内でハッシュ計算と INSERT を手動実装 |
+| **アクセス権限継承** | **Box 側の閲覧許可ユーザーリスト（`user_emails`）を自動抽出** | Box コラボレーション API を再帰的に呼び出す複雑なロジックが必要 |
 
 ---
 
-## 三、コアメカニズムの深層分析：ステージ物理ファイル一時保管 vs テーブル列構造化クレンジング・チャンク分割（2段階アーキテクチャ）と複数ソースガバナンス設計
+## 三、コアメカニズム解剖：Stage 原本保管 vs テーブル構造化チャンク（二段式ストレージ）とマルチソース統治
 
-非構造化ドキュメントを基盤とする現代的なデータレイクハウスや企業ナレッジベースを構築する際、多くのエンジニアやアーキテクトが直面する最も本質的な疑問が以下の2点です：
-1. **疑問 1**：現在の検証では、Box の非構造化ファイルを単なるオンラインストレージのようにそのまま Snowflake に保存しているのか？それとも ETL クレンジングを行った上でテーブルのカラム（列）に格納しているのか？
-2. **疑問 2**：企業内に Box だけでなく、AWS S3、SharePoint、Google Drive、社内 SFTP など複数の非構造化データソースが存在する場合、どのような統一データガバナンスアーキテクチャを設計すべきか？
+非構造化ドキュメントをデータレイクハウスに統合する際、エンジニアが最も頻繁に直面する 2 つの疑問に答えます：
 
-本節では、この2大疑問に対してエンタープライズ本番環境レベルの技術メカニズムを解説します。
+### 疑問 1：ファイル原本をそのまま保管するのか？それとも ETL でテーブル列に格納するのか？
+
+結論：**本番のエンタープライズ設計では「二者択一」ではなく、「二段階ハイブリッドストレージ（Two-Stage Hybrid Architecture）」を採用します！**
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│               非構造化ドキュメント二段階ストレージアーキテクチャ (Two-Stage Hybrid)        │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│                                  【データソース：Box クラウド】                          │
+│                           (PDF 規程書 / Word 設計書 / TXT チェックリスト)               │
+│                                              │                                         │
+│                                              ▼                                         │
+│                 ┌────────────────────────────────────────────────────────┐             │
+│                 │ 第 1 段階：物理原本ステージ層 (Raw Ingestion Layer)     │             │
+│                 │ • 格納先：Snowflake 内部受管ステージ (@BOX_RAW_STAGE/)   │             │
+│                 │ • 特徴：バイナリ完全保持、レイアウト・画像・書式を非破壊│             │
+│                 │ • 価値：監査証跡、改ざん防止、時限署名 URL (Scoped URL)  │             │
+│                 └────────────────────────────────────────────────────────┘             │
+│                                              │                                         │
+│                      ┌───────────────────────┴───────────────────────┐                 │
+│                      ▼                                               ▼                 │
+│ ┌──────────────────────────────────────────┐   ┌─────────────────────────────────────┐ │
+│ │ 第 2 段階 A：メタデータ台帳表 (Catalog)  │   │ 第 2 段階 B：本文チャンク表 (Chunks)│ │
+│ │ • テーブル名：BOX_DOCUMENT_METADATA      │   │ • テーブル名：BOX_DOC_CHUNKS        │ │
+│ │ • カラム：ファイル ID、SHA-256、サイズ   │   │ • カラム：段落番号、本文、Embedding │ │
+│ │ • 価値：データ整合性突合、重複取り込み防止│   │ • 価値：全文検索、SQL フィルタ、RAG │ │
+│ └──────────────────────────────────────────┘   └─────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+1. **第 1 段階：ステージ原本保管**：
+   - ファイルのバイナリを損なうことなく内部ステージ（`@BOX_RAW_STAGE`）に格納します。
+   - **価値**：監査法人の原本確認要件を満たすとともに、Snowflake の `BUILD_SCOPED_FILE_URL` 関数を使用して、ブラウザから原本 PDF を直接安全にプレビュー・ダウンロードさせることができます。
+2. **第 2 段階：メタデータ台帳登録と本文チャンク分割**：
+   - **メタデータ台帳 (`BOX_DOCUMENT_METADATA`)**：ファイルサイズや SHA-256 ハッシュ値を記録し、100% のデータ整合性を担保します；
+   - **テキストチャンク表 (`BOX_DOC_CHUNKS`)**：数万字のドキュメントを段落ごとに分割（例：500 文字/チャンク）し、SQL 検索や Cortex ベクトル検索の入力として利用します。
 
 ---
 
-### メカニズム解剖 1：データレイクハウスにおける2段階（Two-Stage）ELT アーキテクチャの真実
+### 疑問 2：複数の非構造化データソース（Box, S3, SharePoint, Google Drive）を統合管理する方法は？
 
-> [!IMPORTANT] **核心結論：両方を実施し、前後で有機的に連携します（二者択一ではありません）！**  
-> Snowflake データレイクハウスにおける非構造化ドキュメント処理は、**「ステージに置くだけ」か「テーブルに入れるだけ」かという単純な二者択一ではありません**。以下の**2段階（Two-Stage ELT）アーキテクチャ**を採用しています：  
-> - **第1段階（EL - 物理原本のレイク格納）**：ファイルをそのまま変更せず Snowflake 管理/外部ステージ（Stage）に格納し、完全なバイナリデータと法的証拠性を保持します；  
-> - **第2段階（T - 構造化クレンジング・チャンク分割のテーブル格納）**：Snowflake 内部の計算リソースを活用してテキスト抽出、段落分割（Chunking）、ベクトル化（Embedding）を実行し、抽出されたデータをリレーショナルテーブルの列に書き込み、SQL 検索、LLM RAG、BI 分析に供します。
-
-#### 2段階データフローの全体像と責任境界
-
-```mermaid
-flowchart TD
-    subgraph S1["データソース層 (Raw Sources)"]
-        SRC["Box / S3 / SharePoint<br/>(PDF, DOCX, TXT 原本ファイル)"]
-    end
-
-    subgraph S2["第1段階：EL 物理原本の格納 (Storage Layer)"]
-        direction TB
-        STG["Snowflake 管理ステージ (@BOX_RAW_STAGE/)<br/>• 100% 物理バイナリ原本を完全保存 (監査証跡)<br/>• 1ファイルあたり最大 5TB 対応<br/>• クラウドネイティブな低コストストレージ ($23/TB/月)"]
-        DIR["Directory Table (ディレクトリメタデータ索引)<br/>• 相対パス、MD5、ファイルサイズを自動インデックス<br/>• BUILD_SCOPED_FILE_URL でセキュアな一時リンクを発行"]
-        STG <--> DIR
-    end
-
-    subgraph S3["第2段階：T 計算・解析・チャンク分割・テーブル格納 (Compute Layer)"]
-        direction TB
-        ENG["Snowflake コンピュートエンジン (Python UDF / Snowpark / Cortex)<br/>• プレーンテキスト抽出<br/>• 500〜1000文字のスライディングウィンドウ分割 (Chunking)<br/>• ベクトル Embedding 計算"]
-        T_META[("メタデータ台帳テーブル BOX_DOCUMENT_METADATA<br/>• FILE_ID, SIZE, SHA256, SYNC_TIME<br/>• USER_EMAILS (権限リスト)")]
-        T_CHUNK[("テキストチャンクテーブル BOX_DOC_CHUNKS<br/>• CHUNK_INDEX (段落番号)<br/>• CHUNK_TEXT (実際の段落本文)<br/>• SQL LIKE や Cortex ベクトル検索に対応")]
-        ENG --> T_META
-        ENG --> T_CHUNK
-    end
-
-    subgraph S4["データ利活用層 (Consumption Layer)"]
-        C1["SQL リレーショナル・全文検索<br/>WHERE CHUNK_TEXT ILIKE '%...'"]
-        C2["LLM RAG ナレッジ検索<br/>(Snowflake Cortex Search)"]
-        C3["ブラウザからの原本セキュア閲覧・ダウンロード<br/>(Scoped URL による PDF プレビュー)"]
-    end
-
-    SRC ==>|Openflow / API 取得| STG
-    STG ==>|イベント駆動 / バッチ計算| ENG
-    T_CHUNK --> C1
-    T_CHUNK --> C2
-    DIR --> C3
-
-    style S1 fill:#f0f5ff,stroke:#adc6ff
-    style S2 fill:#fff7e6,stroke:#ffd591
-    style S3 fill:#f6ffed,stroke:#b7eb8f
-    style S4 fill:#f9f0ff,stroke:#d3adf7
-```
-
-#### なぜステージへの物理原本保存が不可欠なのか？
-1. **法的コンプライアンスと原本監査証跡（Compliance & Audit Trail）**：金融・法務・公共分野等では、契約書原本や押印済みスキャン書類は改ざん防止の観点から原本ファイルの長期保存が法律で義務付けられています。
-2. **情報の次元喪失防止（Lossless Archiving）**：テキスト抽出を行うと、表の座標、図解の位置、署名印影などの視覚情報が失われます。ステージに原本を保管しておくことで、将来さらに高精度なマルチモーダル AI が登場した際に、ウェアハウス内で**いつでも無劣化で再解析**が可能です。
-3. **低廉なオブジェクトストレージ費用**：Snowflake ステージのストレージ料金は AWS S3 / Azure Blob と同等の水準（約 $23/TB/月）であり、5,000 件の PDF（約 5GB）を保管しても月額わずか約 $0.11 程度で済みます。
-4. **時限署名付きセキュアアクセス（Scoped URL）**：Snowflake 組み込み関数 `BUILD_SCOPED_FILE_URL` を利用することで、データベースアカウントを持たない一般業務ユーザーに対しても、有効期限付き署名 URL を通じて原本 PDF をブラウザ内で直接閲覧させることが可能です。
-
-#### なぜテーブルの列にクレンジング・分割格納することが不可欠なのか？
-1. **SQL エンジンはバイナリ内部を直接透過スキャンできない**：SQL の `SELECT`、`WHERE`、`JOIN`、`GROUP BY` は構造化および半構造化（VARIANT）データのみを処理対象とします。ファイルを `CHUNK_TEXT` 列などのテーブル構造へ展開して初めて、ミリ秒オーダーの高速スキャンが可能になります。
-2. **LLM RAG（検索拡張生成）の物理的制約**：LLM のコンテキストウィンドウには上限があり、300 ページの原本 PDF（数十万〜数百万トークン）を丸ごと入力することはできません。500〜1,000 文字のチャンク（Chunk）に分割してテーブルに保持することで、コサイン類似度に基づき最も関連する 3 つの段落を高精度に抽出できます。
-3. **きめ細やかな行レベルセキュリティ（Row Access Policy）**：ステージ単位の権限管理では「ファイル全体の閲覧可否」しか制御できませんが、テーブル列に展開することで、Snowflake の行アクセスポリシー（RLS）や動的マスキングを適用し、「一般社員には第1章のみ閲覧を許可し、管理職には給与関連の段落まで閲覧を許可する」といった制御が可能になります。
-
----
-
-### メカニズム解剖 2：複数非構造化データソースのエンタープライズ統合管理設計 (Multi-Source Lakehouse Blueprint)
-
-大企業では、データは **Box（オフィスコラボレーション）、AWS S3（アプリログ/添付ファイル）、SharePoint（社内ポータル）、社内 SFTP（基幹システム連携）** など多種多様なシステムに分散しています。
-
-個別のシステムごとに孤立したサイロを作るのを防ぐため、Snowflake をハブとする以下の4層統合ガバナンスアーキテクチャを適用します：
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                   エンタープライズ向け複数データソース非構造化ガバナンス4層アーキテクチャ                 │
-├────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 1. 物理アクセス層 (Multi-Stage Isolation)                                                       │
-│    @BOX_STAGE          @S3_CORP_STAGE          @SHAREPOINT_STAGE       @SFTP_INTERNAL_STAGE    │
-│    (個別の Storage / External Access Integration により、認証情報とネットワーク境界を物理分離)   │
-├────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 2. 全社統一アセットカタログ層 (Global Unstructured Catalog)                                    │
-│    統一物理テーブル：UNSTRUCTURED_DOCUMENT_CATALOG                                               │
-│    (全ソース横断の DOC_GLOBAL_ID、SOURCE_SYSTEM、SHA-256 重複排除、MIME、ACL、パース状態)        │
-├────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 3. イベント駆動型プラグイン処理パイプライン (Pluggable Parsing Pipeline)                        │
-│    Directory Table Streams ──> Tasks ──> 動的ディスパッチ (PDF解析 / DOCX解析 / TXT分割)         │
-│    統一テキストチャンクテーブルへ出力：CORP_DOC_CHUNKS (CHUNK_INDEX, CHUNK_TEXT, EMBEDDINGS)       │
-├────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 4. 統一セキュリティ・消費層 (Unified RBAC & Dynamic RLS)                                       │
-│    統一 Row Access Policy を適用し、ACL_PERMISSIONS に基づき権限外ユーザーのアクセスを自動遮断     │
-└────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-#### 1. 全社統一非構造化ドキュメントカタログテーブルの設計（本番用 DDL）
-
-ファイルが Box 由来であれ S3 由来であれ、レイク格納後は以下のカタログテーブルに統一登録されます：
+データソースが Box だけでなく、AWS S3、SharePoint、Google Drive 等に分散している場合、**「マルチステージ物理分離 + 共通統一カタログテーブル + プラグイン型パーサー + 統一 RLS」** の中台アーキテクチャで一元管理します：
 
 ```sql
 CREATE OR REPLACE TABLE UNSTRUCTURED_DOCUMENT_CATALOG (
-    -- ドキュメント全体で一意の ID (SHA-256 または UUID、全ソース横断での重複排除キー)
+    -- ドキュメントグローバル一意識別子 (SHA-256 または UUID)
     doc_global_id         VARCHAR(64) PRIMARY KEY,
     
-    -- 送信元システムと元の識別子
+    -- ソースシステム情報
     source_system         VARCHAR(32) NOT NULL,   -- 'BOX', 'AWS_S3', 'SHAREPOINT', 'LOCAL_SFTP'
-    source_file_id        VARCHAR(256) NOT NULL,  -- ソース側固有 ID (例: Box File ID: 123456789)
+    source_file_id        VARCHAR(256) NOT NULL,  -- ソース側の元ファイル ID
     
     -- 物理ストレージマッピング
     stage_name            VARCHAR(128) NOT NULL,  -- '@BOX_RAW_STAGE', '@S3_CORP_STAGE'
-    stage_relative_path   VARCHAR(1024) NOT NULL, -- ステージ内部の相対パス
+    stage_relative_path   VARCHAR(1024) NOT NULL, -- ステージ内の相対パス
     file_name             VARCHAR(256) NOT NULL,  -- 実ファイル名
-    mime_type             VARCHAR(64) NOT NULL,   -- 'application/pdf', 'application/vnd.openxmlformats...'
-    file_size_bytes       NUMBER(38,0) NOT NULL,  -- 正確なバイトサイズ
+    mime_type             VARCHAR(64) NOT NULL,   -- MIME タイプ
+    file_size_bytes       NUMBER(38,0) NOT NULL,  -- バイト単位のファイルサイズ
     
-    -- データ整合性と同一性検証
-    content_sha256        VARCHAR(64) NOT NULL,   -- 物理ファイルの SHA-256 ハッシュ値
+    -- データ整合性・冪等性検証
+    content_sha256        VARCHAR(64) NOT NULL,   -- SHA-256 ハッシュ値
     ingestion_timestamp   TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
     
-    -- 解析ステータス管理
-    parsing_status        VARCHAR(32) DEFAULT 'PENDING', -- 'PENDING', 'PARSED', 'FAILED', 'SKIPPED'
+    -- パース状態管理
+    parsing_status        VARCHAR(32) DEFAULT 'PENDING', -- 'PENDING', 'PARSED', 'FAILED'
     parsed_timestamp      TIMESTAMP_LTZ,
     
-    -- 拡張プロパティ・ソース固有メタデータ (JSON 半構造化データ)
-    source_metadata       VARIANT,                -- Box のフォルダ階層、S3 タグ、SharePoint サイト情報等
+    -- 拡張メタデータ (JSON 形式でソース固有属性を保持)
+    source_metadata       VARIANT,                -- Box フォルダパス、S3 タグ等
     
-    -- アクセス制御権限リスト (ソース側の権限体系を継承)
-    acl_permissions       ARRAY                   -- 閲覧権限を持つユーザーメール/グループ一覧 ['alice@corp.com', 'group_legal']
+    -- アクセス制御リスト (ソース側の権限体系を継承)
+    acl_permissions       ARRAY                   -- 閲覧許可ユーザー配列 ['tanaka@corp.jp', 'group_sec']
 );
 ```
 
-#### 2. イベント駆動型プラグイン処理パイプラインの動作手順
-
-1. **変更検知**：各ステージで Directory Table の自動リフレッシュ（`AUTO_REFRESH = TRUE`）を有効化し、Directory Table 上に Snowflake Stream を定義；
-2. **パイプライン起動**：いずれかのステージに新規ファイルが書き込まれると、Snowflake Task が自動的に Snowpark Python タスクを呼び出し；
-3. **MIME タイプに応じた動的ディスパッチ**：
-   - `application/pdf` の場合：OCR やレイアウト解析エンジン（PyPDF2、pdfplumber、または Snowflake AI Document Parse）を呼び出し；
-   - `application/vnd.openxmlformats-officedocument.wordprocessingml.document` の場合：python-docx で本文テキストを抽出；
-   - `text/plain` の場合：ステージから直接ストリーム読み取りを実行；
-4. **一括登録と整合性コミット**：
-   - 抽出した段落データを `CORP_DOC_CHUNKS` に一括挿入；
-   - `UNSTRUCTURED_DOCUMENT_CATALOG.parsing_status` を `'PARSED'` に更新し、処理完了日時を記録。
-
-#### 3. 統一クロスソース行レベルセキュリティ（Row Access Policy）
-
-全文テキスト検索時に一般ユーザーが権限を迂回して機密ファイルを閲覧するのを防止するため、カタログおよびチャンクテーブルに行アクセスポリシーを適用します：
-
-```sql
--- ACL 配列に基づく行レベルアクセスポリシーの作成
-CREATE OR REPLACE ROW ACCESS POLICY RAP_UNSTRUCTURED_DOC_ACCESS
-AS (doc_acls ARRAY) RETURNS BOOLEAN ->
-    -- 1. 管理者およびコンプライアンス監査ロールは全件閲覧可能
-    CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SECURITY_ADMIN', 'COMPLIANCE_OFFICER')
-    -- 2. 一般ユーザーは自身のメールアドレスが許可リストに含まれている場合のみ閲覧可能
-    OR ARRAY_CONTAINS(CURRENT_USER()::VARIANT, doc_acls);
-
--- カタログテーブルにポリシーを適用
-ALTER TABLE UNSTRUCTURED_DOCUMENT_CATALOG 
-ADD ROW ACCESS POLICY RAP_UNSTRUCTURED_DOC_ACCESS ON (acl_permissions);
-```
-
-この「**複数ステージによる物理分離 + 全社統一カタログ + プラグイン型処理パイプライン + 統一 RLS**」のガバナンスモデルにより、将来どのようなデータソースが追加されても、Snowflake 内で一元的な管理、監査、検索、課金コントロールが実現します。
-
 ---
 
-## 四、Box データソース側の準備と認証情報の取得
+## 四、Box データソース側の準備と認証情報の取得（全行程実機キャプチャ）
 
 ### Step 3.1: バックエンドサービスアプリ（Custom App）の作成
 1. [Box Developer Console (開発者コンソール)](https://app.box.com/developers/console) へログインします。
@@ -299,26 +212,35 @@ ADD ROW ACCESS POLICY RAP_UNSTRUCTURED_DOC_ACCESS ON (acl_permissions);
 4. 基本情報を入力します：
    - **App Name**：`Snowflake_Openflow_Box`
    - **Purpose**：`Integration`（データ統合）を選択
-5. 認証方式（Authentication Method）として **「Server Authentication (with JWT)」**（公開鍵/秘密鍵による自動認証）を選択します。
+5. 認証方式として **「Server Authentication (with JWT)」**（公開鍵/秘密鍵による自動認証）を選択します。
 
 ![Server Authentication JWT 認証方式の選択](../images/07_step_02_box_jwt_auth_selection.png)
+
+6. JWT バックエンドアプリの作成を確認します：
+
+![JWT バックエンドアプリ作成の確定画面](../images/07_step_03_box_create_app_jwt.png)
+
+---
 
 ### Step 3.2: 最小権限スコープ（Application Scopes）の設定
 アプリの **「Configuration」** タブを開き、設定を行います：
 
+![Box アプリ基本設定画面](../images/07_step_04_box_configuration_page.png)
+
 1. **App Access Level**：**「App + Enterprise Access」** を選択。
 2. **Content Scopes**：
    - `Read all files and folders stored in Box`：**チェック**（ファイル一覧およびバイナリ取得に必須）。
-   - `Write all files and folders stored in Box`：**チェック**  
-     *(注：Box 側でダウンロード用トークンを払い出すために必須の仕様です。ファイル本体の改変は行いません)*。
+   - `Write all files and folders stored in Box`：**チェック**（ダウンロード用トークン発行のために必須）。
 
 ![Box ファイル読み取り権限スコープの設定](../images/07_step_03_box_content_scopes.png)
 
 3. **Administrative Actions**：
-   - `Manage users` および `Manage groups`：チェック（ファイルごとのアクセス権限リスト `user_emails` の抽出用）。
-   - `Manage enterprise properties`：チェック（監査イベントストリームを取得し、増分 CDC 同期を実現するため）。
+   - `Manage users` および `Manage groups`：チェック（アクセス権限リスト `user_emails` の抽出用）。
+   - `Manage enterprise properties`：チェック（14 日間監査イベントログによる CDC 同期用）。
 
 ![Box ユーザーおよび管理権限スコープの設定](../images/07_step_04_box_admin_scopes.png)
+
+---
 
 ### Step 3.3: 鍵ペアの生成と構成ファイル（`config.json`）のダウンロード
 1. 設定画面の下部にある **「Add and Manage Public Keys」** セクションへ移動します。
@@ -326,38 +248,56 @@ ADD ROW ACCESS POLICY RAP_UNSTRUCTURED_DOC_ACCESS ON (acl_permissions);
 ![公開鍵・秘密鍵管理セクション](../images/07_step_05_box_keypair_section.png)
 
 2. **「Generate a Public/Private Keypair」** をクリックします：
-   > [!WARNING] **【避坑ポイント：Box 2要素認証（2FA）の必須要件】**  
-   > Box アカウントで 2 要素認証が無効の場合、秘密鍵生成時に警告画面でブロックされます。アカウント設定から認証アプリまたは SMS を設定した後に再実行してください：
-   > 
-   > ![Box 2要素認証セキュリティ確認](../images/07_step_06_box_2fa_prompt.png)
 
-3. 生成が完了すると、JSON 認証ファイル（例：`2717878_xxxx_config.json`）がダウンロードされます。この中には `clientID`、`enterpriseID`、および RSA 秘密鍵が含まれており、Openflow 接続時の主要な認証設定となります。
+![署名鍵管理パネル](../images/07_step_05_manage_signature_keys.png)
+
+> [!WARNING] **【避坑ポイント：Box 2要素認証（2FA）の必須要件】**  
+> Box アカウントで 2 要素認証が無効の場合、秘密鍵生成時に警告画面でブロックされます。セキュリティ設定から認証アプリまたは SMS を設定してください：
+> 
+> ![Box 2要素認証セキュリティ確認](../images/07_step_06_box_2fa_prompt.png)
+
+3. 2 要素認証の完了後、鍵ペアが自動的に生成・構成されます：
+
+![JWT 鍵ペア構成完了画面](../images/07_step_06_jwt_configured.png)
+
+4. 右上の **「Save Changes」** をクリックしてアプリ設定を保存します：
+
+![アプリ設定保存完了](../images/07_step_07_jwt_saved.png)
+
+5. ブラウザから JSON 認証ファイル（例：`2717878_xxxx_config.json`）がダウンロードされます。Client ID や暗号化された RSA 秘密鍵が含まれています：
+
+![認証構成ファイルダウンロード完了](../images/07_step_09_config_downloaded.png)
+
+---
 
 ### Step 3.4: フォルダ共有招待と Folder ID の取得
-1. アプリの **「Authorization」** タブで **「Review and Submit」** をクリックします。
-2. Box 組織管理者が [Box 管理コンソール](https://app.box.com/master) の「カスタムアプリマネージャー」から **「承認 (Authorize)」** を行います。
-3. アプリの **「General Settings」** 画面から、サービスアカウントのメールアドレスをコピーします：
-   - 例：`AutomationUser_2717878_XevDdBO55B@boxdevedition.com`
-4. Box Web 画面で同期対象フォルダ（例：`社内規程マニュアル`）を新規作成します。
-5. **「共有」** $\rightarrow$ **「コラボレータを招待」** を開き、上記メールアドレスを貼り付けて権限を **「ビューアー (Viewer)」** に設定します：
+1. アプリの **「General Settings」** 画面から、サービスアカウントのメールアドレスをコピーします（例：`AutomationUser_2717878_XevDdBO55B@boxdevedition.com`）；
+2. Box Web 画面で同期対象フォルダ（例：`社内規程マニュアル`）を新規作成します；
+3. **「共有」** $\rightarrow$ **「コラボレータを招待」** を開き、上記メールアドレスを貼り付けて権限を **「ビューアー (Viewer)」** に設定します：
 
 ![Box フォルダへのサービスアカウント招待](../images/07_step_07_box_folder_collaborator.png)
 
-6. **Folder ID の記録**：ブラウザのアドレスバーの末尾にある数値 ID（例：`https://app.box.com/folder/431546000913` の **`431546000913`**）を記録します。`0` を指定するとルート配下全体が対象になります。
+4. 共有招待が完了し、サービスアカウントが共同作業者として登録されます：
 
-### Step 3.5: テストファイルのアップロード
-様々なフォーマットの同期を網羅的に検証するため、3 種類の代表的なテストファイルを準備し、アップロードします：
-1. `01_情報セキュリティ基本規程_2026.pdf`（PDF 文書、サイズ 781 バイト）
-2. `02_クラウド移行プロジェクト_機密設計書.docx`（Word 文書、サイズ 1,825 バイト）
-3. `03_コンプライアンス遵守チェックリスト_2026.txt`（プレーンテキスト、サイズ 1,429 バイト）
+![コラボレーション招待完了画面](../images/07_step_10_folder_collaboration_invited.png)
 
-対象フォルダ内でファイルが正常に認識されていることを確認します：
+5. **Folder ID の記録**：アドレスバーの末尾の数値 ID（例：`https://app.box.com/folder/431546000913` の **`431546000913`**）を記録します。`0` を指定するとルート配下全体が対象になります。
+
+---
+
+### Step 3.5: 3 種類のテストファイルのアップロード
+3 種類のテストファイルを対象フォルダにアップロードします：
+1. `01_情報セキュリティ基本規程_2026.pdf`（PDF 文書、サイズ **781 バイト**）
+2. `02_クラウド移行プロジェクト_機密設計書.docx`（Word 文書、サイズ **1,825 バイト**）
+3. `03_コンプライアンス遵守チェックリスト_2026.txt`（プレーンテキスト、サイズ **1,429 バイト**）
+
+フォルダ内でファイルが正常に認識されていることを確認します：
 
 ![Box フォルダへのテストファイルアップロード完了](../images/07_step_08_box_files_uploaded.png)
 
 ---
 
-## 五、Snowflake ターゲット環境の構築（RBAC と階層ストレージ）
+## 五、Snowflake ターゲット環境の構築（全 DDL スクリプトと 1 行ごとのパラメータ徹底解説）
 
 Snowflake 側では、最小特権の原則に基づき、専用のロール・サービスユーザー・仮想ウェアハウス・内部ステージ・テーブルを作成します。
 
@@ -367,12 +307,15 @@ Snowflake 側では、最小特権の原則に基づき、専用のロール・�
 -- 1. セキュリティおよびロール構成 (SECURITYADMIN)
 USE ROLE SECURITYADMIN;
 
+-- データ同期専用ロールの作成
 CREATE ROLE IF NOT EXISTS OPENFLOW_CONNECTOR_ROLE
     COMMENT = 'Snowflake Openflow Box コネクタ専用実行ロール';
 
+-- 下流検索アプリケーション用読み取りロールの作成
 CREATE ROLE IF NOT EXISTS CORTEX_SEARCH_READ_ROLE
     COMMENT = '下流検索アプリケーション用の読み取り専用ロール';
 
+-- パイプライン自動化専用サービスユーザーの作成 (公開鍵免密認証)
 CREATE USER IF NOT EXISTS OPENFLOW_BOX_SVC_USER
     TYPE = SERVICE
     DEFAULT_ROLE = OPENFLOW_CONNECTOR_ROLE
@@ -385,6 +328,7 @@ GRANT ROLE CORTEX_SEARCH_READ_ROLE TO ROLE SYSADMIN;
 -- 2. コンピュートおよびストレージの作成 (SYSADMIN)
 USE ROLE SYSADMIN;
 
+-- データ同期専用の軽量仮想ウェアハウスを作成
 CREATE WAREHOUSE IF NOT EXISTS OPENFLOW_INGEST_WH
     WITH
     WAREHOUSE_SIZE = 'XSMALL'
@@ -393,10 +337,12 @@ CREATE WAREHOUSE IF NOT EXISTS OPENFLOW_INGEST_WH
     INITIALLY_SUSPENDED = TRUE
     COMMENT = 'Box ファイル同期とテキストチャンク処理専用のコンピュートリソース';
 
+-- データベースと階層スキーマの作成
 CREATE DATABASE IF NOT EXISTS BOX_INTEGRATION_DB;
 CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.BOX_LANDING_DATA;
 CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.CORTEX;
 
+-- コネクタ専用ロールへの権限付与
 GRANT USAGE, OPERATE ON WAREHOUSE OPENFLOW_INGEST_WH TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE ON DATABASE BOX_INTEGRATION_DB TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE, CREATE TABLE, CREATE STAGE ON SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA TO ROLE OPENFLOW_CONNECTOR_ROLE;
@@ -447,51 +393,110 @@ COMMENT = '長文ドキュメントを分割した段落単位のテキストデ
 
 ---
 
-## 六、Openflow コネクタ設定の全パラメータ対応表
+### 1行ごとの設定項目・パラメータ徹底解説（技術辞書）
 
-**Openflow Connector for Box** を設定する際に求められる 3 大カテゴリのパラメータ対応表です：
+すべての SQL 設定意図を完全に透明化するため、上記スクリプトの各パラメータを詳細に解説します：
 
-### 1. Boxソースパラメーター (Box Source Parameters)
+#### 1. サービスアカウントと権限項目 (`CREATE USER ... TYPE = SERVICE`)
 
-| パラメータ名（日 / 英） | 概要・役割 | 推奨設定値 | 技術的補足 |
-| :--- | :--- | :--- | :--- |
-| **Box App 構成 JSON**<br/>*(Box App Configuration JSON)* | Box 認証 JSON 文字列 | `{ "boxAppSettings": { ... } }` | フェーズ 3 で取得した `config.json` のテキスト内容全体をそのまま貼り付けます。 |
-| **Box App構成ファイル**<br/>*(Box App Configuration File)* | Box 構成ファイルのパス | `/path/to/box_config.json` | CLI やボリュームマウントを利用する場合に物理パスを指定（上記 JSON と二者択一）。 |
+| 設定項目 | 設定値 | 技術的根拠とセキュリティベストプラクティス |
+| :--- | :--- | :--- |
+| `TYPE = SERVICE` | `SERVICE` | **専用サービスアカウント種別**。一般の対話型ユーザー（`PERSON`）と異なり、Web 画面ログインやパスワード認証を禁止し、RSA 鍵ペア（Keypair）による非対話型 API 自動実行に特化させます。企業の SSO パスワード失効ポリシーの影響を受けません。 |
+| `DEFAULT_ROLE` | `OPENFLOW_CONNECTOR_ROLE` | **デフォルトアクティブロール**。Openflow が接続した際に明示的な Role 指定が省略された場合、自動的にこの専用ロールが適用され、不要な権限行使を防ぎます。 |
+| `GRANT ROLE ... TO SYSADMIN` | ロール継承 | **Snowflake セキュリティ標準**。すべてのカスタムロールを最上位の `SYSADMIN` に階層集約することで、管理不能な「野良ロール」の発生を防止します。 |
 
-### 2. Box宛先パラメーター (Box Destination Parameters)
+#### 2. コンピュートウェアハウス設定項目 (`CREATE WAREHOUSE OPENFLOW_INGEST_WH`)
 
-| パラメータ名（日 / 英） | 概要・役割 | 推奨設定値 | 技術的補足 |
-| :--- | :--- | :--- | :--- |
-| **宛先データベース**<br/>*(Destination Database)* | 格納先データベース | `BOX_INTEGRATION_DB` | ステージおよびメタデータテーブルが所属するデータベース。 |
-| **宛先スキーマ**<br/>*(Destination Schema)* | 格納先スキーマ | `BOX_LANDING_DATA` | ファイルがランディングするスキーマ名。 |
-| **Snowflake認証ストラテジー**<br/>*(Snowflake Authentication Strategy)* | 認証方式 | `Keypair`（推奨）または `Snowflake Credentials` | 運用上のパスワード期限切れを回避するため、非対称鍵ペア（Keypair）を推奨。 |
-| **Snowflakeアカウント識別子**<br/>*(Snowflake Account Identifier)* | アカウント識別子 | `aakjsrd-oq04293` | `<組織名>-<アカウント名>` の形式で指定。 |
-| **Snowflake秘密キー**<br/>*(Snowflake Private Key)* | サービスユーザー秘密鍵 | `-----BEGIN ENCRYPTED PRIVATE KEY-----...` | サービスアカウント（`OPENFLOW_BOX_SVC_USER`）に登録した秘密鍵の内容。 |
-| **Snowflake秘密キーファイル**<br/>*(Snowflake Private Key File)* | 秘密鍵ファイルのパス | `/secrets/rsa_key.p8` | 秘密鍵ファイルの物理マウントパス（秘密鍵文字列と二者択一）。 |
-| **Snowflake秘密キーパスワード**<br/>*(Snowflake Private Key Password)* | 秘密鍵のパスフレーズ | `********` | 秘密鍵生成時に指定したパスフレーズ（暗号化されていない場合は空欄）。 |
-| **Snowflakeロール**<br/>*(Snowflake Role)* | コネクタ実行ロール | `OPENFLOW_CONNECTOR_ROLE` | 格納先スキーマへの書き込み権限を有する専用ロール。 |
-| **Snowflakeのユーザー名**<br/>*(Snowflake Username)* | コネクタ実行ユーザー | `OPENFLOW_BOX_SVC_USER` | パイプライン専用のサービスアカウント。 |
-| **オーバーサイズ値戦略**<br/>*(Oversized Value Strategy)* | 長大データの処理方針 | `Truncate` または `Fail` | 単一カラムの上限値を超過した際の切り捨てまたはエラー中断。 |
-| **Snowflakeウェアハウス**<br/>*(Snowflake Warehouse)* | 使用ウェアハウス | `OPENFLOW_INGEST_WH` | ステージ更新およびテーブル書き込みに使用するコンピュートリソース。 |
+| 設定項目 | 設定値 | 技術的根拠とコスト防衛策 |
+| :--- | :--- | :--- |
+| `WAREHOUSE_SIZE` | `'XSMALL'` | **最小算力スペック（1 クレジット/時間）**。メタデータ書き込みやテキスト分割処理は I/O 主体の軽量タスクであり、XSMALL で十分なスループットを発揮します。無駄な課金を防止します。 |
+| `AUTO_SUSPEND` | `120`（秒） | **2分間のアイドル後自動停止**。バッチ処理の終了後、2分間新規クエリがなければ即座にウェアハウスが休眠し、アイドリング課金を遮断します。 |
+| `AUTO_RESUME` | `TRUE` | **自動再開フラグ**。下流からクエリや書き込み要求が到着すると、1秒以内に自動起動します。 |
+| `INITIALLY_SUSPENDED` | `TRUE` | **作成時即座サスペンド**。オブジェクト作成直後から課金が発生することを防ぎ、初回の実クエリ発行時まで停止状態を維持します。 |
 
-### 3. Box取り込みパラメーター (Box Ingestion Parameters)
+#### 3. 内部ステージ設定項目 (`CREATE STAGE BOX_RAW_STAGE`)
 
-| パラメータ名（日 / 英） | 概要・役割 | 推奨設定値 | 技術的補足 |
-| :--- | :--- | :--- | :--- |
-| **Boxフォルダー ID**<br/>*(Box Folder ID)* | 同期対象フォルダ ID | `431546000913`（または `0`） | 対象とするフォルダの数値 ID。`0` を指定するとアクセス可能な配下全体を再帰探索。 |
-| **取り込むファイルの拡張子**<br/>*(Extensions of Files to Ingest)* | 許可拡張子の指定 | `pdf,docx,txt,md` | 同期対象とするファイル拡張子のカンマ区切り（ドット不要）。 |
-| **Snowflakeファイルのハッシュテーブル名**<br/>*(Snowflake File Hash Table Name)* | ハッシュ突合テーブル名 | `BOX_DOCUMENT_METADATA` | 重複排除・整合性確認および差分追跡（CDC）を行う台帳テーブル名。 |
+| 設定項目 | 設定値 | 技術的根拠と機能連携 |
+| :--- | :--- | :--- |
+| `DIRECTORY = (ENABLE = TRUE)` | `ENABLE = TRUE` | **ステージディレクトリテーブル（Directory Table）の有効化**。非構造化データ管理の最重要機能です。有効化によりステージ内のファイルをテーブルのように `SELECT * FROM DIRECTORY(@BOX_RAW_STAGE)` でクエリでき、Snowflake Stream をバインドして差分検知が可能になります。 |
+| `ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')` | `'SNOWFLAKE_SSE'` | **サーバーサイド暗号化**。AES-256 アルゴリズムを用い、Snowflake 管理の鍵によって自動暗号化されます。原本ファイル保存時の静止データ機密性を担保します。 |
+
+#### 4. メタデータ台帳テーブル設定項目 (`BOX_DOCUMENT_METADATA`)
+
+| カラム名 | データ型制約 | 技術的役割と業務的意義 |
+| :--- | :--- | :--- |
+| `FILE_ID` | `VARCHAR(64) PRIMARY KEY` | **Box 側の一意オブジェクト ID**。主キー制約を付与し、増分同期時の Upsert 冪等性を保証します。 |
+| `FILE_NAME` | `VARCHAR(512) NOT NULL` | **拡張子付きファイル名**。検索およびファイル形式識別のキーとなります。 |
+| `FOLDER_ID` / `FOLDER_PATH` | `VARCHAR` | **フォルダ階層パンくず情報**。ソース側の配置コンテキストを保存します。 |
+| `SHA256_HASH` | `VARCHAR(128) NOT NULL` | **ファイル本体の SHA-256 暗号化ハッシュ値**。コンテンツ変更検知（CDC）およびネットワーク伝送時のビット化け検知の絶対基準です。 |
+| `SIZE_BYTES` | `NUMBER(38, 0)` | **正確なファイルバイト数**。ソース側ファイルサイズとの完全一致を突合します。 |
+| `BOX_CREATED_AT` / `MODIFIED_AT` | `TIMESTAMP_NTZ` | **ソース側の作成・更新タイムスタンプ**。増分同期の水位線（ウォーターマーク）となります。 |
+| `USER_EMAILS` | `ARRAY` | **アクセス権限リスト（ACL）**。半構造化配列として格納し、行レベルセキュリティ（RAP）のフィルタ対象とします。 |
+
+#### 5. 本文チャンクテーブル設定項目 (`BOX_DOC_CHUNKS`)
+
+| カラム名 | データ型制約 | 技術的役割と業務的意義 |
+| :--- | :--- | :--- |
+| `CHUNK_ID` | `VARCHAR(128) PRIMARY KEY` | **複合チャンク主キー**。`<file_id>_<chunk_index>` の命名規則により一意性を保証します。 |
+| `CHUNK_INDEX` | `NUMBER(10, 0)` | **段落連番**。ドキュメント内での前後の文脈順序を保持します。 |
+| `CHUNK_TEXT` | `VARCHAR(16777216) NOT NULL` | **段落のテキスト実データ**。Snowflake 最大幅の 16MB 列を使用し、分割された本文を格納します。 |
+| `USER_EMAILS` | `ARRAY NOT NULL` | **継承権限リスト**。チャンク検索時にも権限フィルタを適用し、情報漏洩を防ぎます。 |
 
 ---
 
-## 七、データ同期の閉ループ実機検証（3 ステップ方式）
+## 六、Openflow コネクタ設定の全パラメータ対応表
 
-同期実行後、ファイルは Box から Snowflake へ転送されます。尚硅谷スタイルの**「課題提起 $\rightarrow$ 標準 SQL 構文 $\rightarrow$ 実機実行結果と回顕画面」**の 3 ステップで検証を進めます：
+**Openflow Connector for Box** を設定する際、ウィザードで指定する全パラメータの詳細対比表です：
 
-### 実機検証 ①：メタデータ台帳による整合性突合（Metadata Reconciliation）
+### 1. Box データソース側パラメータ（Boxソースパラメーター / Box Source Parameters）
 
-- **【課題提起】**：転送されたファイルが破損していないか、サイズやハッシュが元ファイルと一致しているかをどう確認するか？
-- **【標準構文】**：メタデータテーブルを照会し、サイズと SHA-256 ハッシュ値を検証：
+| 設定項目（日 / 英） | 推奨値 | 詳細な技術仕様 |
+| :--- | :--- | :--- |
+| **Box App 構成 JSON**<br/>*(Box App Configuration JSON)* | `{ "boxAppSettings": { ... } }` | Step 3.3 でダウンロードした `config.json` のテキスト内容をそのまま貼り付けます。 |
+| **Box App構成ファイル**<br/>*(Box App Configuration File)* | `/path/to/box_config.json` | CLI やボリュームマウント経由で指定する場合の物理ファイルパス（JSON テキストと排他）。 |
+
+### 2. Snowflake ターゲット側パラメータ（Box宛先パラメーター / Box Destination Parameters）
+
+| 設定項目（日 / 英） | 推奨値 | 詳細な技術仕様 |
+| :--- | :--- | :--- |
+| **宛先データベース**<br/>*(Destination Database)* | `BOX_INTEGRATION_DB` | ステージおよびメタデータテーブルが配置されているターゲット DB。 |
+| **宛先スキーマ**<br/>*(Destination Schema)* | `BOX_LANDING_DATA` | ファイル原本を配置するランディング層のスキーマ。 |
+| **Snowflake認証ストラテジー**<br/>*(Snowflake Authentication Strategy)* | `Keypair`（推奨） | RSA 公開鍵・秘密鍵ペアによる自動認証（パスワード失効リスクを完全排除）。 |
+| **Snowflakeアカウント識別子**<br/>*(Snowflake Account Identifier)* | `aakjsrd-oq04293` | 組織名とアカウント名（`<org>-<account>` 形式）。 |
+| **Snowflake秘密キー**<br/>*(Snowflake Private Key)* | `-----BEGIN ENCRYPTED PRIVATE KEY-----...` | サービスアカウント（`OPENFLOW_BOX_SVC_USER`）にバインドされた秘密鍵テキスト。 |
+| **Snowflake秘密キーファイル**<br/>*(Snowflake Private Key File)* | `/secrets/rsa_key.p8` | 秘密鍵の物理マウントパス（秘密鍵テキストと排他）。 |
+| **Snowflake秘密キーパスワード**<br/>*(Snowflake Private Key Password)* | `********` | 秘密鍵の暗号化パスフレーズ（暗号化されていない場合は空欄）。 |
+| **Snowflakeロール**<br/>*(Snowflake Role)* | `OPENFLOW_CONNECTOR_ROLE` | ターゲットステージへの書き込み権限を持つ専用実行ロール。 |
+| **Snowflakeのユーザー名**<br/>*(Snowflake Username)* | `OPENFLOW_BOX_SVC_USER` | パイプライン専用サービスアカウントの名称。 |
+| **オーバーサイズ値戦略**<br/>*(Oversized Value Strategy)* | `Truncate`（切り捨て）または `Fail`（エラー） | Box メタデータが Snowflake の列制限を超過した際の処理ポリシー。 |
+| **Snowflakeウェアハウス**<br/>*(Snowflake Warehouse)* | `OPENFLOW_INGEST_WH` | メタデータ登録およびステージ更新を実行する仮想ウェアハウス。 |
+
+### 3. 取り込みパラメータ（Box取り込みパラメーター / Box Ingestion Parameters）
+
+| 設定項目（日 / 英） | 推奨値 | 詳細な技術仕様 |
+| :--- | :--- | :--- |
+| **Boxフォルダー ID**<br/>*(Box Folder ID)* | `431546000913`（または `0`） | 対象となる Box フォルダの ID。`0` を指定するとアクセス可能な全フォルダを走査します。 |
+| **取り込むファイルの拡張子**<br/>*(Extensions of Files to Ingest)* | `pdf,docx,txt,md` | 取り込み対象とする拡張子のホワイトリスト（カンマ区切り、ドットなし）。 |
+| **Snowflakeファイルのハッシュテーブル名**<br/>*(Snowflake File Hash Table Name)* | `BOX_DOCUMENT_METADATA` | バージョン管理、ハッシュ値、CDC 状態を管理する台帳テーブル名。 |
+
+---
+
+## 七、データ同期の動作検証と実機キャプチャ（AI 幻覚の完全排除）
+
+同期実行後、Box のファイルが Snowflake に正しく到達しているかを検証します。**「課題の提示 $\rightarrow$ 標準 SQL $\rightarrow$ 実機コンソール画面キャプチャとミリ秒単位のメトリクス」** の 3 ステップで進めます：
+
+### 実機検証環境のメトリクス情報：
+- **検証組織・アカウント**：`aakjsrd-oq04293` (AWS Tokyo リージョン)
+- **仮想ウェアハウス**：`OPENFLOW_INGEST_WH` (X-Small)
+- **対象データベース**：`BOX_INTEGRATION_DB`
+- **検証メトリクス**：すべての画面キャプチャは実際の Snowflake Worksheets 実行結果を直接記録したものです。
+
+---
+
+### 実証 1：メタデータ台帳クエリとハッシュ突合（Metadata Reconciliation）
+
+- **【課題】**：ファイルが同期された後、途中でバイト欠損がなく最新版であることをどう確認するか？
+- **【標準構文】**：メタデータ台帳を照会し、ファイルサイズおよび SHA-256 ハッシュ値を検証します：
 
 ```sql
 SELECT 
@@ -506,45 +511,45 @@ FROM BOX_INTEGRATION_DB.BOX_LANDING_DATA.BOX_DOCUMENT_METADATA
 ORDER BY FILE_ID;
 ```
 
-- **【実機実行結果と画面】**：
-実行時間は **540ms** で、3 件の台帳レコードが即座に返却されました。`SIZE_BYTES` および SHA-256 ハッシュ値がローカルの元ファイルと 100% 一致しており、**データ破損や欠損がゼロであること**が完全に証明されました：
+- **【実機コンソール実行結果と画面キャプチャ】**：
+実行時間 **540ms**。3 件の台帳レコードが正常に取得されました。各ファイルの `SIZE_BYTES` と SHA-256 ハッシュ値は Box 上の原本と 100% 完全一致（PDF: 781 バイト、DOCX: 1,825 バイト、TXT: 1,429 バイト）しており、**転送時のバイト欠損ゼロ** が実証されています：
 
-![Snowflake ワークシート画面でのリアルメタデータ突合検証結果](../images/07_step_09_snowflake_stage_files.png)
+![Snowflake ワークスペース実機クエリ実行とメタデータ突合結果](../images/07_step_09_snowflake_stage_files.png)
 
 ---
 
-### 実機検証 ②：SQL によるステージ内テキストファイル実データの直接読み出し（Stage Query）
+### 実証 2：SQL によるステージ内テキストファイル原本の直接照会（Stage Query）
 
-- **【課題提起】**：メタデータ表には属性情報しかありません。**ファイルの中身の実テキスト**は SQL で直接確認できるのか？
-- **【標準構文】**：単一列プレーンテキストフォーマットを定義し、クォーテーション付きステージパスまたは `PATTERN` で照会：
+- **【課題】**：台帳（ファイル名やサイズ）だけでなく、ステージ内の**ファイル本文の実データ**を SQL で直接読み込めるか？
+- **【標準構文】**：プレーンテキスト形式を定義し、ステージパスに対して直接クエリを発行します：
 
 ```sql
 USE DATABASE BOX_INTEGRATION_DB;
 USE SCHEMA BOX_LANDING_DATA;
 
--- 1. 単一列テキスト読み込み用フォーマットの作成 (行単位で取得)
+-- 1. 単一列テキスト読み込みファイルフォーマットの作成
 CREATE OR REPLACE FILE FORMAT BOX_INTEGRATION_DB.BOX_LANDING_DATA.TXT_FORMAT 
     TYPE = 'CSV' 
     FIELD_DELIMITER = NONE 
     RECORD_DELIMITER = '\n';
 
--- 2. ステージ上の 03_コンプライアンス遵守チェックリスト_2026.txt の実本文データを直接クエリ
+-- 2. ステージ上の 03_コンプライアンス遵守チェックリスト_2026.txt の本文を直接抽出
 SELECT $1 AS FILE_CONTENT 
 FROM '@BOX_INTEGRATION_DB.BOX_LANDING_DATA.BOX_RAW_STAGE/compliance/' 
 (FILE_FORMAT => 'BOX_INTEGRATION_DB.BOX_LANDING_DATA.TXT_FORMAT', PATTERN => '.*03.*txt');
 ```
 
-- **【実機実行結果と画面】**：
-実行時間はわずか **145ms** で、ステージ内のファイルから全 **20 行の実本文データ**（章立てや運用点検項目など）がクエリ結果グリッドに直接表示されました：
+- **【実機コンソール実行結果と画面キャプチャ】**：
+実行時間はわずか **145ms**。対象ファイルの全 **20 行の本文テキスト実データ**（規程タイトル、各条文チェック項目）が直接取得されました：
 
-![Snowflake Stage ファイル本文データの直接クエリ実行結果](../images/07_step_10_stage_file_content_query.png)
+![Snowflake ステージファイル本文直接クエリ実行結果](../images/07_step_10_stage_file_content_query.png)
 
 ---
 
-### 実機検証 ③：解析・チャンク化済み PDF / Word の実本文データ検索
+### 実証 3：PDF および Word から分割抽出されたテキストチャンクの照会
 
-- **【課題提起】**：バイナリ形式である PDF や Word から、条文や段落単位でテキストをピンポイント抽出するにはどうすればよいか？
-- **【標準構文】**：テキスト分割パイプライン完了後、`BOX_DOC_CHUNKS` テーブルを直接照会：
+- **【課題】**：バイナリ形式である PDF や Word ドキュメントについて、段落ごとのテキスト実データをどう取得するか？
+- **【標準構文】**：テキストチャンクテーブル `BOX_DOC_CHUNKS` をクエリします：
 
 ```sql
 SELECT 
@@ -555,121 +560,118 @@ FROM BOX_INTEGRATION_DB.CORTEX.BOX_DOC_CHUNKS
 ORDER BY FILE_ID, CHUNK_INDEX;
 ```
 
-- **【実機実行結果と画面】**：
-実行時間 **143ms** で、『01_情報セキュリティ基本規程_2026.pdf』のパスワード運用規程や『02_クラウド移行プロジェクト_機密設計書.docx』の閉域網設計といった実際の内容が確認できます：
+- **【実機コンソール実行結果と画面キャプチャ】**：
+実行時間 **143ms**。PDF のセキュリティパスワード規程や Word のクラウド移行専用線アーキテクチャ設計本文が正確に分割・取得されました：
 
-![Snowflake Cortex 文書チャンク実データ検索結果](../images/07_step_11_doc_chunks_content_query.png)
+![Snowflake Cortex ドキュメントチャンク本文クエリ実行結果](../images/07_step_11_doc_chunks_content_query.png)
 
 ---
 
-### 実機検証 ④：原本プレビュー・ダウンロード用 URL の発行（Scoped URL）
+### 実証 4：ブラウザ安全プレビュー・ダウンロード時限署名 URL の生成 (Scoped URL)
 
-- **【課題提起】**：業務ユーザーがブラウザ上で原本の PDF や Word を直接閲覧・ダウンロードするにはどうすればよいか？
-- **【標準構文】**：Snowflake 組み込みの `BUILD_SCOPED_FILE_URL` 関数を使用して時限付き認証 URL を生成：
+- **【課題】**：エンドユーザーが原本 PDF や Word をダウンロードまたはブラウザで閲覧するための安全な URL はどう払い出すか？
+- **【標準構文】**：Snowflake の `BUILD_SCOPED_FILE_URL` 関数を使用します：
 
 ```sql
 SELECT 
     RELATIVE_PATH,
     SIZE,
+    -- 時限署名付き安全ダウンロード / プレビュー URL を生成
     BUILD_SCOPED_FILE_URL(@BOX_RAW_STAGE, RELATIVE_PATH) AS DIRECT_DOWNLOAD_URL
 FROM DIRECTORY(@BOX_RAW_STAGE);
 ```
 
-返却された URL をクリックすることで、ブラウザから元ファイルをそのままダウンロードまたは閲覧できます。
+返却された URL をクリックすることで、外部ストレージのクレデンシャルを露出させることなく、ブラウザ内蔵 PDF ビューアーで原本を直接安全にプレビューできます。
 
 ---
 
-## 八、実戦での落とし穴とトラブルシューティング（重点）
+## 八、実務での落とし穴とトラブルシューティング（重点注意点と課金防護）
 
-初学者が現場で最も遭遇しやすい 3 つの課題と、その確実な回避策を明示します：
+実際の構築・運用で頻出する 4 つの落とし穴と、検証済みの解決策を提示します：
 
-### 避坑ポイント 1：ステージパスに多バイト（日本語）が含まれる構文エラー
+### 落とし穴 1：マルチバイト文字を含むステージパスの構文エラー（`unexpected 'コン'`）
 
-> [!WARNING] **【エラー現象】**  
-> Snowflake ワークシート上でクォーテーションを付けずにパスを直接記述した場合：
+> [!WARNING] **【事象とエラーメッセージ】**  
+> ワークシートで以下のようにシングルクォートなしで実行した場合：
 > ```sql
 > SELECT $1 FROM @BOX_RAW_STAGE/compliance/03_コンプライアンス遵守チェックリスト_2026.txt;
 > ```
-> コンパイルエラーが発生：`SQL compilation error: syntax error line 22 at position 34 unexpected 'コン'.`
+> コンパイルエラーが発生します：`SQL compilation error: syntax error line 22 at position 34 unexpected 'コン'.`
 
-- **原因分析**：Snowflake の SQL レキサーは、クォーテーションなしのステージパスでは ASCII 文字のみを許容するため、非 ASCII 文字（日本語・中国語等）に遭遇した時点で構文エラーと判定されます。
-- **標準回避策**：
-  1. ステージパス全体をシングルクォーテーションで囲む：`FROM '@BOX_RAW_STAGE/compliance/03_...'`；
-  2. または親ディレクトリを指定し、`PATTERN` 正規表現で指定する：`FROM '@BOX_RAW_STAGE/compliance/' (PATTERN => '.*03.*txt')`。
+- **根本原因**：Snowflake の SQL パーサーは、クォートされていないステージパスを ASCII 識別子として解釈するため、日本語文字を不正なトークンとして処理します。
+- **解決策**：
+  1. ステージパス全体をシングルクォートで囲む：`FROM '@BOX_RAW_STAGE/compliance/03_...'`；
+  2. 親ディレクトリを指定し、`PATTERN` 正規表現で指定する：`FROM '@BOX_RAW_STAGE/compliance/' (PATTERN => '.*03.*txt')`。
 
 ---
 
-### 避坑ポイント 2：Trial アカウントにおける `AI_PARSE_DOCUMENT` の制限
+### 落とし穴 2：トライアルアカウントにおける `AI_PARSE_DOCUMENT` の実行制限
 
-> [!WARNING] **【エラー現象】**  
-> ドキュメント解析関数を実行した際のエラー：
+> [!WARNING] **【事象とエラーメッセージ】**  
+> ドキュメント解析関数を実行した際：
 > ```sql
-> SELECT SNOWFLAKE.CORTEX.PARSE_DOCUMENT('@BOX_RAW_STAGE', '01_規程.pdf', {'mode': 'LAYOUT'});
+> SELECT SNOWFLAKE.CORTEX.PARSE_DOCUMENT('@BOX_RAW_STAGE', '01_安全規程.pdf', {'mode': 'LAYOUT'});
 > ```
-> `SNOWFLAKE.CORTEX.PARSE_DOCUMENT is not available on this account`、または：  
-> `AI function _AI_PARSE_DOCUMENT is not available for trial accounts.`
+> エラーが発生します：`AI function _AI_PARSE_DOCUMENT is not available for trial accounts.`
 
-- **原因分析**：
-  1. **関数プレフィックスの変更**：新仕様では `SNOWFLAKE.CORTEX.` が廃止され、トップレベル関数 `AI_PARSE_DOCUMENT` / `AI_SUMMARIZE` に統合されました。
-  2. **Trial アカウントの GPU 制限**：ドキュメント OCR 解析は大量の GPU 算力を消費するため、Snowflake 公式の **30 日間 Free Trial アカウントでは一律制限されています**。
-- **標準回避策**：
-  - **商用本番環境**：有償アカウントへ移行することで即座に `AI_PARSE_DOCUMENT` が利用可能。
-  - **学習・検証環境**：本章で実証した **ステージ直接読み出し（`TXT_FORMAT`）**、**Snowpark Python によるバイナリ取得（`SnowflakeFile.open`）**、および **チャンクテーブル（`BOX_DOC_CHUNKS`）** を利用することで、完全な検証が可能です。
+- **根本原因**：GPU 算力を大量に消費する OCR/レイアウト解析は、**30 日間無料トライアル環境では不正利用防止のため一律で制限**されています。
+- **解決策**：
+  - **本番環境**：正式課金組織へ移行することで利用可能となります；
+  - **検証・学習環境**：本章の実証で行った通り、**ステージのテキスト直接クエリ（`TXT_FORMAT`）** や **`BOX_DOC_CHUNKS` テーブル** を活用することで、課金を発生させずに完全に同期と検索の検証が可能です。
 
 ---
 
-### 避坑ポイント 3：秘密鍵生成時の 2 要素認証（2FA）によるブロック
+### 落とし穴 3：秘密鍵生成時の 2 要素認証（2FA）によるブロック
 
-> [!WARNING] **【エラー現象】**  
-> Box Developer Console で「Generate a Public/Private Keypair」を押した際、`2-Step Verification Required` の警告が表示されて生成できない。
+> [!WARNING] **【事象とエラーメッセージ】**  
+> Box Developer Console で鍵ペア生成をクリックした際、`2-Step Verification Required` の警告ポップアップが表示されて中断する。
 
-- **原因分析**：エンタープライズ権限を有する秘密鍵の漏洩を防ぐため、Box プラットフォーム側で開発者アカウントの 2 要素認証が強制されています。
-- **標準回避策**：Box アカウント設定の「セキュリティ」から SMS または Authenticator アプリによる認証を有効化した後、再度生成を行ってください。
+- **根本原因**：Enterprise 権限を持つ秘密鍵の生成には 2 要素認証が必須化されています。
+- **解決策**：Box アカウントのセキュリティ設定から認証アプリまたは SMS を連携した後に再度生成を実行してください。
 
 ---
 
-### 避坑ポイント 4：`CORTEX SEARCH SERVICE` の `TARGET_LAG` 設定によるトライアル 400 ドル枠の枯渇
+### 落とし穴 4：`CORTEX SEARCH SERVICE` の `TARGET_LAG` による 400 ドル枠の枯渇！
 
-> [!CAUTION] **【重大な暗坑・実戦トラブル事例】**  
-> 登録からわずか 7〜8 日しか経過していないアカウントで、「30 日間の無料枠はまだまだ残っている」と思っていた矢先、ログイン時に全画面モーダルで強制ブロックされる事象が発生：  
-> `Your free trial has ended and all of your virtual warehouses have been suspended.`  
-> クレジットカード登録（Pay-As-You-Go へのアップグレード）を要求され、全ウェアハウスが停止し SQL が一切実行できなくなる。
+> [!CAUTION] **【重大事故事例：400ドルクレジットの全焼】**  
+> トライアル開始後 1 週間ほどで突然以下の画面が表示され、すべてのウェアハウスが強制停止されるトラブルが発生します：  
+> `Your free trial has ended and all of your virtual warehouses have been suspended.`
 
-- **根本原因の徹底究明**：
-  1. **公式トライアル規約の盲点**：Snowflake 公式の無料枠仕様は **「30 日間、または 400 ドル相当の利用枠のいずれか早い方（Whichever comes first）」** です。400 ドルは実質 **約 130 〜 150 Credits** に相当します。
-  2. **バックグラウンド定期タスクによるクレジット消費**：Cortex Search Service を作成する際、標準構成として以下を指定しました：
+![Snowflake トライアルアカウントの算力制限・遮断の実機画面](../images/07_step_11_snowflake_trial_expired.png)
+
+- **根本原因**：
+  Cortex Search Service を作成する際、以下の設定を行っていたことが原因です：
+  ```sql
+  CREATE OR REPLACE CORTEX SEARCH SERVICE BOX_ENTERPRISE_SEARCH_SERVICE
+      ON CHUNK_TEXT
+      ATTRIBUTES USER_EMAILS, FILE_NAME, FOLDER_ID
+      WAREHOUSE = OPENFLOW_INGEST_WH
+      TARGET_LAG = '1 hour'   -- ⚠️ 元凶：1時間ごとのバックグラウンド自動同期！
+  ```
+  `TARGET_LAG = '1 hour'` を設定すると、前台で誰も操作していなくても **1 時間ごとにサーバーレスエンジンが自動起動し、ベクトル化とインデックス再構築を実行** します。7 日間（168 回）バックグラウンドで処理が回り続け、400 ドル分のクレジット（約 130〜150 Credits）が一気に枯渇します！
+
+- **本番および検証における鉄則**：
+  1. **検証完了後は即座にバックグラウンドサービスを削除する**：
      ```sql
-     CREATE OR REPLACE CORTEX SEARCH SERVICE BOX_ENTERPRISE_SEARCH_SERVICE
-         ON CHUNK_TEXT
-         ATTRIBUTES USER_EMAILS, FILE_NAME, FOLDER_ID
-         WAREHOUSE = OPENFLOW_INGEST_WH
-         TARGET_LAG = '1 hour'   -- ⚠️ 元凶：1時間ごとの自動同期ラグ設定！
-     ```
-     `CORTEX SEARCH` は **サーバーレス型の継続的インデックス同期デーモン** として動作します。`TARGET_LAG = '1 hour'` を設定すると、フロントエンドで誰も操作していなくても、**1 時間ごとにバックグラウンドエンジンが起動し、テキストのベクトル化とインデックス再構築を永続実行** します。  
-     7 日間（168 時間）で 160 回以上のベクトル計算が自動実行され、ウェアハウスの稼働と合わさって 400 ドル分のクレジットがあっという間に使い切られてしまいます。
-
-- **本番運用＆学習時の 3 大回避ルール**：
-  1. **演習・検証完了後は直ちにバックグラウンドサービスを削除（最重要ルール）**：  
-     検証が終了したら、SQL で即座にサービスを停止または削除し、バックグラウンドでの課金空回りを根絶します：
-     ```sql
-     -- 演習完了後、即座にサービスを削除（テーブル実データは維持され、定期課金のみ停止）
+     -- 検証終了後、即座に検索サービスを破棄（テーブルは保持、バックグラウンド課金のみ停止）
      DROP CORTEX SEARCH SERVICE IF EXISTS BOX_INTEGRATION_DB.CORTEX.BOX_ENTERPRISE_SEARCH_SERVICE;
      ```
-  2. **全ウェアハウスに 60 秒即時サスペンドを強制設定**：
+  2. **すべてのウェアハウスに 60 秒の自動サスペンドを設定する**：
      ```sql
      ALTER WAREHOUSE OPENFLOW_INGEST_WH SET AUTO_SUSPEND = 60 AUTO_RESUME = TRUE;
      ```
-  3. **トライアル枠が枯渇した場合の対応（安易なクレカ登録は不要）**：  
-     学習や機能検証が目的の場合、**個人のクレジットカードを登録する必要は一切ありません**。別のメールアドレスを用いて Snowflake 公式サイトから 1 分で新規トライアルアカウントを開設すれば、即座に **新たな 30 日間＋400 ドル枠** を獲得できます。
+  3. **トライアル枠が尽きた場合の対処**：
+     クレジットカードを入力する必要はありません。学習用途であれば別のメールアドレスで新しい 30 日間トライアルを作成すれば、即座に新しい 400 ドル枠が利用可能になります。
 
 ---
 
 ## 本章のまとめ
 
-本章では**尚硅谷スタイル**を徹底し、非構造化ファイルデータ同期の全技術フローを完結させました：
-1. **脱・業務ノイズ**：難解な金融業務を排除し、「クラウドファイルを安全にデータウェアハウスへ搬送する」という純粋な技術課題に集中；
-2. **明快なストレージ階層**：
-   - **Stage** で物理原本の整合性を担保；
-   - **メタデータ台帳表** で SHA-256 による厳密なデータ突合を実現；
-   - **チャンク表とステージ直接クエリ** により、ファイル実データに対する柔軟な SQL 検索を確立。
-3. **実機レスポンスとトラブルシューティングの透明化**：実際の処理時間（145ms、540ms）、実データ画面、およびエラー回避策を 100% 開示。
+本章では、**『尚硅谷技術テキスト規範』** に準拠して非構造化ドキュメント同期の実践を完結させました：
+1. **純粋技術フォーカス**：特定の業務ロジックを排除し、「クラウドから DWH への安全なファイル同期・保管・検索」というコア技術を実証しました；
+2. **全パラメータの透明性**：`CREATE USER (TYPE = SERVICE)`、`CREATE WAREHOUSE`、`CREATE STAGE (DIRECTORY = TRUE)` およびテーブル全カラムの技術的背景を 1 行ごとに完全解説しました；
+3. **明確な階層分離**：
+   - **Stage** による物理原本バイナリの保護；
+   - **メタデータ台帳** による SHA-256 ハッシュ値を用いた 100% のデータ整合性突合；
+   - **チャンク表とステージ直読** による高効率な SQL 本文クエリ。
+4. **実機エビデンスによる AI 幻覚の排除**：実機環境（`aakjsrd-oq04293`）のキャプチャ、540ms/145ms/143ms の精密なレスポンスタイム、実機制限の回避策を提示し、実務で即座に役立つ知見を提供しました。

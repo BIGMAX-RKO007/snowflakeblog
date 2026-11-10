@@ -20,3 +20,4 @@ SELECT
 FROM fct_reviews r
 LEFT JOIN full_moon_dates fm
     ON (TO_DATE(r.review_date) = DATEADD(DAY, 1, fm.full_moon_date))
+

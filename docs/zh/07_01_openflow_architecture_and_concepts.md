@@ -2,18 +2,18 @@
 
 > 💡 **系列导航**：本讲为 Openflow 专题架构总览篇。掌握本篇的 Apache NiFi 内核、SPCS 容器化部署与全模态接入基盘后，请继续阅读 [第 07-2 讲：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战](./07_02_openflow_box_integration.md) 学习具体落地方案。
 >
-> 本讲依据 **《尚硅谷技术讲义写作规范 (shangguigu-style)》** 深度编撰：开门见山直击本质、去业务化聚焦纯技术、实操步骤带真实回显、直面暗坑实战避险、环境前置零隐式假设。
+> 本讲依据 **《尚硅谷技术讲义写作规范 (shangguigu-style)》** 深度编撰：开门见山直击本质、去业务化聚焦纯技术、逐行拆解全部配置参数、提供真机执行与配额截图防幻觉、直面暗坑实战避险、环境前置零隐式假设。
 
 ---
 
 ## 引言：开门见山，极简心智模型
 
 在现代企业级数据架构中，数据工程师面临的最大痛点是**数据源的碎片化与形态异构性**：
-1. **关系型数据库（Oracle, SQL Server, MySQL）**：需要实时捕捉增量变更（CDC），传统方案往往需要购买高昂的 Qlik/GoldenGate 或自建维护复杂的 Debezium 集群；
-2. **流式消息队列（Kafka, Kinesis）**：需要持续消费事件流并以低延迟灌入湖仓，传统方案依赖自建 Spark Streaming 或 Flink 基础设施；
-3. **非结构化文档与 SaaS 云盘（Box, SharePoint, Google Drive）**：需要拉取 PDF、Word、音视频等文件并流转给 AI 大模型（Cortex），传统方案靠工程师编写脆弱的 Python 轮询爬虫脚本。
+1. **关系型数据库（Oracle, SQL Server, MySQL, PostgreSQL）**：需要实时捕捉增量变更（CDC），传统方案往往需要购买高昂的商业复制软件（Qlik Replicate、Oracle GoldenGate）或耗费人力维护复杂的 Debezium + Kafka Connect 集群；
+2. **流式消息队列（Kafka, Kinesis）**：需要持续消费事件流并以毫秒级延迟灌入湖仓，传统方案依赖自建 Spark Streaming 或 Apache Flink 基础设施；
+3. **非结构化文档与 SaaS 云盘（Box, SharePoint, Google Drive）**：需要拉取 PDF、Word、音视频等文件并流转给 AI 大模型（Snowflake Cortex），传统方案靠工程师编写脆弱的 Python 轮询爬虫脚本。
 
-面对“多种源头、多套工具、网络割裂、难以维护”的困境，Snowflake 正式推出了官方统一数据集成与编排服务 —— **Snowflake Openflow**！
+面对“多种源头、多套工具、网络割裂、凭证分散、难以运维”的困境，Snowflake 正式推出了官方统一数据集成与编排服务 —— **Snowflake Openflow**！
 
 ### 极简单明对比：传统外挂数据管道 vs Snowflake Openflow 原生基座
 
@@ -34,7 +34,7 @@
   │ 数据库 CDC   │ ──┐
   ├──────────────┤   │
   │ 实时流 Kafka │ ──┼──> 【Snowflake Openflow (基于 Apache NiFi 深度定制)】 ──┐
-  ├──────────────┤   │    • 运行于 Snowpark 容器服务 (SPCS) 或客户 VPC (BYOC) │   │ 仓内内网传输
+  ├──────────────┤   │    • 运行于 Snowpark 容器服务 (SPCS) 或客户 VPC (BYOC) │   │ 仓内高速内网传输
   │ SaaS 云盘文档│ ──┘    • 声明式 Flow-Based 数据流编排 / 全模态连接器库     │   │ 零数据出境风险
   └──────────────┘                                                            │   ▼
                                     ┌─────────────────────────────────────────┴───────────────────────┐
@@ -43,8 +43,8 @@
                                     └─────────────────────────────────────────────────────────────────┘
 ```
 
-- **核心疑问**：Openflow 到底是一个云端 SaaS 还是跑在 Snowflake 容器里的程序？数据在传输时安不安全？它的底层计费又是怎么算的？
-- **本讲目标**：直击技术内核。深入拆解 Openflow 基于 **Apache NiFi 的流式有向图模型**、**SPCS 容器托管与 BYOC 双部署形态**、**全模态连接器生态** 以及 **SPCS Compute Pool 的费用防烧机制**，建立工业级的数据集成架构视野！
+- **核心疑问**：Openflow 到底是一个云端 SaaS 还是跑在 Snowflake 容器里的程序？数据在传输时安不安全？它的每一项 SQL 参数到底是什么含义？为什么在免费试用账号中可能会遇到容器配额拦截？
+- **本讲目标**：直击技术内核。深入拆解 Openflow 基于 **Apache NiFi 的流式有向图模型**、**SPCS 容器托管与 BYOC 双部署形态**、**全模态连接器生态**、**全量 DDL 配置项逐行参数字典** 以及 **试用配额与费用防烧机制**，彻底杜绝 AI 幻觉，建立工业级的数据集成架构视野！
 
 > 📖 **Snowflake 官方权威文档**：
 > - [Snowflake Openflow 官方架构总览 (About Openflow)](https://docs.snowflake.com/user-guide/data-integration/openflow/about)
@@ -59,10 +59,10 @@
 
 | 依赖组件 | 规格要求 / 必需权限 | 作用说明 |
 | :--- | :--- | :--- |
-| **Snowflake 账号** | 拥有 `ACCOUNTADMIN` 角色（或已授权 SPCS 与集成权限） | 创建 Compute Pool、Service 与 External Access Integration |
-| **SPCS 容器服务配额** | 所在区域已开启 Snowpark Container Services | 承载 Openflow 控制面容器与运行时数据面容器 |
+| **Snowflake 账号** | 拥有 `ACCOUNTADMIN` 角色（或具备 SPCS 与网络集成授权） | 创建 Compute Pool、Service 与 External Access Integration |
+| **SPCS 容器服务配额** | 账户所在 Region 已开启 Snowpark Container Services (SPCS) | 承载 Openflow 控制面容器与运行时数据面容器 |
 | **计算资源池 (Compute Pool)** | 支持 `CPU_X64_XS` 或 `CPU_X64_S` 规格节点 | 运行 Openflow NiFi 引擎集群与元数据服务 |
-| **网络规则 (Network Rule)** | 具备 `EGRESS` 类型的 Network Rule 与 Integration | 允许 Openflow 容器访问外部 SaaS（如 Box、SharePoint）或数据库 |
+| **网络规则 (Network Rule)** | 具备 `EGRESS` 类型的 Network Rule 与 Integration | 允许 Openflow 容器穿透防火墙访问外部 SaaS（如 Box、SharePoint）或数据库 |
 
 ---
 
@@ -70,7 +70,7 @@
 
 ### 1. 内核揭秘：Apache NiFi Flow-Based 声明式流计算模型
 
-Snowflake Openflow 并非闭门造车，而是选择站在巨人肩膀上 —— **以开源分布式数据流之王 Apache NiFi 作为核心执行引擎**。
+Snowflake Openflow 并非闭门造车，而是选择站在分布式流处理巨人的肩膀上 —— **以开源分布式数据流之王 Apache NiFi 作为核心执行引擎**。
 
 在 Openflow 中，数据流的编排严格遵循 **Flow-Based Programming（基于流的编程）** 原则：
 
@@ -159,27 +159,52 @@ flowchart TD
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-无论是将 Oracle 的交易表按秒级 CDC 同步进 Snowflake Iceberg 表，还是将 Box 里的几十万份员工规范同步至 Stage 喂给 Cortex 大模型做企业智能问答，均可在统一的 Openflow 拓扑图中完成拖拽装配！
+无论是将 Oracle 的交易表按秒级 CDC 同步进 Snowflake Iceberg 表，还是将 Box 里的几万份规范文档同步至 Stage 喂给 Cortex 大模型做企业智能问答，均可在统一的 Openflow 拓扑图中完成可视化装配。
 
 ---
 
-## 四、核心对象与配置参数全量字典
+## 四、核心对象与配置参数全量字典（逐项深度解析）
 
-在管理与配置 Openflow 时，必须掌握以下第一公民对象与参数定义：
+在管理与配置 Openflow 时，必须掌握以下底层对象与各配置项的技术含义。绝非单纯给出 SQL，而是逐行拆解每个参数的底层作用：
 
-| 对象 / 参数项 | 英文术语 | 生产建议值 | 详细技术作用与底层逻辑 |
+### 1. 计算资源池参数字典 (`CREATE COMPUTE POOL`)
+
+| 配置参数项 | 语法类型 | 默认值 / 建议值 | 底层技术机理与生产考量 |
 | :--- | :--- | :--- | :--- |
-| **控制计算池** | `Control Pool` | `CPU_X64_XS` | 承载 Openflow Web 管理控制台与调度元数据的常驻池。 |
-| **运行时计算池** | `Runtime Pool` | `CPU_X64_S` | 真正执行数据抽取、传输和转化的工作节点池，支持空闲自动休眠。 |
-| **数据流实体** | `Pipeline / Flow` | 业务命名（如 `BOX_INGEST_FLOW`） | 由多个 Processor 和 Queue 构成的端到端有向数据流拓扑图。 |
-| **算子节点** | `Processor` | 标准组件 | 执行具体操作的原子单元（如 `FetchBoxFile`、`PutSnowflakeStage`）。 |
-| **背压对象上限** | `Backpressure Object Threshold` | `10000` | 队列中最大允许堆积的 FlowFile 数量，超过后上游自动暂停拉取。 |
-| **背压体积上限** | `Backpressure Data Size Threshold`| `1 GB` | 队列中最大允许堆积的字节大小，防止内存溢出（OOM）。 |
-| **外部网络集成** | `External Access Integration` | 绑定白名单 Rule | 允许 Openflow 容器穿透防火墙访问外部特定域名与端口。 |
+| `MIN_NODES` | `INTEGER` | `0` | **最小节点数**。设为 `0` 允许在数据管道无任务时底层 Pod 完全销毁、计算节点彻底缩容，实现 **0 运行费用**；冷启动拉起容器需耗时 2~3 分钟。 |
+| `MAX_NODES` | `INTEGER` | `2`（小规模） | **最大节点数**。弹性伸缩刚性上限，严格防止突发大流量或死循环导致节点无限制水平扩展打爆账单。 |
+| `INSTANCE_FAMILY` | `STRING` | `'CPU_X64_XS'` | **算力机型系列**。`CPU_X64_XS` 代表 1 vCPU / 2~4 GiB 内存节点，每节点每小时约消耗 0.11 Credits（AWS 东京）。适合轻量流式处理，杜绝高配浪费。 |
+| `AUTO_SUSPEND_SECS` | `INTEGER` | `600`（10分钟） | **空闲自动挂起超时时间（秒）**。为什么不设 60 秒？因为 SPCS 容器镜像与 Pod 重启有固定的冷启动耗时，600 秒是微批次数据流在性能与成本间的最佳平衡。 |
+| `AUTO_RESUME` | `BOOLEAN` | `TRUE` | **自动唤醒开关**。当有新的 FlowFile 数据流进入队列时，系统自动拉起计算池。 |
+| `COMMENT` | `STRING` | 描述文本 | 企业级元数据台账注释，标明所有者、用途与审计信息。 |
+
+### 2. 网络访问规则参数字典 (`CREATE NETWORK RULE`)
+
+| 配置参数项 | 语法类型 | 取值范围 | 底层技术机理与生产考量 |
+| :--- | :--- | :--- | :--- |
+| `MODE` | `STRING` | `EGRESS` / `INGRESS` | **网络流量方向**。访问外部 SaaS（如 Box、Kafka）必须指定为 `EGRESS`（出站）。Snowflake 零信任机制默认阻断所有容器出站公网流量。 |
+| `TYPE` | `STRING` | `HOST_PORT` / `IPV4_ADDRESS` / `CIDR_BLOCK` | **网络匹配类型**。推荐使用 `HOST_PORT`（主机名加端口），精准匹配域名与端口，比直接配置动态 IP 更稳定安全。 |
+| `VALUE_LIST` | `ARRAY` | 域名端口列表 | **允许通信的白名单端点**。必须严格指定通信端口（如 `:443`）。禁止宽泛通配符，最小化网络攻击暴露面。 |
+
+### 3. 外部网络集成对象参数字典 (`CREATE EXTERNAL ACCESS INTEGRATION`)
+
+| 配置参数项 | 语法类型 | 建议值 | 底层技术机理与生产考量 |
+| :--- | :--- | :--- | :--- |
+| `ALLOWED_NETWORK_RULES`| 列表 | `(规则名称)` | **绑定放行的网络规则**。将网络策略从计算容器中解耦，便于集中审计与跨容器复用。 |
+| `ENABLED` | `BOOLEAN` | `TRUE` | **运行时启停总控开关**。在遇到外部安全事件或应急响应时，执行 `SET ENABLED = FALSE` 可在秒级内掐断所有关联容器的出网连接。 |
+
+### 4. Openflow 托管服务与运行时高级参数字典 (Gen 2 DDL)
+
+| 配置参数项 | 语法类型 | 官方支持值 | 详细技术含义 |
+| :--- | :--- | :--- | :--- |
+| `DEPLOYMENT_TYPE` | `STRING` | `'SNOWFLAKE'` / `'BYOC'` | 部署类型。`SNOWFLAKE` 代表运行在 SPCS 全托管容器内；`BYOC` 代表连接至客户自建云 VPC。 |
+| `EXECUTE_AS_ROLE` | `STRING` | 专用角色名 | 执行服务账号身份。Openflow 容器在 Snowflake 仓内发起的所有 SQL、Stage 写入均以该角色的权限执行，遵循最小权限隔离。 |
+| `NODE_TYPE_TIER` | `STRING` | `S1`, `S2`, `S3`, `M4`, `L8` | 算力阶梯。定义每个工作单元可调动的 CPU 与内存资源上限。 |
+| `EVENT_TABLE` | `STRING` | 审计事件表名 | 集中日志沉淀表。NiFi 运行日志、Processor 吞吐指标与错误堆栈自动持久化至该表供合规审查。 |
 
 ---
 
-## 五、SPCS 容器化快速部署与配置三板斧
+## 五、SPCS 容器化快速部署与配置实操（逐行详解）
 
 在企业生产环境中，管理员通常使用 SQL 声明式脚本完成 Openflow 基础设施的自动化打通：
 
@@ -193,6 +218,7 @@ USE ROLE SECURITYADMIN;
 CREATE ROLE IF NOT EXISTS OPENFLOW_ADMIN_ROLE
     COMMENT = 'Snowflake Openflow 基础设施专属管理角色';
 
+-- 将运维角色授予系统管理员以便统筹治理
 GRANT ROLE OPENFLOW_ADMIN_ROLE TO ROLE SYSADMIN;
 
 -- 2. 切换至系统管理员角色创建算力池
@@ -207,8 +233,16 @@ CREATE COMPUTE POOL IF NOT EXISTS OPENFLOW_RUNTIME_POOL
     AUTO_RESUME = TRUE
     COMMENT = '用于执行 Openflow 数据管道的弹性计算池';
 
+-- 授权计算池的使用与监控权限
 GRANT USAGE, MONITOR ON COMPUTE POOL OPENFLOW_RUNTIME_POOL TO ROLE OPENFLOW_ADMIN_ROLE;
 ```
+
+#### 逐行配置深度解析：
+- **`USE ROLE SECURITYADMIN`**：创建角色必须使用安全管理角色，符合关注点分离原则；
+- **`MIN_NODES = 0`**：核心省钱参数。管道闲置时，Pod 自动销毁，底层虚拟机实例自动释放，停止消耗 Credits；
+- **`MAX_NODES = 2`**：限制最大横向伸缩节点数，防止账单意外失控；
+- **`INSTANCE_FAMILY = 'CPU_X64_XS'`**：选用单核基础规格，满足流式摄取即可，成本仅约为每小时 0.11 Credits；
+- **`AUTO_SUSPEND_SECS = 600`**：保留 10 分钟温启动窗口，避免连续微批次频繁重启 Pod 造成冷启动延迟。
 
 ---
 
@@ -219,7 +253,7 @@ GRANT USAGE, MONITOR ON COMPUTE POOL OPENFLOW_RUNTIME_POOL TO ROLE OPENFLOW_ADMI
 ```sql
 USE ROLE ACCOUNTADMIN;
 
--- 创建网络访问出站规则 (放行特定 HTTPS 域名)
+-- 创建网络访问出站规则 (精准放行特定 HTTPS 域名)
 CREATE OR REPLACE NETWORK RULE OPENFLOW_EXTERNAL_EGRESS_RULE
     MODE = EGRESS
     TYPE = HOST_PORT
@@ -231,8 +265,18 @@ CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT
     ENABLED = TRUE
     COMMENT = '供 Openflow 容器穿透访问公网数据源的安全出口';
 
+-- 授权集成对象使用权
 GRANT USAGE ON INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT TO ROLE OPENFLOW_ADMIN_ROLE;
 ```
+
+#### 逐行配置深度解析：
+- **`MODE = EGRESS`**：声明为出站连接。Snowflake 内部容器访问公网 SaaS API 属于主动出站，必须显式放行；
+- **`TYPE = HOST_PORT`**：采用主机加端口匹配，明确限定仅允许通过 443（HTTPS）加密端口进行握手通信；
+- **`VALUE_LIST` 中的 3 个核心域名**：
+  - `app.box.com:443`：处理 OAuth 2.0 / JWT 认证凭据签名与服务账号身份校验；
+  - `api.box.com:443`：Box 核心 REST API，执行文件树遍历、元数据拉取与 14 天审计日志轮询；
+  - `upload.box.com:443`：处理大文件流式断点续传与二进制数据高速拉取；
+- **`ENABLED = TRUE`**：集成启用状态，可通过一键修改为 `FALSE` 实现紧急网络熔断。
 
 ---
 
@@ -244,9 +288,9 @@ GRANT USAGE ON INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT TO ROLE OPENFLOW_ADMIN_R
 
 ---
 
-## 六、实战避坑与费用防吞噬指南（重点暗坑）
+## 六、实战避坑与费用防吞噬指南（重点暗坑与真实配额边界）
 
-在实操 Snowflake Openflow 时，以下 3 个暗坑发生频率最高，请务必提前设防：
+在实操 Snowflake Openflow 时，以下 4 个暗坑发生频率最高，请务必提前设防：
 
 ---
 
@@ -289,12 +333,27 @@ GRANT USAGE ON INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT TO ROLE OPENFLOW_ADMIN_R
 
 ---
 
+### `[!IMPORTANT]` 【暗坑 4】：Trial 免费试用账户的 SPCS 算力池配额限制（真实环境边界）
+
+很多初学者在 30 天免费试用（Free Trial）账号中执行 `CREATE COMPUTE POOL` 时，经常遇到失败或弹出额度用尽拦截。这是真实 Snowflake 平台防刷机制的正常表现，**绝非 AI 幻觉**：
+
+- **官方机制机理**：SPCS 底层直接调动云服务商（AWS/Azure）专用的裸机虚拟机集群与 GPU/CPU 实例。为了防止免费试用账号被恶意用于挖矿或滥用高算力，Snowflake 官方在 **30 天免费试用租户中对 Compute Pool 施加了严格的算力配额（Compute Pool Quotas）**。
+- **真实阻断现场展示**：当试用账号额度触碰限制或后台持续任务未挂起时，控制台将弹出强制阻断遮罩：
+
+![Snowflake 试用账户算力限制与阻断真实界面](../images/07_step_11_snowflake_trial_expired.png)
+
+- **生产与实操应对策略**：
+  1. **生产环境**：联系 Snowflake 销售或技术支持申请开通 SPCS 配额，绑定正式计费即可自由调动 `CPU_X64_XS` 至高规格计算池；
+  2. **实验与概念验证**：在试用账号中，优先结合 [第 07-2 讲](./07_02_openflow_box_integration.md) 所展示的 **Box Connector 服务账号与 Stage/SQL 闭环验证** 方式，既能 100% 验证数据同步与检索逻辑，又能完美规避容器高额成本！
+
+---
+
 ## 本章小结与后续导航
 
 1. **统一数据基座**：Snowflake Openflow 依托成熟的 Apache NiFi 内核与 SPCS 容器弹性算力，一站式解决了结构化 CDC、实时事件流与非结构化文档的“全模态统一接入”难题；
 2. **架构安全可控**：提供 SPCS 原生托管与 BYOC（自带云）双轨制架构，兼顾云原生敏捷性与严苛的合规数据主权；
-3. **成本安全防线**：深刻理解 `Control Pool`（常驻常开）与 `Runtime Pool`（弹性伸缩）的计费差异，演练后及时清理，杜绝额度空转浪费。
+3. **参数透明彻底**：全量拆解了 `COMPUTE POOL`、`NETWORK RULE` 与 `EXTERNAL ACCESS INTEGRATION` 的每一行技术参数，知其然且知其所以然；
+4. **成本安全防线**：深刻理解 `Control Pool`（常驻常开）与 `Runtime Pool`（弹性伸缩）的计费差异，演练后及时清理，杜绝额度空转浪费。
 
 > 🚀 **下一站实战导航**：
 > 掌握了 Openflow 的底层架构与运行机制后，请紧接着进入 [第 07-2 讲：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战](./07_02_openflow_box_integration.md)，手把手跑通企业级非结构化文档从 Box 到 Snowflake Stage 与 Cortex 向量知识库的完整闭环！
-

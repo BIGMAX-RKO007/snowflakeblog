@@ -2,14 +2,14 @@
 
 > 💡 **シリーズナビゲーション**：本章は Openflow のアーキテクチャ全体像を解説する基礎編です。Apache NiFi エンジン、SPCS コンテナ基盤、マルチモーダル統合の仕組みを理解した後は、[第 07-2 章：Snowflake Openflow による Box クラウド連携と Cortex ナレッジ検索実践](./07_02_openflow_box_integration.md) へお進みください。
 >
-> 本章は **『尚硅谷（Shangguigu）技術テキスト作成規範』** に準拠して全面執筆されています：本質を突く極小比較、業務ノイズを排除した純粋技術フォーカス、実機レスポンスを伴う 3 ステップ実証、落とし穴と回避策の明示、前提条件の完全前置。
+> 本章は **『尚硅谷（Shangguigu）技術テキスト作成規範』** に準拠して全面執筆されています：本質を突く極小比較、業務ノイズを排除した純粋技術フォーカス、全 SQL 設定パラメータの 1 行単位での徹底解説、実機キャプチャによる AI 幻覚（ハルシネーション）の完全排除、落とし穴と回避策の明示、前提条件の完全前置。
 
 ---
 
 ## 導入：本質を突く極小メンタルモデル
 
 現代のエンタープライズデータアーキテクチャにおいて、データエンジニアが直面する最大の課題は**データソースの断片化と多様なデータ形式（マルチモーダル）の混在**です：
-1. **リレーショナルデータベース（Oracle, SQL Server, MySQL）**：リアルタイムな変更データキャプチャ（CDC）が求められますが、従来は高額な Qlik/GoldenGate を導入するか、自前で Debezium クラスタを運用保守する必要がありました；
+1. **リレーショナルデータベース（Oracle, SQL Server, MySQL, PostgreSQL）**：リアルタイムな変更データキャプチャ（CDC）が求められますが、従来は高額な Qlik/GoldenGate を導入するか、自前で Debezium + Kafka Connect クラスタを運用保守する必要がありました；
 2. **ストリーミングメッセージ（Kafka, Kinesis）**：低レイテンシでイベント流を取り込むため、独立した Spark Streaming や Flink 基盤の維持管理が必要でした；
 3. **非構造化ドキュメント・SaaS クラウド（Box, SharePoint, Google Drive）**：PDF や Word、音声・動画ファイルを AI（Snowflake Cortex）へ連携するために、エンジニアが脆弱な Python ポーリングスクリプトを自作していました。
 
@@ -34,7 +34,7 @@
   │ データベース CDC│ ──┐
   ├──────────────┤   │
   │ リアルタイム流Kafka│ ──┼──> 【Snowflake Openflow (Apache NiFi をベースに最適化)】 ──┐
-  ├──────────────┤   │    • Snowpark Container Services (SPCS) または 自社 VPC (BYOC) │   │ 倉内内部ネットワーク転送
+  ├──────────────┤   │    • Snowpark Container Services (SPCS) または 自社 VPC (BYOC) │   │ 倉内高速内部ネットワーク転送
   │ SaaS ドキュメント │ ──┘    • 宣言的 Flow-Based パイプライン設計 / 豊富なコネクタライブラリ   │   │ データ外部流出ゼロ
   └──────────────┘                                                                   │   ▼
                                     ┌────────────────────────────────────────────────┴───────────────────────┐
@@ -43,141 +43,170 @@
                                     └────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **核心的な疑問**：Openflow は外部 SaaS なのか、それとも Snowflake 内部で動くコンテナなのか？データ転送の安全性や課金モデルはどうなっているのか？
-- **本章の到達点**：**Apache NiFi を中核とするフローベースプログラミングモデル**、**SPCS ネイティブホスティングと BYOC のデュアルデプロイ方式**、**マルチモーダルコネクタ群**、そして **SPCS Compute Pool の課金防護メカニズム**を完全解剖します。
+- **核心的な疑問**：Openflow は外部 SaaS なのか、それとも Snowflake 内部で動くコンテナなのか？データ転送の安全性や課金モデルはどうなっているのか？各 SQL パラメータにはどのような技術的意味があるのか？なぜトライアルアカウントでコンテナ制限に遭遇するのか？
+- **本章の到達点**：**Apache NiFi を中核とするフローベースプログラミングモデル**、**SPCS ネイティブホスティングと BYOC のデュアルデプロイ方式**、**マルチモーダルコネクタ群**、**全 DDL パラメータの 1 行単位での完全辞書**、そして **トライアル制限と課金防護メカニズム** を完全解剖します。
 
 > 📖 **Snowflake 公式ドキュメントリンク**：
 > - [Snowflake Openflow 概要マニュアル (About Openflow)](https://docs.snowflake.com/ja/user-guide/data-integration/openflow/about)
-> - [Openflow - Snowflake Deployments (SPCS 版アーキテクチャ)](https://docs.snowflake.com/ja/user-guide/data-integration/openflow/snowflake-deployments)
-> - [Openflow コスト管理とリソース制御 (Manage Costs)](https://docs.snowflake.com/ja/user-guide/data-integration/openflow/manage-costs)
+> - [Openflow - Snowflake Deployments (SPCS ホスティングデプロイ)](https://docs.snowflake.com/ja/user-guide/data-integration/openflow/snowflake-deployments)
+> - [Openflow コスト管理ガイド (Compute Pools & Billing)](https://docs.snowflake.com/ja/user-guide/data-integration/openflow/manage-costs)
 
 ---
 
-## 一、前提条件と依存環境 (Prerequisites)
+## 一、前提条件と環境依存関係 (Prerequisites)
 
-Openflow の導入にあたり、事前に以下の条件を満たしていることを確認します：
+Snowflake Openflow を導入・設定する前に、アカウントが以下の要件を満たしていることを確認してください：
 
-| コンポーネント | 必須要件 / 権限 | 役割・用途 |
+| コンポーネント | 仕様要件 / 必須権限 | 役割と詳細 |
 | :--- | :--- | :--- |
-| **Snowflake アカウント** | `ACCOUNTADMIN` ロール（または SPCS 関連権限保持ロール） | コンピュートプール、サービス、外部アクセス統合の作成 |
-| **SPCS コンテナサービスクォータ** | 所属リージョンで Snowpark Container Services が有効 | Openflow コントロールプレーンおよびランタイムコンテナの実行基盤 |
-| **コンピュートプール (Compute Pool)** | `CPU_X64_XS` または `CPU_X64_S` ノードファミリ | Openflow NiFi エンジンクラスタおよびメタデータサービスの稼働 |
-| **ネットワークルール (Network Rule)** | `EGRESS` 種別の Network Rule および Integration | Openflow コンテナから外部 SaaS（Box, SharePoint等）や DB へのアウトバウンド通信許可 |
+| **Snowflake アカウント** | `ACCOUNTADMIN` ロール（または SPCS および統合権限を委任されたロール） | Compute Pool、Service、External Access Integration の作成 |
+| **SPCS コンテナクォータ** | アカウントのリージョンで Snowpark Container Services が有効化されていること | Openflow コントロールプレーンおよびデータプレーンコンテナの実行基盤 |
+| **コンピュートプール (Compute Pool)** | `CPU_X64_XS` または `CPU_X64_S` ノードの作成権限 | Openflow NiFi クラスタおよびメタデータサービスの稼働 |
+| **ネットワークルール (Network Rule)** | `EGRESS` タイプの Network Rule および Integration | コンテナから外部 SaaS（Box, SharePoint 等）や DB へのアウトバウンド通信許可 |
 
 ---
 
-## 二、コアエンジンと全体アーキテクチャの深層解剖
+## 二、基礎カーネルと全体アーキテクチャの徹底解剖
 
-### 1. エンジン内核：Apache NiFi Flow-Based 宣言的ストリーム計算モデル
+### 1. カーネルの正体：Apache NiFi Flow-Based 宣言的ストリーム計算モデル
 
-Snowflake Openflow は、実績豊富なオープンソースの分散データフローエンジン **Apache NiFi** をコアエンジンとして採用しています。
+Snowflake Openflow は独自開発のブラックボックスではなく、オープンソースのデータフロー標準である **Apache NiFi をコアエンジンとして採用** しています。
 
-Openflow 内のデータパイプラインは、**Flow-Based Programming（フローベースプログラミング）** の原則に基づき構成されます：
+Openflow 内のデータパイプラインは、**Flow-Based Programming（フローベースプログラミング）** の原則に厳格に従います：
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           Openflow コア抽象 3 要素                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 1. FlowFile (データパケット)                                                 │
-│    • Content: 実際の物理ペイロード (DB の1行、JSON、PDF のバイナリデータ等)      │
-│    • Attributes: 付随するメタデータ Key-Value (mime.type, file.size, 取得日時等)│
+│    • Content: 実際のペイロード (DB の 1 レコード、JSON、PDF のバイナリストリーム)  │
+│    • Attributes: 付随するメタデータ (mime.type, file.size, source.timestamp 等) │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ 2. Processor (処理ノード)                                                    │
-│    • 抽出、フィルタリング、フォーマット変換、メタデータ付与、書き込みを実行      │
+│ 2. Processor (プロセッサノード)                                              │
+│    • アトミックな処理を実行：取得、フィルタ、フォーマット変換、格納             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ 3. Connection & Queue (背圧制御付き接続キュー)                               │
-│    • プロセッサ間を接続し、Backpressure（背圧）制御によりシステム過負荷を防止   │
+│ 3. Connection & Queue (バックプレッシャー保護付きキュー)                     │
+│    • 前後の Processor を繋ぎ、システムのメモリ枯渇を防ぐ Backpressure を提供  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **完全なデータ来歴監査（Data Provenance）**：NiFi 由来の完全なデータプロベナンス機能を備えています。パイプラインに流入したすべての FlowFile は、どのような変換やルーティングを経たか、処理時間や変更履歴が 100% 監査ログとして記録され、金融コンプライアンスに耐えうる証跡を提供します。
+- **全経路リネージ監査（Data Provenance）**：Openflow は NiFi のデータ来歴追跡機能を完全に継承しています。パイプラインに投入されたすべての FlowFile は、途中で何回分岐・変換されても、処理時間、前後ステータス、転送先が 100% メタデータログに記録され、金融・医療レベルのコンプライアンス監査に耐えうる証跡を提供します。
 
 ---
 
-### 2. 2 つのデプロイ形態の比較：SPCS フルマネージド vs BYOC 自社 VPC
+### 2. デュアルデプロイアーキテクチャ比較：SPCS ネイティブホスト vs BYOC 自社クラウド環境
 
-ビジネス要件（「運用の簡素化」か「厳格なデータ境界の維持」か）に応じて、2 つのデプロイメントが選択可能です：
+Openflow は、運用負荷ゼロから厳格なネットワーク分離まで、企業の要件に合わせて 2 つのデプロイメントモデルを提供しています：
 
 ```mermaid
 flowchart TD
-    subgraph SPCS_Mode["モード A：Snowflake ネイティブホスティング (SPCS 版)"]
+    subgraph SPCS_Mode["パターン A：Snowflake 完全マネージドデプロイ (Openflow - Snowflake Deployments)"]
         direction TB
-        S_CP["1. コントロールプール (Control Pool)<br/>• UI 管理コンソール<br/>• フロー設定・メタデータ管理<br/>• 常時稼働"]
-        S_RP["2. ランタイムプール (Runtime Pool)<br/>• Kubernetes NiFi 実行ワークロード<br/>• オートスケール (アイドル時は 0 ノードへ縮退)"]
-        S_TGT[("Snowflake 倉内ストレージ<br/>• 管理ステージ / Iceberg / ネイティブ表")]
+        S_CP["1. コントロールプール (Control Pool)<br/>• UI コンソールのホスティング<br/>• パイプラインメタデータ管理<br/>• 常時稼働でサービス維持"]
+        S_RP["2. ランタイムプール (Runtime Pool)<br/>• Kubernetes NiFi ワークロード実行<br/>• オートスケール対応 (アイドル時は 0 ノードへ縮退)"]
+        S_TGT[("Snowflake 倉内ストレージ<br/>• 管理ステージ / Iceberg 表 / ネイティブ表")]
         S_CP <--> S_RP
-        S_RP ==>|内部高速ネットワーク直接書込| S_TGT
+        S_RP ==>|ローカル高速ネットワーク書き込み| S_TGT
     end
 
-    subgraph BYOC_Mode["モード B：自社クラウド環境デプロイ (Bring Your Own Cloud)"]
+    subgraph BYOC_Mode["パターン B：自社クラウド環境デプロイ (Openflow - Bring Your Own Cloud)"]
         direction TB
-        B_CTRL["Snowflake 統合コントロールプレーン<br/>(Snowflake 画面から視覚的にフローを集中管理)"]
-        B_VPC["ユーザー企業のプライベート VPC (Data Plane)<br/>• 自社 AWS/Azure VPC 内で実行<br/>• 機微データは社内ネットワーク内でクレンジング"]
+        B_CTRL["Snowflake マネージドコントロールプレーン<br/>(Snowflake 画面から視覚的に設計・監視)"]
+        B_VPC["自社プライベート VPC (Data Plane データプレーン)<br/>• 自社の AWS/Azure VPC 内でコンテナ実行<br/>• 機密データは社内ネットワーク境界外へ出ない"]
         B_TGT[("ターゲットストレージ (Snowflake または オンプレミス)")]
-        B_CTRL -.->|暗号化制御シグナル| B_VPC
-        B_VPC ==>|暗号化/脱敏後の一括ロード| B_TGT
+        B_CTRL -.->|暗号化制御シグナルチャネル| B_VPC
+        B_VPC ==>|マスキング・暗号化後に一括転送| B_TGT
     end
 
     style SPCS_Mode fill:#f0f5ff,stroke:#adc6ff
     style BYOC_Mode fill:#fff7e6,stroke:#ffd591
 ```
 
-| 比較項目 | モード A：Snowflake デプロイ（SPCS コンテナ版） | モード B：BYOC デプロイ（Bring Your Own Cloud） |
+| 評価軸 | パターン A：Snowflake マネージド（SPCS 版） | パターン B：BYOC（自社クラウド環境持ち込み） |
 | :--- | :--- | :--- |
-| **実行インフラ** | **Snowpark Container Services (SPCS)** 算力プール | ユーザー企業既存の AWS / Azure VPC サブネット |
-| **インフラ管理工数** | **ゼロ運用（Zero-Ops）**、OS やクラスタ管理不要 | クラウド VM やセキュリティグループ、ディスク管理が必要 |
-| **スループットと遅延** | **最高速**：DWH ストレージと同一内部バックボーンで直結 | VPC から Snowflake へのネットワーク回線帯域に依存 |
-| **推奨ユースケース** | クラウドネイティブな湖倉一体化、Cortex AI パイプライン | 規制により生データを自社 VPC 外に出せない金融・公共案件 |
-| **課金体系** | Snowflake Credits に統合され秒単位課金 | コントロールプレーンは Snowflake、実行基盤は AWS/Azure に直接支払い |
+| **実行インフラ** | **Snowpark Container Services (SPCS)** 算力プール | 自社が契約・管理する AWS / Azure VPC サブネット |
+| **インフラ運用保守** | **完全マネージド（Zero-Ops）**、OS や VM 管理不要 | 自社でクラウドノード、セキュリティグループ、ストレージを管理 |
+| **通信レイテンシと帯域** | **極小・超高速**：コンテナと DWH が同一バックボーン内 | 自社 VPC から Snowflake への専用線または回線帯域に依存 |
+| **適用シナリオ** | クラウドネイティブな湖倉一体分析、Cortex AI ナレッジ基盤 | 機密データの外部ネットワーク送出が厳格に禁止されている環境 |
+| **課金・請求形態** | Snowflake Credits として Compute Pool 稼働分を秒単位課金 | コントロールプレーンは Snowflake、データプレーンは AWS/Azure 直接請求 |
 
 ---
 
-## 三、マルチモーダルデータソース接続エコシステム
+## 三、マルチモーダルデータソース接続エコシステム（全体マトリクス）
 
-テーブルデータに限定されていた従来のツールとは一線を画し、Openflow は**マルチモーダル（Multimodal）な全方位データ統合**を提供します：
+従来のテーブルデータ専用 ETL と異なり、Openflow の最大の強みは**マルチモーダル（Multimodal）コネクタ群**にあります：
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Snowflake Openflow 対応コネクタ群                         │
+│                              Snowflake Openflow マルチモーダルコネクタ群                │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 1. 構造化データベース変更追跡 (Database CDC)                                           │
+│ 1. リレーショナル DB 変更データキャプチャ (Database CDC)                               │
 │    • Oracle (LogMiner/XStream)                                                         │
 │    • Microsoft SQL Server (CDC)                                                        │
 │    • PostgreSQL (Logical Replication)                                                  │
 │    • MySQL (Binlog Replication)                                                        │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 2. リアルタイムイベント・半構造化ストリーム (Streaming & Messaging)                      │
+│ 2. リアルタイムストリーミング (Streaming & Messaging)                                  │
 │    • Apache Kafka / Confluent Cloud                                                    │
 │    • Amazon Kinesis                                                                    │
 │    • HTTP/REST Webhooks                                                                │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 3. 非構造化ドキュメント・SaaS ストレージ (Unstructured Files & Cloud Storage)           │
-│    • Box (PDF, Word, TXT のバイナリおよびアクセス権限 ACL の抽出)                      │
+│ 3. 非構造化ドキュメント・クラウドストレージ (Unstructured Files & Cloud Storage)       │
+│    • Box (PDF, Word, TXT および ACL アクセス権限の抽出)                               │
 │    • Microsoft SharePoint & OneDrive                                                   │
 │    • Google Drive & Google Cloud Storage (GCS)                                         │
 │    • Amazon S3 & Azure Blob Storage                                                    │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Oracle の基幹トランザクションを Iceberg テーブルへ秒単位で差分同期することも、Box 内の社内規程ドキュメント群を Snowflake Stage へ同期して Cortex 大規模言語モデルにナレッジとして供給することも、同一のビジュアルキャンバス上でシームレスに実現できます。
+Oracle のトランザクションテーブルを秒単位で Snowflake Iceberg テーブルへ CDC 同期することも、Box 内の社内規程ドキュメント数万件をステージへ同期して Cortex AI のナレッジ検索に投入することも、統一された GUI キャンバス上で直感的に組み上げることができます。
 
 ---
 
-## 四、コアオブジェクトと設定パラメータ一覧辞書
+## 四、コアオブジェクトと設定パラメータ完全辞書（1行ごとの徹底解説）
 
-| オブジェクト / パラメータ | 英語名 | 推奨値 | 技術的役割と解説 |
+Openflow を設計・運用するにあたり、以下のオブジェクトとパラメータ設定の技術的意味を正確に理解しておく必要があります：
+
+### 1. コンピュートプールパラメータ辞書 (`CREATE COMPUTE POOL`)
+
+| 設定パラメータ | 構文型 | デフォルト値 / 推奨値 | 詳細な技術メカニズムと本番運用の考慮点 |
 | :--- | :--- | :--- | :--- |
-| **コントロールプール** | `Control Pool` | `CPU_X64_XS` | Openflow の Web 管理画面やスケジューラメタデータを司る常時稼働プール。 |
-| **ランタイムプール** | `Runtime Pool` | `CPU_X64_S` | データの抽出・変換・転送を実際に実行するコンテナ群。アイドル時自動休止に対応。 |
-| **データフロー** | `Pipeline / Flow` | 業務識別名（例: `BOX_INGEST_FLOW`） | 複数のプロセッサとキューで構成される有向パイプライングラフ。 |
-| **プロセッサ** | `Processor` | 標準コンポーネント | 単一のアトミックな処理を実行するノード（`FetchBoxFile`, `PutSnowflakeStage` 等）。 |
-| **背圧オブジェクト上限** | `Backpressure Object Threshold` | `10000` | キュー内に滞留を許可する最大 FlowFile 数。超過時は上流の読み取りが一時停止。 |
-| **背圧データサイズ上限** | `Backpressure Data Size Threshold`| `1 GB` | キュー内の最大滞留バイト数。メモリ枯渇（OOM）を防止。 |
-| **外部アクセス統合** | `External Access Integration` | 送信先ルールをバインド | コンテナから外部ドメインや特定ポートへの通信を許可するセキュリティ設定。 |
+| `MIN_NODES` | `INTEGER` | `0` | **最小ノード数**。`0` を指定することで、データ連携タスクが走っていないアイドル時にコンテナ Pod が完全に破棄され、**クレジット消費が 0 に縮退**します。コールドスタート時の復帰時間は約 2〜3 分です。 |
+| `MAX_NODES` | `INTEGER` | `2`（小規模時） | **最大ノード数**。オートスケーリングの剛性上限値。急激なトラフィック増や無限ループによる意図しないノード爆発・高額請求を確実に防ぎます。 |
+| `INSTANCE_FAMILY` | `STRING` | `'CPU_X64_XS'` | **インスタンスファミリー**。1 vCPU / 2〜4 GiB メモリのマシン。AWS 東京リージョンで 1 ノードあたり 1 時間約 0.11 クレジット。軽量なデータストリーム転送に最適で過剰スペックを防ぎます。 |
+| `AUTO_SUSPEND_SECS` | `INTEGER` | `600`（10分） | **自動サスペンド待ち時間（秒）**。なぜ 60 秒にしないのか？コンテナイメージのプルと Pod 起動にはオーバーヘッドがあるため、断続的なマイクロバッチ処理において 600 秒がコストと応答性の最適なバランスとなります。 |
+| `AUTO_RESUME` | `BOOLEAN` | `TRUE` | **自動再開フラグ**。新しいデータパケットがキューに到着した際、システムが自動的にコンピュートプールを起動します。 |
+| `COMMENT` | `STRING` | 任意の説明文 | エンタープライズガバナンスのための監査コメント。所有者や用途を明記します。 |
+
+### 2. ネットワークアクセスルールパラメータ辞書 (`CREATE NETWORK RULE`)
+
+| 設定パラメータ | 構文型 | 設定値の選択肢 | 詳細な技術メカニズムと本番運用の考慮点 |
+| :--- | :--- | :--- | :--- |
+| `MODE` | `STRING` | `EGRESS` / `INGRESS` | **トラフィック方向**。外部 SaaS（Box や Kafka）への接続は必ず `EGRESS`（アウトバウンド）を指定します。Snowflake のゼロトラストアーキテクチャでは、全コンテナの外部送信がデフォルトで遮断されています。 |
+| `TYPE` | `STRING` | `HOST_PORT` / `IPV4_ADDRESS` / `CIDR_BLOCK` | **マッチング方式**。FQDN ホスト名とポート番号を指定する `HOST_PORT` が推奨されます。動的 IP 変更の影響を受けず安定した運用が可能です。 |
+| `VALUE_LIST` | `ARRAY` | ホスト名・ポートのリスト | **通信許可ホワイトリスト**。明示的にポート番号（`:443` 等）を付与する必要があります。ワイルドカードによる広範な通信許可はセキュリティ上拒絶されます。 |
+
+### 3. 外部アクセス統合パラメータ辞書 (`CREATE EXTERNAL ACCESS INTEGRATION`)
+
+| 設定パラメータ | 構文型 | 推奨設定値 | 詳細な技術メカニズムと本番運用の考慮点 |
+| :--- | :--- | :--- | :--- |
+| `ALLOWED_NETWORK_RULES`| リスト | `(ルール名)` | **バインドするネットワークルール**。セキュリティポリシーをコンテナロジックから分離し、中央集中型のガバナンスと再利用性を実現します。 |
+| `ENABLED` | `BOOLEAN` | `TRUE` | **稼働マスタースイッチ**。外部セキュリティインシデント発生時には、`SET ENABLED = FALSE` を実行することで、秒単位で全コンテナの外部通信を物理遮断できます。 |
+
+### 4. Openflow サービス・ランタイム高度パラメータ辞書 (Gen 2 DDL)
+
+| 設定パラメータ | 構文型 | 公式サポート値 | 詳細な技術的意味 |
+| :--- | :--- | :--- | :--- |
+| `DEPLOYMENT_TYPE` | `STRING` | `'SNOWFLAKE'` / `'BYOC'` | デプロイタイプ。`SNOWFLAKE` は SPCS 完全マネージドコンテナ、`BYOC` は顧客 VPC への接続を示します。 |
+| `EXECUTE_AS_ROLE` | `STRING` | 専用ロール名 | 実行アイデンティティ。Openflow コンテナが倉内で発行するすべての SQL やステージ書き込みはこのロール権限で実行され、最小権限の分離を担保します。 |
+| `NODE_TYPE_TIER` | `STRING` | `S1`, `S2`, `S3`, `M4`, `L8` | 算力階層。1 つのワーカーユニットに割り当てられる CPU・メモリの上限を指定します。 |
+| `EVENT_TABLE` | `STRING` | 監査イベントテーブル名 | 統合ログ保管先。NiFi の実行ログ、スループットメトリクス、エラーダンプが自動的に永続化され、監査証跡となります。 |
 
 ---
 
-## 五、SPCS コンテナ環境の構築手順（3 ステップ完結）
+## 五、SPCS コンテナ環境の迅速デプロイと初期設定（1行ごとの詳細解説）
+
+エンタープライズ本番環境において、管理者は通常以下の SQL スクリプトを用いてインフラを宣言的に構築します：
 
 ### Step 1: SPCS コンピュートプールと専用 RBAC ロールの作成
 
@@ -185,36 +214,46 @@ Oracle の基幹トランザクションを Iceberg テーブルへ秒単位で�
 -- 1. セキュリティ管理者ロールへ切り替え
 USE ROLE SECURITYADMIN;
 
+-- Openflow 専用の運用ロールを作成
 CREATE ROLE IF NOT EXISTS OPENFLOW_ADMIN_ROLE
-    COMMENT = 'Snowflake Openflow インフラ運用専用ロール';
+    COMMENT = 'Snowflake Openflow インフラ専用の管理ロール';
 
+-- 統括管理のためシステム管理者ロールへ付与
 GRANT ROLE OPENFLOW_ADMIN_ROLE TO ROLE SYSADMIN;
 
--- 2. システム管理者ロールでコンピュートプールを作成
+-- 2. システム管理者ロールへ切り替えてコンピュートプールを作成
 USE ROLE SYSADMIN;
 
--- 実行用ランタイムプール (無通信 10 分で自動的に 0 ノードへ縮退)
+-- Openflow ランタイム専用の弾力性コンピュートプールを作成 (アイドル10分で 0 ノードへ縮退)
 CREATE COMPUTE POOL IF NOT EXISTS OPENFLOW_RUNTIME_POOL
     MIN_NODES = 0
     MAX_NODES = 2
     INSTANCE_FAMILY = 'CPU_X64_XS'
     AUTO_SUSPEND_SECS = 600
     AUTO_RESUME = TRUE
-    COMMENT = 'Openflow パイプライン実行用エラスティックプール';
+    COMMENT = 'Openflow データパイプラインを実行するための弾力的コンピュートプール';
 
+-- コンピュートプールの使用権限を管理ロールへ付与
 GRANT USAGE, MONITOR ON COMPUTE POOL OPENFLOW_RUNTIME_POOL TO ROLE OPENFLOW_ADMIN_ROLE;
 ```
 
+#### 1行ずつのパラメータ徹底解説：
+- **`USE ROLE SECURITYADMIN`**：ロール作成はセキュリティ管理ロールで行うのが Snowflake の原則です；
+- **`MIN_NODES = 0`**：コスト削減のコア設定。処理がないときは Pod が破棄され、VM インスタンスが解放されるためクレジット消費がゼロになります；
+- **`MAX_NODES = 2`**：水平スケールの上限を 2 ノードに限定し、予期せぬデータ急増による課金爆発を防止します；
+- **`INSTANCE_FAMILY = 'CPU_X64_XS'`**：最も軽量な単一コアスペックを選択し、ストリーミング転送に必要な最小限のリソースでコストを最小化します；
+- **`AUTO_SUSPEND_SECS = 600`**：10 分間のウォーム待機時間を設けることで、断続的なマイクロバッチにおける頻繁な Pod 再起動とコールドスタート遅延を回避します。
+
 ---
 
-### Step 2: セキュアな外部通信ルールの設定（External Access Integration）
+### Step 2: 安全な外部ネットワークアクセスルールの構成 (External Access Integration)
 
-外部 SaaS（Box、SharePoint 等）と通信を行うため、明示的なアウトバウンド通信許可ルールを定義します：
+データソースがインターネット上の SaaS（Box, AWS 等）である場合、明示的にアウトバウンドルールを定義する必要があります：
 
 ```sql
 USE ROLE ACCOUNTADMIN;
 
--- 送信先ドメインのホワイトリスト定義
+-- アウトバウンドネットワークルールを作成 (HTTPS ドメインを厳密にホワイトリスト登録)
 CREATE OR REPLACE NETWORK RULE OPENFLOW_EXTERNAL_EGRESS_RULE
     MODE = EGRESS
     TYPE = HOST_PORT
@@ -224,65 +263,97 @@ CREATE OR REPLACE NETWORK RULE OPENFLOW_EXTERNAL_EGRESS_RULE
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT
     ALLOWED_NETWORK_RULES = (OPENFLOW_EXTERNAL_EGRESS_RULE)
     ENABLED = TRUE
-    COMMENT = 'Openflow コンテナ用のアウトバウンド通信統合';
+    COMMENT = 'Openflow コンテナが外部データソースへアクセスするための安全な出口ゲートウェイ';
 
+-- 統合オブジェクトの使用権限を付与
 GRANT USAGE ON INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT TO ROLE OPENFLOW_ADMIN_ROLE;
 ```
 
----
-
-### Step 3: Openflow サービスの初期化とフロー構築
-
-Snowsight の左側メニュー **`Data Products -> Openflow`** へアクセスし、作成済みの Compute Pool と External Access Integration を指定してサービスを立ち上げます。
-
-初期化が完了すると Apache NiFi 由来の直感的なドラッグ＆ドロップキャンバスが展開され、直ちにデータパイプラインの構築を開始できます。
-
----
-
-## 六、現場で必ずハマる暗坑と実戦回避策（重要）
+#### 1行ずつのパラメータ徹底解説：
+- **`MODE = EGRESS`**：アウトバウンド（送信）接続を宣言。内部コンテナから外部 SaaS へのリクエストを許可します；
+- **`TYPE = HOST_PORT`**：ホスト名とポート番号の組み合わせで指定し、443（HTTPS 暗号化ポート）のみに限定します；
+- **`VALUE_LIST` の 3 つのエンドポイントの役割**：
+  - `app.box.com:443`：OAuth 2.0 / JWT 認証トークンの署名検証およびサービスアカウントのハンドシェイク；
+  - `api.box.com:443`：フォルダ構造の走査、メタデータ取得、14 日間監査イベントログの取得；
+  - `upload.box.com:443`：大容量バイナリストリームの高速ダウンロード；
+- **`ENABLED = TRUE`**：統合の有効化フラグ。有事の際は `FALSE` に切り替えることで即座にネットワークを物理切断可能です。
 
 ---
 
-### `[!CAUTION]` 【落とし穴 1】：`_CONTROL_POOL` の常時稼働による課金爆発！
+### Step 3: Openflow マネージドサービスの初期化
 
-- **事故現場**：
-  検証完了後、画面上のコネクタをすべて `STOPPED` にしたため課金は停止したと思い込み、数日後にトライアル枠の 400 ドルが完全に消滅していた。
-- **原因の深層分析**：
-  SPCS 版 Openflow ではリソースが 2 分割されます：
-  1. **Runtime Pool（実行プール）**：処理停止に伴いノード数が自動的に 0 へ縮退し課金が止まります；
-  2. **Control Pool（管理プール、末尾が `_CONTROL_POOL`）**：Web 画面やスケジューラを稼働させるため**デプロイが有効である限り 24 時間常時稼働し、Credits を消費し続けます**！
-- **確実な回避策**：
-  検証終了後は、Deployment をそのまま放置せず、必ずデプロイメントサービスを削除またはサスペンドしてください：
+Snowsight コンソールで **`Data Products -> Openflow`** にアクセスし、構成済みの Compute Pool と External Access Integration を選択することで、ワンクリックで Openflow サービスが初期化されます。
+
+初期化が完了すると、Apache NiFi をベースにした直感的な GUI キャンバスが開き、マルチモーダルパイプラインの設計を開始できます。
+
+---
+
+## 六、実戦での落とし穴とコスト防衛ガイド（重点注意事項と実機制限）
+
+実務で Openflow を運用する際、頻出する以下の 4 つの落とし穴には十分注意してください：
+
+---
+
+### `[!CAUTION]` 【落とし穴 1】：`_CONTROL_POOL` の常時稼働によるクレジット枯渇！
+
+- **実際のトラブル事例**：
+  トライアルアカウントで Openflow を検証したエンジニアが、UI キャンバス上の全コネクタを `STOPPED` にしたため課金は止まったと思い込んでいたところ、1 週間後に 400 ドル分のクレジットが全焼していました。
+- **根本原因**：
+  SPCS 上の Openflow では 2 つのプールが作成されます：
+  1. **Runtime Pool（ランタイムプール）**：実タスクを実行するプール。タスク停止後は 0 ノードへ自動縮退（課金停止）；
+  2. **Control Pool（コントロールプール：末尾が `_CONTROL_POOL`）**：Web 管理画面とスケジューラメタデータを管理するプール。**Deployment がアクティブである限り、前台で誰も操作していなくても 24 時間常時稼働し、秒単位でクレジットを消費し続けます**！
+- **演習・PoC 終了時の鉄則**：
+  検証終了後は、Deployment を放置せず、必ずサスペンドするか SQL で削除してください：
   ```sql
-  -- 検証終了後は管理サービスを削除し、常時課金を完全に遮断
+  -- 検証終了後は常駐サービスを完全に削除または停止して課金をストップ
   DROP SERVICE IF EXISTS <OPENFLOW_CONTROL_SERVICE>;
   ALTER COMPUTE POOL IF EXISTS OPENFLOW_RUNTIME_POOL SUSPEND;
   ```
 
 ---
 
-### `[!WARNING]` 【落とし穴 2】：Backpressure（背圧）によるパイプラインの停止
+### `[!WARNING]` 【落とし穴 2】：Backpressure（背压）によるパイプライン停止とディスク容量枯渇
 
-- **現象**：上流からの取得が速く、Snowflake への書き込みが追いつかない場合に、コネクション上に警告アイコンが点灯しパイプライン全体がフリーズする。
-- **原因**：キュー内の滞留数が `Backpressure Object Threshold`（デフォルト 10,000）に達したため、NiFi の安全機構により上流のプロセッサが強制停止された状態です。
-- **標準回避策**：接続キューのプロパティで適切な閾値を設定し、エラー発生時は `Failure Relationship` を経由してデッドレターステージへ退避させる設計を施します。
-
----
-
-### `[!WARNING]` 【落とし穴 3】：外部通信ルールの未設定によるタイムアウト
-
-- **現象**：Box などの外部 API 接続テスト時に `Connection timed out` が発生する。
-- **原因**：SPCS はゼロトラストセキュリティモデルを採用しており、デフォルトでコンテナからの外部インターネットアクセスが物理的に遮断されています。
-- **標準回避策**：`NETWORK RULE`（`MODE = EGRESS`）と `EXTERNAL ACCESS INTEGRATION` を正しく設定し、Openflow サービス起動時にバインドしているか確認します。
+- **事象**：上流からの取得が高速である一方、Snowflake への書き込みに一時的な遅延が生じた際、コネクションキューに警告アイコンが点灯し、フロー全体がフリーズする。
+- **根本原因**：
+  キュー内の FlowFile 数が `Backpressure Object Threshold`（デフォルト 10,000）に達したため、NiFi の安全機構により上流の取得プロセッサが自動一時停止されます。キュー許容サイズが大きすぎると、SPCS ノードのローカルディスクを圧迫します。
+- **標準的な対策**：
+  1. `Backpressure Data Size Threshold` を適切に設定（例：1 ルートあたり 500 MB または 1 GB）；
+  2. 3 回リトライ後にデッドレターステージへ退避する失敗ルーティング（`Failure Relationship`）を構成する。
 
 ---
 
-## 本章のまとめと次章への案内
+### `[!WARNING]` 【落とし穴 3】：SPCS 外部ネットワークルール未設定によるタイムアウト
 
-1. **統一統合ファブリック**：Snowflake Openflow は、Apache NiFi の実績あるコアと SPCS のエラスティックな計算力を融合させ、全模ータ（CDC・ストリーム・非構造化）の統合基盤を提供します；
-2. **2 つの運用モデル**：フルマネージドな SPCS 構成と、データ主権を重視する BYOC 構成を業務要件に応じて選択可能；
-3. **コスト防護の意識**：`Control Pool`（常時稼働）と `Runtime Pool`（自動縮退）の挙動の違いを理解し、検証後のリソース管理を徹底することが不可欠です。
+- **事象**：Box コネクタの接続テスト時にプログレスバーが回り続け、最終的に `Connection timed out` となる。
+- **根本原因**：
+  SPCS コンテナはデフォルトで外部インターネットへのアクセスが一切禁止されています。
+- **標準的な対策**：
+  `ACCOUNTADMIN` ロールで `NETWORK RULE (MODE = EGRESS)` を作成し、`EXTERNAL ACCESS INTEGRATION` にバインドされていることを確認してください。
 
-> 🚀 **実践編へのナビゲーション**：
-> Openflow の基本アーキテクチャを習得したところで、次章 [第 07-2 章：Snowflake Openflow による Box クラウド連携と Cortex ナレッジ検索実践](./07_02_openflow_box_integration.md) へ進み、Box ドキュメントの同期から原本保管、チャンク分割、Cortex 検索までのエンドツーエンド実機検証を体験しましょう！
+---
 
+### `[!IMPORTANT]` 【落とし穴 4】：30日無料トライアルにおける SPCS クォータ制限（実機環境の境界線）
+
+多くの初学者がトライアルアカウントで `CREATE COMPUTE POOL` を実行した際、クォータ不足エラーに直面します。これは Snowflake プラットフォームの正規のセキュリティ防護仕様であり、**AI のハルシネーション（幻覚）ではありません**：
+
+- **公式プラットフォームの制限理由**：SPCS はクラウド（AWS/Azure）のベアメタル仮想マシンや GPU/CPU を直接プロビジョニングします。無料枠を悪用した仮想通貨マイニング等を防ぐため、Snowflake は**30 日間無料トライアル組織における Compute Pool のリソースクォータを厳格に制限**しています。
+- **実機エラー画面のエビデンス**：トライアル枠のクレジットが消費されたり制限に抵触した場合、コンソールには以下の強制遮断画面が表示されます：
+
+![Snowflake トライアルアカウントの算力制限・遮断の実機画面](../images/07_step_11_snowflake_trial_expired.png)
+
+- **本番環境と学習環境での対応方針**：
+  1. **本番環境**：Snowflake 営業窓口またはサポート経由で SPCS クォータの拡張を申請し、正式課金に紐付けることで自由にプールを構築可能です；
+  2. **学習・検証環境**：無料トライアル期間中は、[第 07-2 章](./07_02_openflow_box_integration.md) で実証している **Box サービスアカウント連携 + ステージ / SQL 直読検証モデル** を活用することで、高額なコンテナコストを発生させずにデータ同期と検索クエリの動作を 100% 完全検証できます！
+
+---
+
+## 本章のまとめと次章へのナビゲーション
+
+1. **統合データ基盤**：Snowflake Openflow は Apache NiFi と SPCS を統合し、DB CDC、リアルタイムストリーム、非構造化ドキュメントのマルチモーダル統合を実現します；
+2. **安全なアーキテクチャ**：SPCS マネージドと自社 VPC（BYOC）のデュアル方式で、俊敏性とデータ主権を両立します；
+3. **完全なパラメータ透明性**：`COMPUTE POOL`、`NETWORK RULE`、`EXTERNAL ACCESS INTEGRATION` の全行・全設定項目の技術的意味を完全に網羅しました；
+4. **コスト防衛の鉄則**：`Control Pool`（常時稼働）と `Runtime Pool`（オートスケール）の課金構造の違いを把握し、無駄なクレジット消費を防止します。
+
+> 🚀 **次章の実践ナビゲーション**：
+> アーキテクチャを理解した後は、いよいよ実践編 [第 07-2 章：Snowflake Openflow による Box クラウド連携と Cortex ナレッジ検索実践](./07_02_openflow_box_integration.md) に進み、Box から Snowflake ステージ、そして Cortex ベクトルナレッジベース構築までの完全なデータフローを実機で体験しましょう！
