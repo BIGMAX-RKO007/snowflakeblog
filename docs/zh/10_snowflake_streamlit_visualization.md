@@ -108,16 +108,38 @@ flowchart TD
 #### 2. 真正扣费元凶：计算虚拟数仓（Virtual Warehouse）
 - **计费真相**：Streamlit in Snowflake 不是无服务器静态托管，它依托底层的 **Virtual Warehouse** 作为 Python 容器与 SQL 查询的执行算力；
 - **单价标准**：最小规格的 `X-Small` 虚拟仓库每运行 1 小时消耗 **1 个 Credit**（折合标准费率约为 **$2.00 ~ $3.00 / 小时**）；
-- **重大扣费陷阱**：Streamlit 前端依托 **WebSocket 长连接保持心跳（Live Heartbeat）**。如果开发者在 Snowsight 网页中打开了看板，下班离开时**没有关闭浏览器标签页**：
-  - 前端持续向后端发送探活心跳，虚拟仓库误以为“当前仍有活跃用户”，**完全无法触发 `AUTO_SUSPEND` 自动休眠**！
-  - 仓库一天 24 小时空转将吞噬 24 Credits（约 $48 ~ $72 美元），一周即可将试用账户赠送的 400 美元额度彻底耗尽！
+- **重大扣费陷阱**：Streamlit 前端依托 **WebSocket 长连接保持心跳（Live Heartbeat）**。如果开发者在 Snowsight 网页中打开了看板，下班离开时**没有关闭浏览器标签页**，前端持续向后端发送探活心跳，虚拟仓库可能误以为“当前仍有交互请求”，阻碍自动休眠；
+- **空转代价**：仓库一天 24 小时空转将吞噬 24 Credits（约 $48 ~ $72 美元），一周即可将试用账户赠送的 400 美元额度彻底耗尽！
 
-#### 3. 四大防扣费安全锁（The 4 Anti-Burn Safety Locks）
-为确保看板开发既流畅又绝对安全，生产实践中必须牢记以下四道防线：
+#### 3. 官方原生防线：默认 15 分钟 WebSocket 超时断开与应用休眠机理
+
+针对“用户开着页面不关导致数仓空转”的隐患，Snowflake 官方在平台层设计了一套专门的**会话生命周期与休眠机制（Sleep Timeout）**：
+
+> 📖 **官方权威参考**：
+> - [Manage sleep timeout for a Streamlit app using a warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/manage-sleep-timeout)
+> - [About Streamlit in Snowflake - WebSocket timeout](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#websocket-timeout)
+
+- **默认 15 分钟 WebSocket 断开（WebSocket Timeout）**：
+  当用户在浏览器中打开 Streamlit 看板时，前端与 Snowflake 后端建立 WebSocket 双向连接。在**账户级别（Account-level）**，默认设定了**约 15 分钟无活动自动超时（Approximately 15 minutes of inactivity）**。一旦超过 15 分钟未检测到任何有效操作，WebSocket 连接会被服务端主动断开，Streamlit 应用自动进入**挂起/休眠（Suspend/Sleep）**状态。
+- **活跃行为判定（鼠标移动即可重置）**：
+  官方文档明确指出：只要用户的鼠标光标在 Streamlit 画布区域内**晃动或移动（Mouse movement over the app）**，就会被前端探活引擎判定为活跃行为，**瞬间重置 15 分钟倒计时**。
+- **浏览器后台标签页限频陷阱（Background Tab Throttling）**：
+  如果用户将看板保留在浏览器后台标签页中，现代浏览器（Chrome、Edge）出于省电策略会自动限频后台 JavaScript 定时器与心跳，导致探活信号被中断，从而极易在后台直接触发 15 分钟超时断开。
+- **应用级自定义休眠计时器 (`.streamlit/config.toml`)**：
+  对于使用虚拟仓库运行的 SiS 应用，开发者无需联系客服，可直接在 Stage 根目录配置 `.streamlit/config.toml`，将休眠时间自定义在 **5 分钟 至 240 分钟（4 小时）** 之间：
+  ```toml
+  [snowflake.sleep]
+  streamlitSleepTimeoutMinutes = 15  # 允许设置 5 ~ 240 分钟
+  ```
+  *(注：若需修改全账户级别的默认 15 分钟 WebSocket 超时，需联系 Snowflake Support 提单申请)*。
+
+#### 4. 五大防扣费安全锁（The 5 Anti-Burn Safety Locks）
+为确保看板开发既流畅又绝对安全，生产实践中必须牢记以下五道防线：
 1. **秒级自动休眠**：虚拟仓库强制设置 `AUTO_SUSPEND = 60`（1 分钟无 SQL 查询即刻休眠）；
 2. **函数级内存强缓存**：所有读取数仓的函数必须添加 `@st.cache_data(ttl=600)` 10 分钟强缓存，用户在页面上点击切换表名或筛选时，直接从 Python 内存极速返回，**绝不向数仓发起二次 SQL 扫描**；
 3. **严格查询限流**：样本数据探查一律增加 `LIMIT 50`，防止全表扫描千万级大表；
-4. **随手关闭标签页与手动休眠**：调试完毕随手关闭网页标签页，必要时执行 `ALTER WAREHOUSE <wh> SUSPEND;` 手动挂起。
+4. **配置应用级休眠计时**：在 Stage 根目录 `.streamlit/config.toml` 中配置 `streamlitSleepTimeoutMinutes = 15`，与官方 WebSocket 15 分钟兜底机制紧密联动；
+5. **随手关闭标签页与手动休眠**：调试完毕随手关闭网页标签页，必要时执行 `ALTER WAREHOUSE <wh> SUSPEND;` 手动挂起。
 
 ---
 
@@ -138,6 +160,7 @@ flowchart TD
 | `st.selectbox()` | `st.selectbox("选择分类", options=['All', 'A', 'B'])` | 用于多维下钻 | **交互下拉菜单**：改变选项后触发应用响应式重新渲染。 |
 | `st.line_chart()` | `st.line_chart(df.set_index('DATE')['REVENUE'])` | 必须设置索引列 | **趋势折线图**：原生基于 Altair 渲染的矢量折线图，支持悬浮查看。 |
 | `st.dataframe()` | `st.dataframe(df, use_container_width=True)` | 宽屏自适应 | **交互式数据表**：支持列排序、文本搜索、CSV 导出。 |
+| `streamlitSleepTimeoutMinutes` | `[snowflake.sleep]` 表配置 | 建议设为 `15`（范围 5~240） | **应用级休眠计时器**：在 `.streamlit/config.toml` 中控制无交互后自动挂起应用的时延，与 WebSocket 15 分钟兜底机制协同防烧钱。 |
 
 ---
 
@@ -569,14 +592,23 @@ st.info("💡 **成本防刷安全保障**：所有元数据与数据查询均�
   很多开发者在 Snowsight 网页中建好 Streamlit 看板后，顺手将浏览器标签页留在后台下班离开。几天后再次登录时，发现账户提示免费额度用光（甚至在付费账号下产生意外巨额账单）。
 - **根因深度分析**：
   Streamlit in Snowflake 依托浏览器与仓内 Python 容器之间的 **WebSocket 双向长连接（Live Heartbeat）** 进行页面状态保持。
-  只要浏览器标签页处于打开状态，前端就会不断向 Warehouse 发送探活心跳，导致 Warehouse 认为“当前仍有活跃会话”，**完全无法触发 `AUTO_SUSPEND` 自动休眠计时**，从而一直处于开机状态持续扣费！
-- **生产与实操两大防线**：
-  1. **测试完毕务必关闭标签页，并手动休眠仓库**：
+  只要浏览器标签页处于打开且活跃状态，前端就会不断向 Warehouse 发送探活心跳，可能阻碍虚拟仓库及时触发休眠。
+- **官方 15 分钟 WebSocket 超时与三层防刷防线**：
+  1. **平台级兜底机制：默认约 15 分钟 WebSocket 自动断开**：
+     Snowflake 官方在账户级别默认启用了 **15 分钟不活跃超时（WebSocket Timeout）**。如果连续 15 分钟没有鼠标晃动或操作，连接会自动被服务端切断，Streamlit 应用自动挂起（Suspend）。
+     > ⚠️ **注意**：如果用户仍在屏幕前晃动鼠标，该 15 分钟倒计时会被不断重置！
+  2. **应用级主动配置：`.streamlit/config.toml` 自定义休眠计时器**：
+     开发者可以在 Stage 的应用根目录下创建 `.streamlit/config.toml` 文件，显式约束最大空闲时延（建议设为 15 分钟，支持 5~240 分钟）：
+     ```toml
+     [snowflake.sleep]
+     streamlitSleepTimeoutMinutes = 15
+     ```
+  3. **测试完毕务必关闭标签页，并手动休眠仓库**：
      完成前端页面调试后，随手关闭 Streamlit 浏览器标签页；在 SQL 中可随时手动挂起仓库：
      ```sql
      ALTER WAREHOUSE COMPUTE_WH SUSPEND;
      ```
-  2. **配置账户级资源配额熔断器（Resource Monitor，企业防刷最强底线）**：
+  4. **配置账户级资源配额熔断器（Resource Monitor，企业防刷最强底线）**：
      为 Streamlit 专用仓库绑定 Resource Monitor，一旦额度达到阈值自动挂起，杜绝账单失控：
      ```sql
      CREATE OR REPLACE RESOURCE MONITOR STREAMLIT_COST_GUARD

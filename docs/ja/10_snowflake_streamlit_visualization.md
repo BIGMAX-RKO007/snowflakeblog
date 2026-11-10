@@ -108,16 +108,38 @@ flowchart TD
 #### 2. 真の課金要因：仮想ウェアハウス（Virtual Warehouse）のコンピュートコスト
 - **稼働の実態**：Streamlit in Snowflake は静的な HTML ホスティングではなく、Python コンテナの実行および SQL 発行のために背後で **Virtual Warehouse** を起動・消費します；
 - **単価基準**：最小サイズである `X-Small` ウェアハウスでも、1 時間の稼働につき **1 クレジット**（通常レート換算で約 **$2.00 〜 $3.00 / 時間**）を消費します；
-- **重大な落とし穴（タブの放置）**：Streamlit フロントエンドは **WebSocket によるハートビート通信（Live Heartbeat）** を維持します。開発者が Snowsight でダッシュボードを開いたまま、**ブラウザタブを閉じずに帰宅してしまうと**：
-  - フロントエンドからハートビートが送信され続けるため、ウェアハウスは「アクティブなセッションが存在する」と誤認し、**`AUTO_SUSPEND` による自動サスペンドが発動しません**！
-  - 1 日あたり 24 クレジット（約 $48 〜 $72）が浪費され、数日でトライアル枠（400 ドル）を使い切ってしまう事態に陥ります。
+- **重大な落とし穴（タブの放置）**：Streamlit フロントエンドは **WebSocket によるハートビート通信（Live Heartbeat）** を維持します。開発者が Snowsight でダッシュボードを開いたまま、**ブラウザタブを閉じずに放置してしまうと**、フロントエンドからの通信によりウェアハウスの自動サスペンドが遅延・阻害されるリスクがあります；
+- **空転の代償**：1 日あたり 24 クレジット（約 $48 〜 $72）が浪費され、数日でトライアル枠（400 ドル）を使い切ってしまう事態に陥ります。
 
-#### 3. コスト爆発を防ぐ 4 つの安全ロック（The 4 Anti-Burn Safety Locks）
-快適な開発と確実なコスト管理を両立するため、以下の 4 重防護を必ず実施します：
+#### 3. 公式プラットフォーム安全防壁：デフォルト約15分の WebSocket タイムアウトと自動スリープ機構
+
+ユーザーが画面を開いたまま放置してしまうリスクに対し、Snowflake 公式はプラットフォーム層で**セッションライフサイクルとスリープ機構（Sleep Timeout）**を提供しています：
+
+> 📖 **公式ドキュメントリファレンス**：
+> - [Manage sleep timeout for a Streamlit app using a warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/manage-sleep-timeout)
+> - [About Streamlit in Snowflake - WebSocket timeout](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#websocket-timeout)
+
+- **デフォルト約 15 分の WebSocket 切断（WebSocket Timeout）**：
+  ユーザーがブラウザで Streamlit アプリを開くと、フロントエンドと Snowflake バックエンド間で WebSocket 双方向通信が確立されます。**アカウントレベル（Account-level）**では、デフォルトで**約 15 分間の非アクティブ状態でタイムアウト**するように設定されています。15 分間有効な操作がない場合、WebSocket 接続はサーバー側で自動切断され、Streamlit アプリは**一時停止/スリープ（Suspend/Sleep）**状態へ移行します。
+- **アクティビティ判定（マウスの移動で即時リセット）**：
+  公式ドキュメントに明記されている通り、ユーザーがアプリ画面上で**マウスを移動（Mouse movement over the app）**させるだけでアクティブ状態と判定され、**15 分のタイマーが自動的にリセット**されます。
+- **ブラウザバックグラウンドタブのスロットリング**：
+  アプリを開いたタブが背面に回ると、モダンブラウザ（Chrome, Edge）の省電力機能によりバックグラウンドのタイマーが一時停止・遅延され、探活信号が途切れるため、バックグラウンドでは 15 分タイムアウトによる切断が迅速に発動します。
+- **アプリごとのカスタムスリープタイマー (`.streamlit/config.toml`)**：
+  ウェアハウスランタイムを使用するアプリでは、サポートに連絡することなく、Stage のアプリルートディレクトリに `.streamlit/config.toml` を配置することで、スリープまでの時間を **5分 〜 240分（最長4時間）** の間で独自に設定可能です：
+  ```toml
+  [snowflake.sleep]
+  streamlitSleepTimeoutMinutes = 15  # 5 〜 240 分の間で指定可能
+  ```
+  *(注：アカウント全体のデフォルト 15 分 WebSocket タイムアウトを変更したい場合は、Snowflake サポートへの申請が必要です)*。
+
+#### 4. コスト爆発を防ぐ 5 つの安全ロック（The 5 Anti-Burn Safety Locks）
+快適な開発と確実なコスト管理を両立するため、以下の 5 重防護を必ず実施します：
 1. **60秒自動サスペンドの徹底**：ウェアハウスに `AUTO_SUSPEND = 60` を強制設定（クエリ停止後 1 分で即時休止）；
 2. **関数レベルの強力メモリキャッシュ**：DWH からデータを取得する全関数に `@st.cache_data(ttl=600)`（10分キャッシュ）を付与。テーブル切り替えやドロップダウン操作時にメモリからミリ秒で応答させ、**DWH への多重 SQL クエリを完全に遮断**；
 3. **厳格なクエリ件数制限**：データプレビューには必ず `LIMIT 50` を付与し、数千万行のフルスキャンを防止；
-4. **ブラウザタブの確実なクローズと手動サスペンド**：作業完了後はタブを閉じ、必要に応じて `ALTER WAREHOUSE <wh> SUSPEND;` を実行。
+4. **アプリ固有のスリープタイマー設定**：`.streamlit/config.toml` で `streamlitSleepTimeoutMinutes = 15` を設定し、公式の 15 分安全機構と連動；
+5. **ブラウザタブの確実なクローズと手動サスペンド**：作業完了後はタブを閉じ、必要に応じて `ALTER WAREHOUSE <wh> SUSPEND;` を実行。
 
 ---
 
@@ -136,6 +158,7 @@ flowchart TD
 | `st.selectbox()` | `st.selectbox("分類選択", options=['All', 'A', 'B'])` | 多角的ドリルダウン | **対話型ドロップダウン**：選択変更時にアプリをリアクティブに再描画。 |
 | `st.line_chart()` | `st.line_chart(df.set_index('DATE')['REVENUE'])` | インデックスに日付を設定 | **トレンド折れ線グラフ**：Altair ベースの高品質な時系列グラフを描画。 |
 | `st.dataframe()` | `st.dataframe(df, use_container_width=True)` | 幅 100% 設定推奨 | **対話型テーブル**：列のソート、テキスト検索、CSV ダウンロード機能付き表。 |
+| `streamlitSleepTimeoutMinutes` | `[snowflake.sleep]` 設定 | 推奨値 `15`（範囲 5〜240） | **アプリ固有スリープタイマー**：`.streamlit/config.toml` 内で無操作時のアプリ自動サスペンド時間を制御。WebSocket 15分タイムアウトと連動。 |
 
 ---
 
@@ -558,12 +581,21 @@ st.info("💡 **課金防護セーフガード**：全てのメタデータお�
 - **根本原因**：
   Streamlit in Snowflake は、ブラウザとコンテナ間の **WebSocket 常時接続（ハートビート）** によって画面状態を維持します。  
   ブラウザタブが開いたままの場合、フロントエンドから定期的な探活パケットが送信され続けるため、Warehouse 側は「アクティブなセッションが継続中」と判定し、**`AUTO_SUSPEND` のタイマーがリセットされ続けてスリープに入りません**。
-- **本番運用＆学習時の 2 大防御策**：
-  1. **動作確認後は必ずブラウザタブを閉じ、手動サスペンドを実行**：
+- **本番運用＆学習時の 3 段階の防御策**：
+  1. **プラットフォームの安全ネット：デフォルト約 15 分の自動切断（WebSocket Timeout）**：
+     Snowflake はアカウントレベルで **15 分間の非アクティブタイムアウト** を標準装備しています。15 分間マウス移動等の操作がない場合、接続は強制切断され、アプリは自動スリープ（Suspend）します。
+     > ⚠️ **注意**：ユーザーが画面上でマウスを動かしている間は、15 分のタイマーが自動リセットされ続けます。
+  2. **アプリ固有の設定：`.streamlit/config.toml` によるカスタムスリープタイマー**：
+     Stage のアプリルートに `.streamlit/config.toml` を作成し、スリープ時間を明示的に指定します（推奨 15 分、設定可能範囲 5〜240 分）：
+     ```toml
+     [snowflake.sleep]
+     streamlitSleepTimeoutMinutes = 15
+     ```
+  3. **動作確認後は必ずブラウザタブを閉じ、手動サスペンドを実行**：
      ```sql
      ALTER WAREHOUSE COMPUTE_WH SUSPEND;
      ```
-  2. **リソースモニター（Resource Monitor）による強制サーキットブレーカーの配備**：
+  4. **リソースモニター（Resource Monitor）による強制サーキットブレーカーの配備**：
      Streamlit 専任ウェアハウスに対して上限クォータを設定し、閾値到達時に自動サスペンドさせることで、想定外の課金を確実に防止します：
      ```sql
      CREATE OR REPLACE RESOURCE MONITOR STREAMLIT_COST_GUARD
