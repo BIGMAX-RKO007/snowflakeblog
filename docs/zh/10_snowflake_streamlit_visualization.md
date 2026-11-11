@@ -339,7 +339,7 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 > └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
 > ```
 
-在 Snowflake Snowsight 控制台中，直接点击左侧菜单栏 **`Projects -> Streamlit`**，进入已发布看板列表：
+在 Snowflake Snowsight 控制台中，通过左侧菜单栏 **「ワークスペース (Workspaces)」 -> 「Streamlit」**（或直接访问 `#/streamlit-apps`）进入已发布看板列表：
 
 ![Snowflake Snowsight Streamlit 应用列表](../images/10_step_03_streamlit_app_list.png)
 
@@ -353,11 +353,22 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 在很多业务分析或敏捷验证场景中，我们不希望每次都通过终端写命令行或执行 `PUT`。分析师希望**直接在 Snowsight 网页上点选创建应用，并动态扫描数仓内任意 Database / Schema 下的全部数据表，点击表名即可触发数据查询与元数据探查**！
 
-#### Step 4.B1: 基于 Snowsight Web 页面配置创建 Streamlit 应用
+#### Step 4.B1: 基于 Snowsight Web 页面导航与创建 Streamlit 应用
 
-1. 登录 Snowsight 网页控制台，点击左侧导航栏 **`Projects -> Streamlit`**；
-2. 点击右上角蓝色 **`+ Streamlit App`** 按钮；
-3. 在弹出的创建窗口中完成核心参数配置：
+1. **精准定位 Streamlit 导航入口（Snowflake 界面精准导航）**：
+   登录 Snowsight 网页控制台（首页 `ホーム / Home`），进入 Streamlit 资产管理界面有两种标准入口：
+   - **路径一（侧边栏主菜单导航，推荐）**：在左侧「データを扱う (Data)」区域中，将鼠标移动至 **「ワークスペース (Workspaces)」**，在弹出的右侧浮层子菜单中直接点击 **「Streamlit」**（页面对应直接 URL 路径为 `#/streamlit-apps`）；
+   - **路径二（首页项目快速切换）**：在首页下方项目列表的标签页中，直接点击 **「Streamlits」** 选项卡，即可列出已存在的看板资产（如之前创建好的 `SCHEMA_TABLE_INSPECTOR`）。
+
+> **Snowsight 控制台真实导航路径与操作标注截图**：
+>
+> 如下真实控制台截图所示，红框清晰标出了左侧「ワークスペース (Workspaces)」悬浮唤出「Streamlit」的准确位置，杜绝传统旧文档中模糊过时的路径误导：
+>
+> ![Snowsight 控制台导航：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
+
+2. **新建 Streamlit 应用对象**：
+   进入 Streamlit 管理页面后，点击右上角蓝色 **`+ Streamlit App`** 按钮；
+3. **在弹出的创建窗口中完成核心参数配置**：
    - **App Name**：填写 `SCHEMA_TABLE_INSPECTOR`
    - **App location**：Database 选择 `DEV_DEMO_DB`，Schema 选择 `API_INTEGRATION`
    - **Warehouse**：选择 `COMPUTE_WH`（建议确认已配置 `AUTO_SUSPEND = 60` 秒）

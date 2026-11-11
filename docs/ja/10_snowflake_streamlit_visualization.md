@@ -335,7 +335,7 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 > └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
 > ```
 
-Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`** をクリックすると、一覧に登録された **`DEV_DEMO_DASHBOARD`** が確認できます：
+Snowflake Snowsight 管理画面で左メニューの **「ワークスペース (Workspaces)」 -> 「Streamlit」**（または `#/streamlit-apps`）をクリックすると、一覧に登録された **`DEV_DEMO_DASHBOARD`** が確認できます：
 
 ![Snowflake Streamlit アプリ一覧](../images/10_step_03_streamlit_app_list.png)
 
@@ -349,11 +349,22 @@ Snowflake Snowsight 管理画面で左メニューの **`Projects -> Streamlit`*
 
 分析業務や PoC においては、ターミナルを開いたり `PUT` コマンドを打つことなく、**Snowsight の Web 画面上だけで素早くアプリを作成し、指定した Database / Schema 内の全テーブルを自動スキャンして、クリックしたテーブルのメタデータとサンプル行を即座に探査したい**というニーズが数多く存在します。
 
-#### Step 4.B1: Snowsight Web 画面からの Streamlit アプリ作成設定
+#### Step 4.B1: Snowsight Web 画面からの Streamlit ナビゲーションとアプリ作成
 
-1. Snowsight Web 管理画面にログインし、左側メニューの **`Projects -> Streamlit`** を選択；
-2. 画面右上の青色ボタン **`+ Streamlit App`** をクリック；
-3. ポップアップ画面で基本設定を入力します：
+1. **Streamlit 画面への正確なナビゲーション（最新 Snowsight UI 対応）**：
+   Snowsight 管理コンソール（ホーム画面 `ホーム / Home`）から Streamlit 資産管理画面へアクセスするには、以下の 2 つのルートがあります：
+   - **ルート 1（サイドバーメニュー、推奨）**：左側「データを扱う」セクションの **「ワークスペース (Workspaces)」** にマウスを合わせ、展開されたサブメニューから **「Streamlit」** をクリック（URL パスは `#/streamlit-apps`）；
+   - **ルート 2（ホームプロジェクトタブ）**：ホーム画面下部のプロジェクト一覧で **「Streamlits」** タブをクリックし、既存のアプリ資産（`SCHEMA_TABLE_INSPECTOR` 等）を直接確認。
+
+> **Snowsight コンソール実機ナビゲーション画面（赤枠ハイライト）**：
+>
+> 以下の実機キャプチャの通り、左側「ワークスペース」ホバーから「Streamlit」を選択する正確な位置を赤枠で明示しています（旧 UI ドキュメントの曖昧な表記を排除）：
+>
+> ![Snowsight コンソールナビゲーション：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
+
+2. **新規 Streamlit アプリの作成**：
+   Streamlit 管理画面へ遷移後、右上の青色ボタン **`+ Streamlit App`** をクリック；
+3. **ポップアップ画面で基本設定を入力します**：
    - **App Name**：`SCHEMA_TABLE_INSPECTOR`
    - **App location**：Database に `DEV_DEMO_DB`、Schema に `API_INTEGRATION` を指定
    - **Warehouse**：`COMPUTE_WH`（`AUTO_SUSPEND = 60` 秒設定済みであることを推奨）
