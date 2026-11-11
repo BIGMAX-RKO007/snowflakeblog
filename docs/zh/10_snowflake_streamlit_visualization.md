@@ -378,20 +378,47 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 | **路径 ②：点击下拉项 `ウェアハウスで作成 (レガシー)`<br/>*(Create in Warehouse - Legacy)*<br/>**⭐ 本章推荐实操路径** | **经典数仓弹窗模式**：弹出完整的配置对话框（Modal Dialog），强制要求输入应用名称、指定目标数据库/Schema 并绑定虚拟计算仓库（`COMPUTE_WH`）。<br/><br/>**为什么标注为“レガシー (Legacy)”？**<br/>Snowflake 最新推出了基于容器服务（SPCS）的 Container Runtime，因此传统的纯虚拟数仓单机虚拟机运行模式被划为“经典/传统模式”。但在中小型 BI、日常看板和 SQL 探查场景下，该模式成本最低（X-Small 仅 1 Credit/h）且支持秒级休眠，**是目前最为稳健和推荐的生产方式**！ | **优点**：配置严格，位置绝不偏差，与本章教学 100% 契合。<br/>**缺点**：不支持依赖特殊 C 扩展的重型深度学习容器。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
 | **路径 ③：点击下拉项 `リポジトリから作成`<br/>*(Create from Repository)* | **Git 集成工程化模式**：弹出 Git 仓库绑定向导，直接连接到 Snowflake 中已建立的 Git Repository 对象（GitHub / GitLab / Azure DevOps），选取特定代码分支与主入口 `.py` 脚本文件。 | **优点**：代码即基础设施，无缝融入企业 Git CI/CD 自动发布流程，原生支持多文件（Multi-file）大型复杂应用。<br/>**缺点**：需要预先在 Snowflake 中配置 Git API Integration 凭据。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git Integration 官方文档](https://docs.snowflake.com/en/developer-guide/git/git-overview) |
 
-3. **进入创建弹窗并完成核心参数配置（本教程推荐选择路径 ②：`ウェアハウスで作成 (レガシー)`）**：
-   - 点击下拉小箭头，选择 **`ウェアハウスで作成 (レガシー)`**；
-   - 在弹出的配置窗口中填写：
-     - **App Name**：填写 `SCHEMA_TABLE_INSPECTOR`
-     - **App location**：Database 选择 `DEV_DEMO_DB`，Schema 选择 `API_INTEGRATION`
-     - **Warehouse**：选择 `COMPUTE_WH`（建议确认已配置 `AUTO_SUSPEND = 60` 秒）
-   - 点击右下角 **`Create`** 创建应用对象，系统即刻在数仓内初始化并进入代码编辑页面。
-   *(注：如果您刚才直接点击了主按钮进入了编辑器，无需慌张，在在线编辑器顶部的标题旁点击设置小图标，同样可以将 Database、Schema 和 Warehouse 调整为上述目标配置)*。
+3. **进入创建弹窗并完成核心参数配置（经典数仓模式实操全流程）**：
+   - 点击下拉小箭头，选择 **`ウェアハウスで作成 (レガシー)`**：
+     
+     ![选择下拉菜单：ウェアハウスで作成 (レガシー)](../images/10_step_03_gui_select_warehouse_legacy.png)
 
-> **Snowsight Web 页面配置与创建弹窗实测截图**：
->
-> 弹窗直观展现了应用名称、运行仓库以及应用所属的数据库与模式位置，点击 Create 即在当前数仓内即时初始化 Python 运行环境：
->
-> ![Snowsight Web 页面配置创建 Streamlit 弹窗](../images/10_step_04_gui_create_streamlit.png)
+   - 在弹出的正式创建窗口中，我们可以清晰地配置 3 大核心属性：
+     - **アプリタイトル (App Name)**：填写应用标题（如 `SCHEMA_TABLE_INSPECTOR` 或实测命名 `FANXIAO 2026-11-11 8:25pm`）；
+     - **アプリの場所 (App location)**：精确指定物理所属的数据库与模式（如 `AIRBNB` $\rightarrow$ `DEV`，或 `DEV_DEMO_DB` $\rightarrow$ `API_INTEGRATION`）；
+     - **アプリウェアハウス (Warehouse)**：指定用于执行 SQL 与渲染的计算仓库（如 `COMPUTE_WH`）；
+     
+     ![Snowsight 经典数仓 Streamlit 创建弹窗](../images/10_step_03_gui_modal_warehouse_create.png)
+
+   - 点击右下角蓝色 **`作成 (Create)`** 按钮，系统即刻在指定的数据库 Schema 下创建持久化的 Streamlit 实体对象，并打开经典代码编辑器：
+     
+     ![经典数仓模式代码编辑器实景（左侧文件/数据库双标签、environment.yml 与 v1.52.2 预览）](../images/10_step_03_gui_legacy_editor_live.png)
+
+   - 返回 Streamlit 应用资产列表，可以清楚地看到刚创建的应用其「場所」实打实地显示为 **`AIRBNB.DEV`**，所有具备该模式权限的账号均可协同访问：
+     
+     ![Streamlit 资产列表中显示物理落盘位置为 AIRBNB.DEV](../images/10_step_03_gui_app_list_created.png)
+
+---
+
+##### 4. 深度技术解惑：为什么直接点击创建 vs 下拉「ウェアハウスで作成」感觉截然不同？
+
+很多工程师在实际操作时都会产生强烈的直觉疑惑：**“直接点击主按钮跳过去感觉轻飘飘的不像真的在创建，而通过下拉菜单弹窗配置后，才感觉实打实地在创建应用，这背后的底层机理究竟有什么不同？”**
+
+这绝非心理错觉，而是 Snowflake 内部两套截然不同的**对象模型与运行时架构**：
+
+| 深度对比维度 | 方式 A：直接点击主按钮 `+ Streamlit アプリ`<br/>*(现代工作区草稿应用)* | 方式 B：下拉点击 `ウェアハウスで作成 (レガシー)`<br/>*(数仓第一公民对象 · **⭐ 本章重点**)* |
+| :--- | :--- | :--- |
+| **物理存储位置** | **「自分のワークスペース」 (My Workspace)**<br/>保存在用户的个人工作区私有暂存空间中，未绑定具体数据库。 | **`AIRBNB.DEV`（具体 Database.Schema）**<br/>真正落盘在数据库目录树中，作为物理资产永久保存。 |
+| **对象底层本质** | **临时草稿对象（Draft Workspace Asset）**：<br/>为了追求“零门槛即点即试”，隐式绕过了库、表、算力的选定，给了一个临时名字 `無題`。尚未成为持久化的 Schema 级对象。 | **数仓第一公民对象（First-Class Database Object）**：<br/>真正调用了 `CREATE STREAMLIT <db>.<schema>.<name>` DDL，具有严格的 RBAC 归属与审计跟踪。 |
+| **项目目录树构成** | **现代工程化 4 件套**：<br/>`streamlit_app.py`<br/>`snowflake.yml` (CLI v2)<br/>`pyproject.toml` (uv 包管理)<br/>`.streamlit/config.toml` | **经典数仓轻量 2 件套**：<br/>`streamlit_app.py`<br/>`environment.yml` (Conda 包管理)<br/>*（无冗余配置，纯净极简）* |
+| **侧边栏辅助功能** | 纯项目工程文件树，无法直观浏览数仓表格。 | **「ファイル (Files)」+「データベース (Databases)」双标签**：可在写 Python 代码时随时折叠展开数仓底表，直接查看字段名！ |
+| **Streamlit 运行时版本** | **最新激进版（如 v1.66.1）** | **稳健基线版（如 v1.52.2）** |
+| **仓内会话获取代码** | `conn = st.connection("snowflake")`<br/>`session = conn.session()` | `from snowflake.snowpark.context import get_active_session`<br/>`session = get_active_session()` *(经典免密标准)* |
+| **协作与可发现性** | 默认仅创建者自己在个人工作区可见，其他同事看不到。 | 列表清晰显示 `AIRBNB.DEV`，全企业具备权限的人均可在对应 Schema 下检索并调用。 |
+
+> 💡 **架构师选型建议**：
+> - 如果只是**个人临时草稿、算法工程师快速验证一段数据绘图脚本**，直接点主按钮最快；
+> - 如果是**面向企业交付的数据仪表盘、生产级报表、团队共享的探查工具**，必须坚决选择 **`ウェアハウスで作成 (レガシー)`**，将应用锚定在企业级数仓的物理 Database 与 Schema 之下！
 
 ---
 

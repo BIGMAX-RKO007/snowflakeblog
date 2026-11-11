@@ -374,20 +374,47 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 | **パターン ②：ドロップダウン `ウェアハウスで作成 (レガシー)` を選択<br/>*(Create in Warehouse - Legacy)*<br/>**⭐ 本チュートリアルの推奨パス** | **クラシック設定ダイアログモード**：設定ポップアップが必ず表示され、アプリ名、配置先データベース・スキーマ、およびクエリウェアハウス（`COMPUTE_WH`）を明示的に指定します。<br/><br/>**なぜ「レガシー (Legacy)」と表記されているのか？**<br/>Snowflake では現在、Snowpark Container Services (SPCS) をベースとした「コンテナランタイム (Container Runtime)」が新たに導入されたため、従来の仮想ウェアハウス（Virtual Warehouse）単体で動かす実行モデルが「レガシー（従来方式）」と位置づけられています。しかし、一般的な BI 画面や SQL 探査においては、コストが最小（X-Small で 1 クレジット/時）で自動サスペンドが確実な**本方式が最も堅牢かつ経済的であり、本章で推奨する標準パスです**！ | **メリット**：保存先とコンピュートを確実に指定でき、誤配置を完全に防止。<br/>**デメリット**：特殊な C 拡張や重厚な深層学習コンテナには非対応。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
 | **パターン ③：ドロップダウン `リポジトリから作成` を選択<br/>*(Create from Repository)* | **Git 連携エンタープライズ CI/CD モード**：Git リポジトリ設定ウィザードが開き、Snowflake 内に登録済みの Git Repository オブジェクト（GitHub / GitLab / Azure DevOps）からブランチとエントリーポイントとなる `.py` を直接指定します。 | **メリット**：コードが Git で一元管理され、自動デプロイが容易。複数ファイル（Multi-file）構成の本格的アプリを標準サポート。<br/>**デメリット**：事前に Snowflake 側で Git 連携シークレットとリポジトリ定義が必要。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git 連携の概要](https://docs.snowflake.com/ja/developer-guide/git/git-overview) |
 
-3. **作成ポップアップでのパラメータ入力（本章ではパターン ②：`ウェアハウスで作成 (レガシー)` を選択）**：
-   - ドロップダウン矢印をクリックし、**`ウェアハウスで作成 (レガシー)`** を選択；
-   - ポップアップ画面で以下を設定します：
-     - **App Name**：`SCHEMA_TABLE_INSPECTOR`
-     - **App location**：Database に `DEV_DEMO_DB`、Schema に `API_INTEGRATION` を指定
-     - **Warehouse**：`COMPUTE_WH`（`AUTO_SUSPEND = 60` 秒設定済みであることを推奨）
-   - 右下の **`Create`** をクリックすると、DWH 内に環境がプロビジョニングされ、オンラインエディタが開きます。  
-   *(注：メインボタンを直接クリックしてエディタに遷移してしまった場合でも、エディタ上部の設定アイコンから Database、Schema、Warehouse を上記の内容に後から変更可能です)*。
+3. **作成ポップアップでのパラメータ入力（クラシックウェアハウスモードの実機全手順）**：
+   - ドロップダウン矢印をクリックし、**`ウェアハウスで作成 (レガシー)`** を選択します：
+     
+     ![ドロップダウンから「ウェアハウスで作成 (レガシー)」を選択](../images/10_step_03_gui_select_warehouse_legacy.png)
 
-> **Snowsight Web 画面による Streamlit 作成ポップアップ実測スクリーンショット**：
->
-> アプリ名、実行ウェアハウス、配置先データベースおよびスキーマを直感的に選択でき、Create を押すだけで Python 実行環境が DWH 内に即時初期化されます：
->
-> ![Snowsight Web 画面による Streamlit 作成ポップアップ](../images/10_step_04_gui_create_streamlit.png)
+   - 表示された正式な作成ダイアログで、以下の 3 大コア属性を指定します：
+     - **アプリタイトル (App Title)**：アプリ名称を入力（例: `SCHEMA_TABLE_INSPECTOR`、実測例: `FANXIAO 2026-11-11 8:25pm`）；
+     - **アプリの場所 (App location)**：物理的な格納先 Database と Schema（例: `AIRBNB` $\rightarrow$ `DEV`、または `DEV_DEMO_DB` $\rightarrow$ `API_INTEGRATION`）；
+     - **アプリウェアハウス (Warehouse)**：実行と描画を担当するコンピュートリソース（例: `COMPUTE_WH`）；
+     
+     ![Snowsight ウェアハウス Streamlit 作成ダイアログ](../images/10_step_03_gui_modal_warehouse_create.png)
+
+   - 右下の青色ボタン **`作成 (Create)`** をクリックすると、指定したスキーマ配下に永続化された Streamlit 実体オブジェクトが作成され、クラシックエディタが開きます：
+     
+     ![クラシックウェアハウスモードのエディタ実機画面（左側ファイル/DBツリー・environment.yml・v1.52.2表示）](../images/10_step_03_gui_legacy_editor_live.png)
+
+   - Streamlit アプリ一覧画面に戻ると、作成されたアプリの「場所」に **`AIRBNB.DEV`** が明確に記録されていることが確認できます：
+     
+     ![Streamlit アプリ一覧で物理配置場所が AIRBNB.DEV と明示されている様子](../images/10_step_03_gui_app_list_created.png)
+
+---
+
+##### 4. 技術的深層解明：なぜ直接クリックとドロップダウン作成で「作成の実感」が全く異なるのか？
+
+多くのエンジニアが実機で操作した際に直感的な疑問を抱きます：**「メインボタンを直接クリックしたときは仮設のような軽さを感じ、ドロップダウンから作成したときは『本当に正規のアプリを作った』という手応えを感じる。この裏側にあるアーキテクチャの違いは何なのか？」**
+
+これは単なる UI の違いではなく、Snowflake 内部における**オブジェクトモデルとライフサイクル管理の根本的な差異**に起因します：
+
+| 比較評価軸 | パターン A：`+ Streamlit アプリ` 直接クリック<br/>*(モダンワークスペース・ドラフトアプリ)* | パターン B：`ウェアハウスで作成 (レガシー)`<br/>*(DWH ファーストクラス物理オブジェクト · **⭐ 本章推奨**)* |
+| :--- | :--- | :--- |
+| **物理的な格納場所** | **「自分のワークスペース」 (My Workspace)**<br/>ユーザー個人のプライベートな一時領域に配置され、特定の DB に紐付いていません。 | **`AIRBNB.DEV`（具体的な Database.Schema）**<br/>データベースカタログツリー内に物理的なスキーマオブジェクトとして永続化されます。 |
+| **オブジェクトの正体** | **ドラフトアセット（Draft Workspace Asset）**：<br/>「手軽に即座に試す」体験を優先し、DB・スキーマ・ウェアハウスの明示選択をバイパス。名前も `無題` となり、正式なスキーマオブジェクトとしては未固定。 | **ファーストクラス DB オブジェクト（First-Class Database Object）**：<br/>内部で `CREATE STREAMLIT <db>.<schema>.<name>` DDL が正式発行され、厳格な RBAC 所有権と監査ログが付与されます。 |
+| **プロジェクトファイル構成** | **最新モダン 4 点セット**：<br/>`streamlit_app.py`<br/>`snowflake.yml` (CLI v2)<br/>`pyproject.toml` (uv パッケージ管理)<br/>`.streamlit/config.toml` | **クラシック軽量 2 点セット**：<br/>`streamlit_app.py`<br/>`environment.yml` (Conda パッケージ管理)<br/>*（余計なファイルがなくシンプル・堅牢）* |
+| **サイドバー支援機能** | プロジェクトファイルツリーのみ。DB テーブルの直感的な参照は不可。 | **「ファイル (Files)」＋「データベース (Databases)」デュアルタブ**：コードを書きながら DWH 内のテーブル一覧やカラム名を即座に展開・確認可能！ |
+| **Streamlit ランタイム版数** | **最新アグレッシブ版（例: v1.66.1）** | **長期安定基線版（例: v1.52.2）** |
+| **セッション取得コード** | `conn = st.connection("snowflake")`<br/>`session = conn.session()` | `from snowflake.snowpark.context import get_active_session`<br/>`session = get_active_session()` *(実績豊富な標準コード)* |
+| **共有・ガバナンス性** | デフォルトでは作成者本人のワークスペースでのみ参照可能。 | 一覧で `AIRBNB.DEV` と明示され、権限を持つチームメンバー全員がカタログから発見・共同利用可能。 |
+
+> 💡 **アーキテクトによる選定指針**：
+> - **個人の一時的な実験、Python 描画のクイックな PoC** $\rightarrow$ メインボタンを直接クリック（最速）；
+> - **企業本番へ納品するダッシュボード、チーム共有の探査ツール、CI/CD 運用資産** $\rightarrow$ 必ず **`ウェアハウスで作成 (レガシー)`** を選択し、企業 DWH の Database / Schema 配下に物理配置する！
 
 ---
 
