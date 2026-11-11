@@ -366,13 +366,26 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 >
 > ![Snowsight 控制台导航：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
 
-2. **新建 Streamlit 应用对象**：
-   进入 Streamlit 管理页面后，点击右上角蓝色 **`+ Streamlit App`** 按钮；
-3. **在弹出的创建窗口中完成核心参数配置**：
-   - **App Name**：填写 `SCHEMA_TABLE_INSPECTOR`
-   - **App location**：Database 选择 `DEV_DEMO_DB`，Schema 选择 `API_INTEGRATION`
-   - **Warehouse**：选择 `COMPUTE_WH`（建议确认已配置 `AUTO_SUSPEND = 60` 秒）
-4. 点击右下角 **`Create`** 创建应用对象。
+2. **创建方式深度调查：主按钮直接点击 vs 下拉双选项（机制全解剖与选型对比）**：
+
+在 Streamlit 管理页面右上角，我们可以看到一个蓝色的主按钮 **`+ Streamlit アプリ`**，旁边附带一个下拉三角箭头。针对您提出的操作差异，底层存在 3 种完全不同的创建逻辑：
+
+![Streamlit 创建按钮与下拉创建选项（ウェアハウスで作成 vs リポジトリから作成）](../images/10_step_03_gui_create_dropdown_options.png)
+
+| 创建交互路径 | 触发行为与底层工作机理 | 适用场景与优缺点分析 | 官方权威参考文档 |
+| :--- | :--- | :--- | :--- |
+| **路径 ①：直接点击 `+ Streamlit アプリ` 主按钮** | **极速草稿模式**：跳过弹窗配置，系统以当前用户的默认上下文（Default DB / Schema / Warehouse）直接新建应用草稿，并**直接跳转到在线代码编辑页面**。 | **优点**：即点即写，适合临时原型验证。<br/>**缺点**：若当前默认数据库不是目标 Schema，容易把应用建错位置，需在编辑器顶部重新核对上下文。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight) |
+| **路径 ②：点击下拉项 `ウェアハウスで作成 (レガシー)`<br/>*(Create in Warehouse - Legacy)*<br/>**⭐ 本章推荐实操路径** | **经典数仓弹窗模式**：弹出完整的配置对话框（Modal Dialog），强制要求输入应用名称、指定目标数据库/Schema 并绑定虚拟计算仓库（`COMPUTE_WH`）。<br/><br/>**为什么标注为“レガシー (Legacy)”？**<br/>Snowflake 最新推出了基于容器服务（SPCS）的 Container Runtime，因此传统的纯虚拟数仓单机虚拟机运行模式被划为“经典/传统模式”。但在中小型 BI、日常看板和 SQL 探查场景下，该模式成本最低（X-Small 仅 1 Credit/h）且支持秒级休眠，**是目前最为稳健和推荐的生产方式**！ | **优点**：配置严格，位置绝不偏差，与本章教学 100% 契合。<br/>**缺点**：不支持依赖特殊 C 扩展的重型深度学习容器。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
+| **路径 ③：点击下拉项 `リポジトリから作成`<br/>*(Create from Repository)* | **Git 集成工程化模式**：弹出 Git 仓库绑定向导，直接连接到 Snowflake 中已建立的 Git Repository 对象（GitHub / GitLab / Azure DevOps），选取特定代码分支与主入口 `.py` 脚本文件。 | **优点**：代码即基础设施，无缝融入企业 Git CI/CD 自动发布流程，原生支持多文件（Multi-file）大型复杂应用。<br/>**缺点**：需要预先在 Snowflake 中配置 Git API Integration 凭据。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git Integration 官方文档](https://docs.snowflake.com/en/developer-guide/git/git-overview) |
+
+3. **进入创建弹窗并完成核心参数配置（本教程推荐选择路径 ②：`ウェアハウスで作成 (レガシー)`）**：
+   - 点击下拉小箭头，选择 **`ウェアハウスで作成 (レガシー)`**；
+   - 在弹出的配置窗口中填写：
+     - **App Name**：填写 `SCHEMA_TABLE_INSPECTOR`
+     - **App location**：Database 选择 `DEV_DEMO_DB`，Schema 选择 `API_INTEGRATION`
+     - **Warehouse**：选择 `COMPUTE_WH`（建议确认已配置 `AUTO_SUSPEND = 60` 秒）
+   - 点击右下角 **`Create`** 创建应用对象，系统即刻在数仓内初始化并进入代码编辑页面。
+   *(注：如果您刚才直接点击了主按钮进入了编辑器，无需慌张，在在线编辑器顶部的标题旁点击设置小图标，同样可以将 Database、Schema 和 Warehouse 调整为上述目标配置)*。
 
 > **Snowsight Web 页面配置与创建弹窗实测截图**：
 >

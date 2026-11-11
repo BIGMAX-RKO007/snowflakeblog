@@ -362,13 +362,26 @@ Snowflake Snowsight 管理画面で左メニューの **「ワークスペース
 >
 > ![Snowsight コンソールナビゲーション：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
 
-2. **新規 Streamlit アプリの作成**：
-   Streamlit 管理画面へ遷移後、右上の青色ボタン **`+ Streamlit App`** をクリック；
-3. **ポップアップ画面で基本設定を入力します**：
-   - **App Name**：`SCHEMA_TABLE_INSPECTOR`
-   - **App location**：Database に `DEV_DEMO_DB`、Schema に `API_INTEGRATION` を指定
-   - **Warehouse**：`COMPUTE_WH`（`AUTO_SUSPEND = 60` 秒設定済みであることを推奨）
-4. 右下の **`Create`** をクリックして作成を完了します。
+2. **作成方式の技術調査：メインボタンの直接クリック vs ドロップダウン2大オプション（3パターンの完全解剖）**：
+
+Streamlit 管理画面の右上には、青色のメインボタン **`+ Streamlit アプリ`** と、その横に下向きの三角ドロップダウンアイコンが配置されています。この挙動の違いには、以下の 3 種類の異なるアーキテクチャが関わっています：
+
+![Streamlit 作成ボタンとドロップダウン作成オプション（ウェアハウスで作成 vs リポジトリから作成）](../images/10_step_03_gui_create_dropdown_options.png)
+
+| 作成アプローチ | トリガーされる挙動と内部メカニズム | 適用シナリオ・メリット・デメリット | 公式ドキュメントリファレンス |
+| :--- | :--- | :--- | :--- |
+| **パターン ①：`+ Streamlit アプリ` メインボタンを直接クリック** | **クイックドラフトモード**：設定ポップアップをスキップし、現在ログイン中のユーザーのデフォルトコンテキスト（Default DB / Schema / Warehouse）を使用して**即座にオンラインコードエディタ画面へ遷移**します。 | **メリット**：1クリックで最速でコード執筆を開始可能。<br/>**デメリット**：意図しないデフォルト DB/スキーマに作成されるリスクがあり、後からエディタ上部でコンテキストの確認・修正が必要。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight) |
+| **パターン ②：ドロップダウン `ウェアハウスで作成 (レガシー)` を選択<br/>*(Create in Warehouse - Legacy)*<br/>**⭐ 本チュートリアルの推奨パス** | **クラシック設定ダイアログモード**：設定ポップアップが必ず表示され、アプリ名、配置先データベース・スキーマ、およびクエリウェアハウス（`COMPUTE_WH`）を明示的に指定します。<br/><br/>**なぜ「レガシー (Legacy)」と表記されているのか？**<br/>Snowflake では現在、Snowpark Container Services (SPCS) をベースとした「コンテナランタイム (Container Runtime)」が新たに導入されたため、従来の仮想ウェアハウス（Virtual Warehouse）単体で動かす実行モデルが「レガシー（従来方式）」と位置づけられています。しかし、一般的な BI 画面や SQL 探査においては、コストが最小（X-Small で 1 クレジット/時）で自動サスペンドが確実な**本方式が最も堅牢かつ経済的であり、本章で推奨する標準パスです**！ | **メリット**：保存先とコンピュートを確実に指定でき、誤配置を完全に防止。<br/>**デメリット**：特殊な C 拡張や重厚な深層学習コンテナには非対応。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
+| **パターン ③：ドロップダウン `リポジトリから作成` を選択<br/>*(Create from Repository)* | **Git 連携エンタープライズ CI/CD モード**：Git リポジトリ設定ウィザードが開き、Snowflake 内に登録済みの Git Repository オブジェクト（GitHub / GitLab / Azure DevOps）からブランチとエントリーポイントとなる `.py` を直接指定します。 | **メリット**：コードが Git で一元管理され、自動デプロイが容易。複数ファイル（Multi-file）構成の本格的アプリを標準サポート。<br/>**デメリット**：事前に Snowflake 側で Git 連携シークレットとリポジトリ定義が必要。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git 連携の概要](https://docs.snowflake.com/ja/developer-guide/git/git-overview) |
+
+3. **作成ポップアップでのパラメータ入力（本章ではパターン ②：`ウェアハウスで作成 (レガシー)` を選択）**：
+   - ドロップダウン矢印をクリックし、**`ウェアハウスで作成 (レガシー)`** を選択；
+   - ポップアップ画面で以下を設定します：
+     - **App Name**：`SCHEMA_TABLE_INSPECTOR`
+     - **App location**：Database に `DEV_DEMO_DB`、Schema に `API_INTEGRATION` を指定
+     - **Warehouse**：`COMPUTE_WH`（`AUTO_SUSPEND = 60` 秒設定済みであることを推奨）
+   - 右下の **`Create`** をクリックすると、DWH 内に環境がプロビジョニングされ、オンラインエディタが開きます。  
+   *(注：メインボタンを直接クリックしてエディタに遷移してしまった場合でも、エディタ上部の設定アイコンから Database、Schema、Warehouse を上記の内容に後から変更可能です)*。
 
 > **Snowsight Web 画面による Streamlit 作成ポップアップ実測スクリーンショット**：
 >
