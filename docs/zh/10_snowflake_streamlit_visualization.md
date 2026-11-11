@@ -453,6 +453,72 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ---
 
+##### 6. 实操全过程复盘：从 Git 仓库选型到两类创建方式结果极其相似的底层奥秘
+
+在实际操作中，您通过下拉菜单第二项 **`リポジトリから作成 (Create from repository)`** 完整体验了从仓库定位到应用生成的全流程。以下我们将对照您实测截取的 6 张真机画面，彻底拆解这一过程，并解答最关键的架构疑问：**“为什么两个不同下拉选项创建出来的编辑器和预览界面如此相似？”**
+
+###### (1) 完整实操流程回溯与界面解析
+
+1. **步骤一：触发 Git 仓库文件绑定向导**：
+   在「Streamlitアプリを作成」弹窗中，可以看到输入框 **「リポジトリ内のファイルの場所 (Location of files in repository)」**，点击右侧的「メインファイルを選択」：
+   
+   ![点击「リポジトリ内のファイルの場所」中的メインファイルを選択](../images/10_step_03_gui_repo_modal_file_select.png)
+
+2. **步骤二：探查 Snowflake 数仓中的 Git 仓库实体**：
+   系统弹出子对话框 **「リポジトリのStreamlitを選択 (プレビュー)」**，提示 *“Gitリポジトリを含んでいるデータベースを選択するか新規Gitリポジトリに接続してください”*（请选择包含 Git 仓库的数据库或连接新的 Git 仓库）。在下拉列表中列出了账户内全部可访问的数据库（如 `AIRBNB`、`DEV_DEMO_DB`、`SNOWFLAKE` 等）：
+   
+   ![子弹窗提示选择包含 Git 仓库的数据库](../images/10_step_03_gui_repo_select_database.png)
+   
+   > 💡 **技术细节**：Snowflake 原生支持将 GitHub / GitLab 作为数据表同级的 Database 对象（通过 `CREATE GIT REPOSITORY` 命令）。由于当前各个数据库中尚未创建远程 Git 绑定对象，此处若未选取任何 Git 仓库文件，向导将允许跳过或退回主创建面板。
+
+3. **步骤三：精确指定应用的物理落盘位置 (アプリの場所)**：
+   在主弹窗的 **「アプリの場所 (App location)」** 区域，需要明确该应用注册在 Horizon Catalog 目录树中的物理 Database 与 Schema：
+   
+   ![主弹窗配置アプリの場所（选择目标数据库与模式）](../images/10_step_03_gui_repo_modal_app_location.png)
+   
+   点击「データベースを選択」下拉框，系统列出当前可用的业务数据库（如 `AIRBNB` 与 `DEV_DEMO_DB`）。实操中选择了 **`DEV_DEMO_DB`** 及其模式（如 `API_INTEGRATION`）：
+   
+   ![下拉菜单选择可用数据库 DEV_DEMO_DB](../images/10_step_03_gui_repo_app_location_db_list.png)
+
+4. **步骤四：运行时单选决定论（关键决策！）**：
+   在「Python環境」中，您将单选按钮保持或切换为 **「ウェアハウスで実行 (Run on Warehouse)」**，底层计算仓库选择 `COMPUTE_WH`，应用标题设定为 `FANXIAO 2026-11-11 8:37pm`，随后点击右下角 **`作成 (Create)`** 按钮！
+
+5. **步骤五：代码编辑器与预览界面成功加载**：
+   创建成功后，系统直接打开了熟悉的编辑器界面，左侧展示极简的两件套（`environment.yml` + `streamlit_app.py`），右侧预览区稳定运行着 Streamlit **v1.52.2** 示例看板：
+   
+   ![リポジトリから作成完成后生成的编辑器界面（v1.52.2 + environment.yml）](../images/10_step_03_gui_repo_created_editor_result.jpg)
+
+6. **步骤六：Streamlit 资产总表清晰对账**：
+   返回 Streamlit 应用管理列表，两款实操应用双双成功落盘并同屏展示：
+   
+   ![Streamlit 应用列表清晰显示两个应用及其物理位置](../images/10_step_03_gui_app_list_dual_created.png)
+   
+   - **应用 ①（8:25pm 创建）**：`FANXIAO 2026-11-11 8:25pm`，所属位置清晰显示为 **`AIRBNB.DEV`**；
+   - **应用 ②（8:37pm 创建）**：`FANXIAO 2026-11-11 8:37pm`，所属位置清晰显示为 **`DEV_DEMO_DB.API_INTEGRATION`**。
+
+---
+
+###### (2) 深度解惑：为什么两个下拉菜单最终创建出的结果如此相似？
+
+很多工程师在实测到这一步时都会产生极大的疑惑：**“既然点击的是不同的下拉菜单（一个是经典数仓，一个是仓库集成），为什么最终打开的编辑器、文件结构（`environment.yml`）和 Streamlit 版本（v1.52.2）看起来几乎一模一样？”**
+
+这背后的根本原因在于：**运行时环境（Python Runtime Engine）是决定应用物理形态和技术栈的唯一核心要素！**
+
+| 核心影响因子 | 路径 ②：`ウェアハウスで作成 (レガシー)` | 路径 ③：`リポジトリから作成`（实操选型） | 路径 ③（若选型为「コンテナで実行」） |
+| :--- | :--- | :--- | :--- |
+| **选择的 Python 环境** | **数仓运行时 (Warehouse)**<br/>*(由选项自身唯一定义)* | **数仓运行时 (Warehouse)**<br/>*(在右侧卡片中主动选定)* | **容器运行时 (Container)**<br/>*(若勾选左侧 SPCS 卡片)* |
+| **底层执行底座** | 虚拟计算仓库虚拟机 (VM) | 虚拟计算仓库虚拟机 (VM) | SPCS Docker 容器集群 (Pod) |
+| **Streamlit 引擎版本** | **v1.52.2 (长期稳定版)** | **v1.52.2 (长期稳定版)** | **v1.66+ (最新前沿版)** |
+| **依赖管理文件** | **`environment.yml` (Conda)** | **`environment.yml` (Conda)** | **`pyproject.toml` (uv/pip)** |
+| **文件树结构** | 极简 2 件套 (`app.py` + `env.yml`) | 极简 2 件套 (`app.py` + `env.yml`) | 现代 4 件套 (含 `snowflake.yml` 等) |
+| **侧边栏能力** | 文件树 + **数仓表结构探查器** | 文件树 + **数仓表结构探查器** | 纯项目工程文件树 |
+| **两者的唯一真实差异** | **源码存储介质**：<br/>代码存放在数仓内部 Stage 中，物理落盘于 `AIRBNB.DEV`。 | **源码存储介质**：<br/>设计为直接读取远端 Git 分支；未绑定有效 Git 时，代码落盘于 `DEV_DEMO_DB.API_INTEGRATION`。 | **全维度颠覆**：<br/>从依赖包、Streamlit 版本到常驻进程机制全方位不同。 |
+
+> 📌 **核心结论一句话总结**：
+> 两个下拉菜单并非两套不相干的系统，而是**同一技术栈的不同工程接入点**。因为您在「リポジトリから作成」中选用了 **「ウェアハウスで実行」**，Snowflake 就会将其分配给同一种数仓计算引擎（Warehouse Runtime v1.52.2）。这就是为什么两者最终在编辑器界面、依赖文件和渲染效果上完全趋同的底层秘密！
+
+---
+
 #### Step 4.B2: 默认工作区全景、左侧工程目录树解密与官方模板源码逐行精讲
 
 当创建应用完成后（或直接点击 `+ Streamlit アプリ` 主按钮极速跳入后），系统会直接打开三栏式沉浸式在线工作区：
