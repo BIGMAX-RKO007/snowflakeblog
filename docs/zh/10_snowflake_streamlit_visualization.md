@@ -395,7 +395,120 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ---
 
-#### Step 4.B2: 编写仓内数据表动态探查器源码 (`streamlit_schema_inspector.py`)
+#### Step 4.B2: 默认工作区全景、左侧工程目录树解密与官方模板源码逐行精讲
+
+当创建应用完成后（或直接点击 `+ Streamlit アプリ` 主按钮极速跳入后），系统会直接打开三栏式沉浸式在线工作区：
+- **左侧**：项目文件树（Project File Tree）；
+- **中间**：Monaco 内核在线代码编辑器（支持语法高亮、自动补全与实时报错提示）；
+- **右侧**：当前应用即时渲染的交互式 Web 页面（拖动滑块即可实时查看图表联动）。
+
+> **Snowsight Streamlit 在线工作区实操实测全景截图**：
+>
+> 如下真机截图所示，左侧清晰展示了现代 Streamlit in Snowflake 工程的标准文件树，中间为模板 Python 源码，右侧已成功渲染出包含滑块交互与柱状图的官方示例应用：
+>
+> ![Snowsight Streamlit 在线工作区全景（左侧项目树、中间代码编辑器、右侧即时交互渲染）](../images/10_step_03_gui_quick_create_editor.png)
+
+##### 1. 左侧项目树形结构各文件用途全景解密
+
+很多初学者看到左侧的一堆配置文件往往一头雾水，以下是现代 Snowflake Streamlit 工程标准 4 件套的核心技术作用：
+
+| 文件路径 / 相对位置 | 格式规范与技术标准 | 核心技术用途与在 Snowflake 架构中的角色 |
+| :--- | :--- | :--- |
+| **`streamlit_app.py`** | Python 3.11 核心脚本 | **主应用入口源码 (Main Entrypoint)**：包含所有的 Streamlit 前端组件定义（`st.title`、`st.slider`、`st.bar_chart`）与底层 Snowflake 数据交互逻辑。每当用户发生界面交互，Streamlit 执行引擎会自顶向下重新执行该脚本。 |
+| **`snowflake.yml`** | YAML (Snowflake CLI v2 规范) | **现代应用工程定义文件 (Project Definition)**：声明应用元数据（`title: "無題"`）、主入口（`main_file: streamlit_app.py`）、默认计算仓库（`query_warehouse: "COMPUTE_WH"`）、计算池（`compute_pool: "SYSTEM_COMPUTE_POOL_CPU"`）以及打包发布时的白名单文件列表（`artifacts`）。支持通过命令行 `snow streamlit deploy` 实现一键自动化部署。 |
+| **`pyproject.toml`** | TOML (PEP 517/518/621 规范) | **Python 依赖包与运行时版本管理**：替代旧版脆弱的 `environment.yml`。明确声明 Python 最低版本（`requires-python = "~=3.11.0"`）和核心依赖（`dependencies = ["streamlit[snowflake]"]`），并深度集成了新一代超高速包管理器 `uv`（`[tool.uv]`）的依赖锁定，杜绝版本冲突。 |
+| **`.streamlit/config.toml`** | TOML (Streamlit 官方配置) | **前端主题样式与休眠超时控制**：定义应用外观主题（如自定义主色调、背景色），以及最重要的 **`[snowflake.sleep]` 专属休眠时延配置**（如配置 `streamlitSleepTimeoutMinutes = 15`，实现应用级空闲挂起）。 |
+
+##### 2. 官方默认模板源码与执行逻辑逐行精讲 (`streamlit_app.py`)
+
+在右侧能够直接渲染出柱状图与明细表的底层秘密，正是这段精炼的官方默认模板代码。我们已为工程中的标准模板脚本附上了全量逐行专业注释：
+
+```python
+# ==============================================================================
+# 文件名称: streamlit_app.py (官方开箱即用默认模板)
+# 核心用途: 演示 Streamlit in Snowflake (SiS) 的原生连接、交互滑块与图表渲染
+# ==============================================================================
+
+# 1. 导入核心 Python 库
+import streamlit as st  # 导入 Streamlit 核心前端交互与图表渲染库
+import os                # 导入操作系统库，用于读取环境变量 (如连接超时 TTL)
+
+# 2. 页面标题与文本渲染 (支持 Emoji 表情与版本动态占位符)
+# :balloon: 会被 Streamlit 解析为彩色气球图标；st.__version__ 会动态输出当前运行时的 Streamlit 真实版本号 (如 1.66.1)
+st.title(f"Example Streamlit App :balloon: {st.__version__}")
+
+# 使用 st.write 输出引导说明文档 (支持原生 Markdown 粗体与超链接语法)
+st.write(
+  """Replace this example with your own code!
+  **And if you're new to Streamlit,** check
+  out our easy-to-follow guides at
+  [docs.streamlit.io](https://docs.streamlit.io).
+  """
+)
+
+# 使用 st.markdown 展示官方权威学习文档导航列表
+st.markdown("""
+- :page_with_curl: [Streamlit open source documentation](https://docs.streamlit.io)
+- :snowflake: [Streamlit in Snowflake documentation](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit)
+- :books: [Demo repo with templates](https://github.com/Snowflake-Labs/snowflake-demo-streamlit)
+- :memo: [Streamlit in Snowflake release notes](https://docs.snowflake.com/en/release-notes/streamlit-in-snowflake)
+""")
+
+# 3. 建立与 Snowflake 数据仓库的原生安全连接 (现代最佳实践)
+# 【核心机理】：
+#   - 新版 Streamlit 推荐使用 st.connection("snowflake") 代替老旧的 get_active_session()
+#   - ttl 参数：连接生命周期缓存时延，优先从环境变量 SNOWFLAKE_CONNECTION_TTL 读取，防止高并发下频繁握手
+#   - conn.session()：返回底层的 Snowpark Session 对象，用于执行 SQL 或构建分布式 DataFrame
+conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
+session = conn.session()
+
+# 4. 创建交互式滑块组件 (获取用户动态输入)
+# 【核心机理】：
+#   - 滑块允许用户在 0 到 90 之间拖动选择数值，默认初始值为 60
+#   - 每次用户松开鼠标拖动滑块，Streamlit 会自顶向下重新执行整个 Python 脚本，并把新值赋给 hifives_val
+hifives_val = st.slider(
+  "Number of high-fives in Q3",  # 滑块标题：第 3 季度击掌次数
+  min_value=0,                   # 允许选择的最小值
+  max_value=90,                  # 允许选择的最大值
+  value=60,                      # 页面加载时的默认初始值
+  help="Use this to enter the number of high-fives you gave in Q3",  # 鼠标悬停时的提示气泡
+)
+
+# 5. 构建 Snowpark 分布式数据集 (动态绑定用户交互输入)
+# 【核心机理】：
+#   - session.create_dataframe 在 Snowflake 内部内存中生成数据集
+#   - 第 1 季度 (Q1: 50, 25)、第 2 季度 (Q2: 20, 35) 为固定样例值
+#   - 第 3 季度 (Q3) 的 HIGH_FIVES 指标直接绑定滑块当前值 [hifives_val, 30, "Q3"]，实现所动即所得
+#   - schema 参数定义数据集的列名规范
+created_dataframe = session.create_dataframe(
+  [[50, 25, "Q1"], [20, 35, "Q2"], [hifives_val, 30, "Q3"]],
+  schema=["HIGH_FIVES", "FIST_BUMPS", "QUARTER"],
+)
+
+# 6. 执行计算并转化为 Pandas DataFrame
+# 【核心机理】：
+#   - created_dataframe 是 Snowpark 惰性计算对象，调用 to_pandas() 时真正触发仓内计算，
+#   - 并将查询结果以紧凑格式传输到当前 Streamlit Python 进程内存中，供前端绘制图表
+queried_data = created_dataframe.to_pandas()
+
+# 7. 渲染时序柱状图 (Bar Chart)
+# 【核心机理】：
+#   - st.bar_chart 原生基于 Altair 矢量引擎渲染，自适应明暗主题
+#   - x="QUARTER" 指定 X 轴维度为季度列，y="HIGH_FIVES" 指定 Y 轴度量为击掌次数
+st.subheader("Number of high-fives")
+st.bar_chart(data=queried_data, x="QUARTER", y="HIGH_FIVES")
+
+# 8. 渲染底层明细交互式数据表 (Underlying Data Table)
+# 【核心机理】：
+#   - st.dataframe 将 Pandas 表格转换为具备列排序、文本搜索和全屏放大的交互式表格
+#   - use_container_width=True 开启容器宽度 100% 自适应，在大屏或不同分辨率下自动占满宽度
+st.subheader("Underlying data")
+st.dataframe(queried_data, use_container_width=True)
+```
+
+---
+
+#### Step 4.B3: 替换为仓内数据表动态探查器源码 (`streamlit_schema_inspector.py`)
 
 在 Snowsight 在线编辑器中，将默认模板代码替换为以下经过防刷强化的动态探查器完整源码：
 
@@ -526,7 +639,7 @@ st.info("💡 **成本防刷安全保障**：所有元数据与数据查询均�
 
 ---
 
-#### Step 4.B3: 运行实景展示与防刷安全验证
+#### Step 4.B4: 运行实景展示与防刷安全验证
 
 点击右上角 **`Run`** 部署并运行该应用：
 - 级联选择数据库 `AIRBNB` 与模式 `RAW`；

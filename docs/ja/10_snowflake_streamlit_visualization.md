@@ -391,7 +391,119 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 
 ---
 
-#### Step 4.B2: ウェアハウス内動的テーブルインスペクター完全コード (`streamlit_schema_inspector.py`)
+#### Step 4.B2: デフォルトワークスペース全貌、左側プロジェクトツリー解読と公式テンプレートコードの行毎解説
+
+アプリ作成完了時（または `+ Streamlit アプリ` ボタンを直接クリックした際）、3 カラム構成の Snowsight オンラインワークスペースが開きます：
+- **左側**：プロジェクトファイルツリー（Project File Tree）；
+- **中央**：Monaco 内核のオンラインコードエディタ（構文ハイライト・補完対応）；
+- **右側**：リアルタイムに描画されるインタラクティブ Web 画面（スライダー操作で即座にグラフ連動）。
+
+> **Snowsight Streamlit オンラインワークスペース実機キャプチャ（3 カラム構成）**：
+>
+> 以下の実機画面の通り、左側に最新の Streamlit in Snowflake 標準ファイル群、中央にテンプレート Python コード、右側にスライダーと棒グラフを含む公式サンプルアプリが即時レンダリングされています：
+>
+> ![Snowsight Streamlit オンラインワークスペース全景（左側プロジェクトツリー・中央エディタ・右側リアルタイム描画）](../images/10_step_03_gui_quick_create_editor.png)
+
+##### 1. 左側プロジェクトツリーの全ファイル構成とその技術的役割
+
+左側のツリーに表示されている 4 つの標準設定ファイルの技術的役割は以下の通りです：
+
+| ファイルパス / 相対配置 | 準拠規格・技術標準 | Snowflake アーキテクチャにおける役割と詳細 |
+| :--- | :--- | :--- |
+| **`streamlit_app.py`** | Python 3.11 コアスクリプト | **メインアプリケーションコード (Main Entrypoint)**：フロントエンドコンポーネント定義（`st.title`、`st.slider`、`st.bar_chart`）と Snowflake 倉内データ操作ロジックを保持。ユーザー操作時に自頂下方へリアクティブに再実行されます。 |
+| **`snowflake.yml`** | YAML (Snowflake CLI v2 規格) | **モダンアプリケーション定義ファイル (Project Definition)**：アプリのタイトル（`title: "無題"`）、エントリーポイント（`main_file: streamlit_app.py`）、クエリウェアハウス（`query_warehouse: "COMPUTE_WH"`）、コンピュートプール（`compute_pool: "SYSTEM_COMPUTE_POOL_CPU"`）、およびデプロイ対象ファイル（`artifacts`）を宣言。`snow streamlit deploy` による CI/CD 自動化に対応。 |
+| **`pyproject.toml`** | TOML (PEP 517/518/621 規格) | **Python パッケージ・依存関係管理**：旧来の `environment.yml` を置き換える最新標準。Python バージョン（`requires-python = "~=3.11.0"`）やライブラリ依存関係（`dependencies = ["streamlit[snowflake]"]`）を定義し、超高速パッケージマネージャ `uv`（`[tool.uv]`）によるバージョン固定に対応。 |
+| **`.streamlit/config.toml`** | TOML (Streamlit 公式設定) | **UI テーマとスリープタイムアウト制御**：アプリの外観テーマカラー設定に加え、重要な **`[snowflake.sleep]` アプリ固有スリープ時間（`streamlitSleepTimeoutMinutes = 15`）** を設定し、無駄な課金を防止します。 |
+
+##### 2. 公式デフォルトテンプレートコードの完全解説 (`streamlit_app.py`)
+
+右側で棒グラフとテーブルを即時描画している公式テンプレートのコードロジックと動作原理です：
+
+```python
+# ==============================================================================
+# ファイル名: streamlit_app.py (公式初期テンプレートコード)
+# 用途: Streamlit in Snowflake (SiS) のネイティブ接続、対話型スライダー、グラフ描画
+# ==============================================================================
+
+# 1. コアライブラリのインポート
+import streamlit as st  # Streamlit UI コンポーネントおよび描画ライブラリ
+import os                # 環境変数（接続 TTL 等）を取得するための標準 OS ライブラリ
+
+# 2. タイトルとドキュメントリンクの描画
+# :balloon: は風船アイコンとして描画され、st.__version__ で実行中の Streamlit バージョン（例: 1.66.1）を出力
+st.title(f"Example Streamlit App :balloon: {st.__version__}")
+
+# ガイドテキストの出力（Markdown リンクや太字に対応）
+st.write(
+  """Replace this example with your own code!
+  **And if you're new to Streamlit,** check
+  out our easy-to-follow guides at
+  [docs.streamlit.io](https://docs.streamlit.io).
+  """
+)
+
+# 公式リファレンスリンク集の表示
+st.markdown("""
+- :page_with_curl: [Streamlit open source documentation](https://docs.streamlit.io)
+- :snowflake: [Streamlit in Snowflake documentation](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit)
+- :books: [Demo repo with templates](https://github.com/Snowflake-Labs/snowflake-demo-streamlit)
+- :memo: [Streamlit in Snowflake release notes](https://docs.snowflake.com/en/release-notes/streamlit-in-snowflake)
+""")
+
+# 3. Snowflake データウェアハウスへのネイティブセキュア接続
+# 【動作メカニズム】：
+#   - 最新版では従来の get_active_session() に代わり st.connection("snowflake") の利用が推奨
+#   - ttl パラメータ：接続ライフサイクルのキャッシュ時間（環境変数 SNOWFLAKE_CONNECTION_TTL から取得）
+#   - conn.session()：SQL 実行や DataFrame 操作を司る基礎の Snowpark Session オブジェクトを取得
+conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
+session = conn.session()
+
+# 4. 対話型スライダーウィジェットの配置（動的ユーザー入力の取得）
+# 【動作メカニズム】：
+#   - 最小 0 から最大 90 までのスライダーを提供（デフォルト初期値: 60）
+#   - ユーザーがスライダーを動かして離すと、スクリプト全体が再実行され、最新値が hifives_val に代入
+hifives_val = st.slider(
+  "Number of high-fives in Q3",  # スライダーのラベル（第3四半期のハイタッチ回数）
+  min_value=0,                   # 選択可能な最小値
+  max_value=90,                  # 選択可能な最大値
+  value=60,                      # 初期値
+  help="Use this to enter the number of high-fives you gave in Q3",  # ツールチップ説明
+)
+
+# 5. Snowpark 分散データセットの構築（動的変数のバインド）
+# 【動作メカニズム】：
+#   - session.create_dataframe により DWH 内メモリにデータセットを生成
+#   - Q1 (50, 25)、Q2 (20, 35) は固定サンプル値
+#   - Q3 の HIGH_FIVES 値にスライダーの値 [hifives_val, 30, "Q3"] を動的にバインド
+created_dataframe = session.create_dataframe(
+  [[50, 25, "Q1"], [20, 35, "Q2"], [hifives_val, 30, "Q3"]],
+  schema=["HIGH_FIVES", "FIST_BUMPS", "QUARTER"],
+)
+
+# 6. 計算の実行と Pandas DataFrame への変換
+# 【動作メカニズム】：
+#   - to_pandas() を呼び出した時点でウェアハウス上で計算が評価（遅延評価の解決）され、
+#   - 結果がクライアント側の Streamlit プロセスへ転送されます
+queried_data = created_dataframe.to_pandas()
+
+# 7. 時系列棒グラフ (Bar Chart) の描画
+# 【動作メカニズム】：
+#   - st.bar_chart は Altair ベースの軽量ベクトルチャートを描画
+#   - x="QUARTER" で四半期列、y="HIGH_FIVES" でハイタッチ回数列を指定
+st.subheader("Number of high-fives")
+st.bar_chart(data=queried_data, x="QUARTER", y="HIGH_FIVES")
+
+# 8. 明細対話型データテーブルの表示
+# 【動作メカニズム】：
+#   - st.dataframe により列ソートやテキスト検索、CSV エクスポートが可能なリッチテーブルを表示
+#   - use_container_width=True で横幅 100% 自適応表示
+st.subheader("Underlying data")
+st.dataframe(queried_data, use_container_width=True)
+```
+
+---
+
+#### Step 4.B3: ウェアハウス内動的テーブルインスペクター完全コード (`streamlit_schema_inspector.py`)
 
 オンラインエディタの初期テンプレートコードを、以下の防護処理済み動的インスペクター完全コードに置き換えます：
 
@@ -521,7 +633,7 @@ st.info("💡 **課金防護セーフガード**：全てのメタデータお�
 
 ---
 
-#### Step 4.B3: 実行結果とコスト防護の実機検証
+#### Step 4.B4: 実行結果とコスト防護の実機検証
 
 画面右上の **`Run`** をクリックして実行します：
 - データベースとして `AIRBNB`、スキーマとして `RAW` を選択；
