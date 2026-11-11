@@ -324,3 +324,8 @@ User: SNF73GUSRADMMNT    | Type: PERSON   | Role: USERADMIN                 | WH
 2. **分类分流**：彻底弄懂 `PERSON`（人类交互+密码+MFA）与 `SERVICE`（机器批处理+RSA免密）的技术鸿沟；
 3. **上下文自动化**：掌握了 `DEFAULT_ROLE`、`DEFAULT_WAREHOUSE`、`DEFAULT_NAMESPACE` 对客户端连接稳定性的决定性作用；
 4. **实机验证闭环**：全量复现并验证了 5 大金融级账号在真实 Snowflake 实例中的生成与属性对账（Query ID: `01c8575e-0205-44bc-0005-b6860008d87a`），建立了零幻觉的工程实战视野！
+
+---
+
+👉 **下一讲：[第 03-3 讲：企业级访问角色(AR)矩阵与全对象权限全景实战](./03_03_access_role_privilege_matrix.md)** —— 解密《アクセスロール定義・オブジェクト権限付与マトリクス》、7大品类80+受控对象权限细粒度划分与 Future Grants 自动化！
+

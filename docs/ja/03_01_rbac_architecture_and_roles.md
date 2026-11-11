@@ -595,5 +595,7 @@ GRANT ROLE MITSUI_ADMIN_ROLE    TO USER SATO_TECH_LEAD;
 
 本章では、金融機関標準の職務分掌に基づき、Snowflake 上に三井証券の 3 層業務ロール体系（`MITSUI_ADMIN` $\to$ `MITSUI_ENGINEER` $\to$ `MITSUI_ANALYST`）を構築しました。さらに仮想ウェアハウス `MITSUI_WH`、データベース `MITSUI_SEC_DB`、スキーマ `RAW_ORACLE`、ステージ `MITSUI_STAGE`、そして移行対象の 2 テーブル（`CUST_MASTER` 顧客基本台帳 ＋ `CUST_TRADE_DETAIL` 顧客取引明細）の DDL 定義と権限委譲を完了しました。
 
-これで、**クラウド側の受け入れインフラは完璧に整いました**：
+これで、**クラウド側の職能ロール体系および受け入れインフラは完璧に整いました**：
+- 👉 **[第 03-2 講：エンタープライズユーザー定義とパラメータ設計実務](./03_02_enterprise_user_definition_and_parameter_sheet.md)**：金融現場の《ユーザー定義パラメータシート》を徹底解剖。PERSON / SERVICE の住み分け、セッション初期値注入、DataStage バッチユーザーの構築！
+- 👉 **[第 03-3 講：アクセスロール(AR)定義と全オブジェクト権限マトリクス設計実践](./03_03_access_role_privilege_matrix.md)**：『アクセスロール定義・オブジェクト権限付与マトリクス』詳解、7大分類80+管理対象権限、Future Grants と内部 Stage 運用！
 - 👉 **[第 04 章：データ抽出エクスポートと COPY INTO 一括ロード実践](04_data_migration.md)**：ローカルの Oracle コンテナから Python スクリプトを用いて 2 テーブルの CSV データを抽出し、SnowSQL / PUT コマンドで `MITSUI_STAGE` へ高速アップロード。その後 `COPY INTO` コマンドにより、クラウド側テーブルへの高精度な一括ロードと型変換を実施します！

@@ -600,5 +600,7 @@ GRANT ROLE MITSUI_ADMIN_ROLE    TO USER SATO_TECH_LEAD;
 
 本章在 Snowflake 端严格落地了三井证券三层业务角色体系（`MITSUI_ADMIN` $\to$ `MITSUI_ENGINEER` $\to$ `MITSUI_ANALYST`），并以此为基石，完成了虚拟数仓 `MITSUI_WH`、数据库 `MITSUI_SEC_DB`、模式 `RAW_ORACLE`、暂存区 `MITSUI_STAGE` 以及目标双表（`CUST_MASTER` + `CUST_TRADE_DETAIL`）的完整构建与授权。
 
-至此，**云端基础设施已完全就绪，静待数据入云**：
+至此，**云端职能角色体系与业务物理空间已完全就绪**：
+- 👉 **[第 03-2 讲：企业级用户定义全景与生产参数设计实战](./03_02_enterprise_user_definition_and_parameter_sheet.md)**：深入日本金融《ユーザー定義パラメータシート》，掌握 PERSON vs SERVICE 区分、会话默认值注入与 DataStage 批处理账号落地！
+- 👉 **[第 03-3 讲：企业级访问角色(AR)矩阵与全对象权限全景实战](./03_03_access_role_privilege_matrix.md)**：掌握《アクセスロール定義・オブジェクト権限付与マトリクス》、7大品类80+受控对象权限细粒度划分与 Future Grants 自动化！
 - 👉 **[第 04 章：数据抽取导出与 COPY INTO 批量加载实战](04_data_migration.md)**：使用 Python 脚本从本地 Oracle 容器导出双表 CSV 数据，通过 SnowSQL / PUT 指令高速上传至 `MITSUI_STAGE`，并执行 `COPY INTO` 完成云端数据的高保真批量加载与字段格式化！

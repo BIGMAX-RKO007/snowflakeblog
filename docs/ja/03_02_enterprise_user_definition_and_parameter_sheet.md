@@ -324,3 +324,8 @@ User: SNF73GUSRADMMNT    | Type: PERSON   | Role: USERADMIN                 | WH
 2. **アカウントの明確な分離**：`PERSON`（人間対話＋パスワード＋MFA）と `SERVICE`（自動化バッチ＋RSA鍵認証）の技術的住み分けを徹底；
 3. **セッション自動最適化**：`DEFAULT_ROLE`、`DEFAULT_WAREHOUSE`、`DEFAULT_NAMESPACE` の初期設定がバッチ運用の堅牢性を担保；
 4. **実機検証エビデンス**：実稼働 Snowflake インスタンスにおける 5 大アカウントの作成・照会結果（Query ID: `01c8575e-0205-44bc-0005-b6860008d87a`）を完備し、AI 幻覚のない実務力を確立しました！
+
+---
+
+👉 **次講：[第 03-3 講：アクセスロール(AR)定義と全オブジェクト権限マトリクス設計実践](./03_03_access_role_privilege_matrix.md)** —— 『アクセスロール定義・オブジェクト権限付与マトリクス』詳解、7大分類80+オブジェクト権限設計、および Future Grants による自動化！
+

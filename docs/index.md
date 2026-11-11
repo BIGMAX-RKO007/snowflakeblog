@@ -103,9 +103,10 @@ flowchart LR
    30日無料トライアル申請、クラウド基盤選定、初回ログインとコンソール設定。
 3. [**02. Oracle 移行元環境構築と模擬データ投入**](/02_oracle_setup_and_data)  
    Docker による Oracle 11g 構築、11組の金融極限境界値データの生成とエクスポート。
-4. [**03. アクセス制御とユーザー定義 (03-1 〜 03-2)**](/03_01_rbac_architecture_and_roles)  
+4. [**03. アクセス制御と権限モデル (03-1 〜 03-3)**](/03_01_rbac_architecture_and_roles)  
    - [03-1. 3層RBAC権限モデルと環境構築](/03_01_rbac_architecture_and_roles)：MITSUI_ADMIN / ENGINEER / ANALYST の三権分立、Step 4.1〜4.15 の自動構築スクリプト。  
-   - [03-2. エンタープライズユーザー定義とパラメータ設計実務](/03_02_enterprise_user_definition_and_parameter_sheet)：『ユーザー定義パラメータシート』詳解、PERSON vs SERVICE、セッション初期値注入と DataStage/ETL バッチユーザー実践。
+   - [03-2. エンタープライズユーザー定義とパラメータ設計実務](/03_02_enterprise_user_definition_and_parameter_sheet)：『ユーザー定義パラメータシート』詳解、PERSON vs SERVICE、セッション初期値注入と DataStage/ETL バッチユーザー実践。  
+   - [03-3. アクセスロール(AR)定義と全オブジェクト権限マトリクス設計実践](/03_03_access_role_privilege_matrix)：『アクセスロール定義・オブジェクト権限付与マトリクス』詳解、7大分類80+管理対象権限、Future Grants と内部 Stage 運用。
 5. [**04. データ移行実務（抽出・ステージ・取込）**](/04_data_migration)  
    SnowSQL によるステージ転送、`COPY INTO` 高速ロードとログ監査。
 6. [**05. 移行後データ突合検証・整合性監査**](/05_data_reconciliation)  
