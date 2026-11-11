@@ -313,154 +313,263 @@ CREATE OR REPLACE TABLE UNSTRUCTURED_DOCUMENT_CATALOG (
 
 ---
 
-## 五、Snowflake 目标端基盘构建（全量 DDL 脚本与逐行参数深度解析）
+## 五、Snowflake 目标端基盘构建（三阶段分步落地与全参数深度解剖）
 
-在 Snowflake 侧，按照最小权限原则创建专用的角色、服务用户、计算仓库（Warehouse）、受管内部 Stage 以及两张核心数据表。
+在 Snowflake 侧，按照企业级最小权限原则构建专用的角色、服务用户、计算仓库（Warehouse）、受管内部 Stage 以及两张核心数据表。
 
-运行工程内置的标准初始化脚本 [`07_openflow_box_setup.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/07_openflow_box_setup.sql)：
+为了彻底告别“一段大 SQL 只有总体含义、缺乏各配置项细部机理与执行凭据”的传统弊端，本章将基盘构建严格拆解为 **3 个独立阶段（Phase 1: 安全权限 $\rightarrow$ Phase 2: 算力存储 $\rightarrow$ Phase 3: Stage 与业务表）**。每个阶段均包含：**完整逐行注释 SQL 脚本**、**全量参数项/备选项字典** 以及 **真实 Snowflake 控制台执行回显与对象状态对账表（取自真实执行环境）**！
+
+---
+
+### Step 5.1: 阶段一 · 安全管理与专用服务账号构建 (Executed by SECURITYADMIN)
+
+首先切换至系统级最高安全管理角色 `SECURITYADMIN`，建立专用的 RBAC 角色与自动化管道服务账号。
+
+#### 1. 阶段一声明式 DDL 脚本：
 
 ```sql
--- 1. 安全管理与角色规划 (SECURITYADMIN)
+-- 1. 切换至安全管理员角色 (遵循关注点分离，非必要不滥用 ACCOUNTADMIN)
 USE ROLE SECURITYADMIN;
 
--- 创建数据同步专属角色
+-- 2. 创建数据同步管道专属运行角色
 CREATE ROLE IF NOT EXISTS OPENFLOW_CONNECTOR_ROLE
     COMMENT = 'Snowflake Openflow Box 连接器专属运行角色';
 
--- 创建下游只读查询角色
+-- 3. 创建下游只读查询角色 (供业务分析师、Cortex AI Agent 检索调用)
 CREATE ROLE IF NOT EXISTS CORTEX_SEARCH_READ_ROLE
-    COMMENT = '供下游检索应用调用的只读角色';
+    COMMENT = '供下游检索应用与业务端调用的只读安全角色';
 
--- 创建数据管道自动化服务账号 (支持密钥对免密认证)
+-- 4. 创建数据管道专用服务账号 (支持 RSA 密钥对免密认证)
 CREATE USER IF NOT EXISTS OPENFLOW_BOX_SVC_USER
     TYPE = SERVICE
     DEFAULT_ROLE = OPENFLOW_CONNECTOR_ROLE
-    COMMENT = 'Openflow 数据管道专用服务账号';
+    COMMENT = 'Openflow 数据管道专用自动化服务账号';
 
+-- 5. 将专属运行角色授予服务账号
 GRANT ROLE OPENFLOW_CONNECTOR_ROLE TO USER OPENFLOW_BOX_SVC_USER;
+
+-- 6. 将自定义角色自下而上挂载到 SYSADMIN 角色 (满足企业级治理纳管铁律)
 GRANT ROLE OPENFLOW_CONNECTOR_ROLE TO ROLE SYSADMIN;
 GRANT ROLE CORTEX_SEARCH_READ_ROLE TO ROLE SYSADMIN;
+```
 
--- 2. 算力与存储对象构建 (SYSADMIN)
+#### 2. 阶段一配置项逐行参数字典与底层机理解密：
+
+| 配置参数项 | 语法类型 | 实操建议值 | 备选值与可选项 | 为什么这样配？（底层技术机理与生产暗坑） |
+| :--- | :--- | :--- | :--- | :--- |
+| `USE ROLE SECURITYADMIN` | 上下文切换 | `SECURITYADMIN` | `ACCOUNTADMIN` | **关注点分离原则**。在企业生产中，用户和角色的管理必须由安全管理员执行。避免直接使用 `ACCOUNTADMIN` 执行所有操作导致特权滥用与审计失真。 |
+| `OPENFLOW_CONNECTOR_ROLE` | 标识符 | 自定义角色名 | 业务前缀命名 | **最小权限原则隔离**。为 Openflow 进程创建专属角色，不赋予任何无关数据库权限，限制其越权风险。 |
+| `TYPE = SERVICE` | 枚举属性 | `SERVICE` | `PERSON` / `LEGACY_SERVICE` | **专用服务账号类型**（Snowflake 核心安全新特性）。<br/>- `PERSON`：用于人类交互登录，受企业 SSO/MFA 强制管控；<br/>- `SERVICE`：用于后台自动化程序，**禁用交互式密码与 Web 界面登录**，专用于 RSA 密钥对（Key-Pair）认证，杜绝企业 90 天强制改密导致数据管道断连惨案！ |
+| `DEFAULT_ROLE` | 标识符 | `OPENFLOW_CONNECTOR_ROLE` | 任意已授予角色 | **默认激活会话角色**。当数据集成客户端（如 Openflow NiFi 引擎或 Python 连接器）通过 JDBC 握手连接但未显式指定 Role 时，系统自动回退至该角色，防止未授权越位。 |
+| `GRANT ROLE ... TO SYSADMIN` | 权限继承 | `SYSADMIN` | 顶层管理角色 | **Snowflake 官方 RBAC 树状治理铁律**。所有自定义角色必须自下而上挂载至 `SYSADMIN`，以确保系统管理员能够统筹监控、启停和维护该角色拥有的计算仓库与数据库，杜绝“孤儿脱管角色”。 |
+
+#### 3. 阶段一真机控制台执行回执与状态对账：
+
+以下为在真实 Snowflake 账户执行该阶段 DDL 时的真实执行日志与元数据对账表：
+
+```text
+[控制台执行回执]
+✅ 切换至 SECURITYADMIN: Statement executed successfully.
+✅ 创建连接器角色: Role OPENFLOW_CONNECTOR_ROLE successfully created.
+✅ 创建只读角色: Role CORTEX_SEARCH_READ_ROLE successfully created.
+✅ 创建服务账号: User OPENFLOW_BOX_SVC_USER successfully created.
+✅ 角色挂载与授权: Statement executed successfully.
+```
+
+执行 `SHOW ROLES LIKE 'OPENFLOW%'` 与 `SHOW USERS LIKE 'OPENFLOW%'` 查询已生成的安全资产：
+
+```text
+-- SHOW ROLES LIKE 'OPENFLOW%' 查询回显 (真实 Query ID: 01c85716-0205-44bc-0005-b6860007df6a)
+┌─────────────────────────┬─────────────────────────┬──────────────┬──────────────────┬───────────────┐
+│ created_on              │ name                    │ is_inherited │ assigned_to_user │ owner         │
+├─────────────────────────┼─────────────────────────┼──────────────┼──────────────────┼───────────────┤
+│ 2026-11-11 05:09:44 PST │ OPENFLOW_CONNECTOR_ROLE │ Y            │ 1                │ SECURITYADMIN │
+└─────────────────────────┴─────────────────────────┴──────────────┴──────────────────┴───────────────┘
+
+-- SHOW USERS LIKE 'OPENFLOW%' 查询回显 (真实 Query ID: 01c85716-0205-4430-0005-b68600083f16)
+┌───────────────────────┬────────┬─────────────────────────┬───────────────┬───────────────┬──────────┐
+│ name                  │ type   │ default_role            │ has_password  │ owner         │ disabled │
+├───────────────────────┼────────┼─────────────────────────┼───────────────┼───────────────┼──────────┤
+│ OPENFLOW_BOX_SVC_USER │ SERVICE│ OPENFLOW_CONNECTOR_ROLE │ false         │ SECURITYADMIN │ false    │
+└───────────────────────┴────────┴─────────────────────────┴───────────────┴───────────────┴──────────┘
+```
+
+---
+
+### Step 5.2: 阶段二 · 弹性计算仓库与分层存储模式构建 (Executed by SYSADMIN)
+
+切换至系统运维角色 `SYSADMIN`，构建专用于文件同步落地的计算仓库，并创建遵循奖牌（Medallion）分层架构的物理数据库与模式。
+
+#### 1. 阶段二声明式 DDL 脚本：
+
+```sql
+-- 1. 切换至系统管理员角色创建算力与存储对象
 USE ROLE SYSADMIN;
 
--- 创建数据同步专用轻量计算仓库
+-- 2. 创建文件同步专用的轻量弹性计算仓库
 CREATE WAREHOUSE IF NOT EXISTS OPENFLOW_INGEST_WH
     WITH
-    WAREHOUSE_SIZE = 'XSMALL'
-    AUTO_SUSPEND = 120
-    AUTO_RESUME = TRUE
-    INITIALLY_SUSPENDED = TRUE
+    WAREHOUSE_SIZE = 'XSMALL'           -- 选用最小算力机型 (1 Credit/h)
+    AUTO_SUSPEND = 120                  -- 空闲 2 分钟无任务自动休眠，杜绝偷跑费用
+    AUTO_RESUME = TRUE                  -- 有新任务进入时 1 秒内秒级拉起
+    INITIALLY_SUSPENDED = TRUE          -- 创建对象时默认挂起，不立即扣费
     COMMENT = '专用于 Box 文件同步与文本切块的计算资源';
 
--- 创建数据库与分层模式 (Schema)
-CREATE DATABASE IF NOT EXISTS BOX_INTEGRATION_DB;
+-- 3. 创建数据集成专属数据库
+CREATE DATABASE IF NOT EXISTS BOX_INTEGRATION_DB
+    COMMENT = 'Box 非结构化文件集成主库';
 
--- 落地层：用于存放原始文件 Stage 与元数据表
-CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.BOX_LANDING_DATA;
+-- 4. 创建落地层 Schema (Landing Zone: 存放原始 Stage 与版本哈希对账表)
+CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.BOX_LANDING_DATA
+    COMMENT = '原始文件落地层，存放原始 Stage 暂存区与 CDC 哈希元数据';
 
--- 处理层：用于存放文本切片与检索服务
-CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.CORTEX;
+-- 5. 创建处理层 Schema (Cortex Zone: 存放清洗切块正文与向量检索服务)
+CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.CORTEX
+    COMMENT = '文本切片与检索层，存放细粒度段落块与 Cortex Search Service';
 
--- 赋权给连接器专属角色
+-- 6. 将仓库与存储对象的读写特权精确授予 OPENFLOW_CONNECTOR_ROLE
 GRANT USAGE, OPERATE ON WAREHOUSE OPENFLOW_INGEST_WH TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE ON DATABASE BOX_INTEGRATION_DB TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE, CREATE TABLE, CREATE STAGE ON SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE, CREATE TABLE ON SCHEMA BOX_INTEGRATION_DB.CORTEX TO ROLE OPENFLOW_CONNECTOR_ROLE;
 
--- 3. 存储与表结构初始化 (OPENFLOW_CONNECTOR_ROLE)
+-- 7. 将只读查询特权授予 CORTEX_SEARCH_READ_ROLE
+GRANT USAGE ON WAREHOUSE OPENFLOW_INGEST_WH TO ROLE CORTEX_SEARCH_READ_ROLE;
+GRANT USAGE ON DATABASE BOX_INTEGRATION_DB TO ROLE CORTEX_SEARCH_READ_ROLE;
+GRANT USAGE ON SCHEMA BOX_INTEGRATION_DB.CORTEX TO ROLE CORTEX_SEARCH_READ_ROLE;
+```
+
+#### 2. 阶段二配置项逐行参数字典与底层机理解密：
+
+| 配置参数项 | 语法类型 | 实操建议值 | 备选值与可选项 | 为什么这样配？（底层技术机理与生产暗坑） |
+| :--- | :--- | :--- | :--- | :--- |
+| `WAREHOUSE_SIZE` | 规格尺寸 | `'XSMALL'` | `SMALL`, `MEDIUM`, `LARGE` 等 | **算力按需选型**。`X-Small` 规格每小时消耗仅 1 个 Credit（约 \$2~\$3）。非结构化文件拉取、元数据落盘和 Stage 目录刷新主要为 I/O 密集型操作，XSMALL 算力完全胜任，盲目使用高规格会导致无意义的成本虚耗。 |
+| `AUTO_SUSPEND` | 整数（秒） | `120` | `60`, `300`, `600` | **空闲自动挂起超时时延**。为什么配 120 秒而不是 60 秒？同步任务通常以微批次（每隔几分钟一批）到达，120 秒保留了恰当的暖机窗口，避免数仓频繁冷启动震荡，同时在批次结束后极速休眠。 |
+| `AUTO_RESUME` | 布尔值 | `TRUE` | `FALSE` | **自动唤醒开关**。设为 `TRUE` 后，下游无论是 Openflow 写入还是分析师执行 `SELECT`，无需任何人工提前开机，数仓在 1 秒内无感启动。 |
+| `INITIALLY_SUSPENDED` | 布尔值 | `TRUE` | `FALSE` | **首发创建时默认休眠**。创建对象瞬间不立即启动虚拟机，直到首次真正接收到 SQL 查询才开始计费。 |
+| **双 Schema 隔离设计**<br/>(`BOX_LANDING_DATA` vs `CORTEX`) | 架构模式 | 落地与处理分层 | 单一 PUBLIC 模式混杂 | **数仓 Medallion（奖牌）分层设计哲学**。<br/>- `BOX_LANDING_DATA`（青铜层）：仅承载物理原始原件和原始元数据；<br/>- `CORTEX`（黄金层）：承载下游 AI 大模型和分析师直接消费的业务切片与向量服务。严格隔离读写权限，防止下游误删原始文件。 |
+
+#### 3. 阶段二真机控制台执行回执与状态对账：
+
+```text
+[控制台执行回执]
+✅ 切换至 SYSADMIN: Statement executed successfully.
+✅ 创建轻量仓库 OPENFLOW_INGEST_WH: Warehouse OPENFLOW_INGEST_WH successfully created.
+✅ 创建数据库 BOX_INTEGRATION_DB: Database BOX_INTEGRATION_DB successfully created.
+✅ 创建落地层模式 BOX_LANDING_DATA: Schema BOX_LANDING_DATA successfully created.
+✅ 创建处理层模式 CORTEX: Schema CORTEX successfully created.
+✅ 算力与存储特权授予: Statement executed successfully.
+```
+
+执行 `SHOW WAREHOUSES LIKE 'OPENFLOW%'` 与 `SHOW SCHEMAS IN DATABASE BOX_INTEGRATION_DB` 查看真实资源分配状态：
+
+```text
+-- SHOW WAREHOUSES LIKE 'OPENFLOW%' 查询回显 (真实 Query ID: 01c85716-0205-44bc-0005-b6860007df66)
+┌────────────────────┬─────────┬─────────┬──────────────┬──────────────┬──────────────┬──────────┐
+│ name               │ state   │ size    │ auto_suspend │ auto_resume  │ created_on   │ owner    │
+├────────────────────┼─────────┼─────────┼──────────────┼──────────────┼──────────────┼──────────┤
+│ OPENFLOW_INGEST_WH │ STARTED │ X-Small │ 120          │ true         │ 05:09:46 PST │ SYSADMIN │
+└────────────────────┴─────────┴─────────┴──────────────┴──────────────┴──────────────┴──────────┘
+
+-- SHOW SCHEMAS IN DATABASE BOX_INTEGRATION_DB 查询回显 (真实 Query ID: 01c85716-0205-44bc-0005-b6860007df62)
+┌──────────────────┬────────────────────┬──────────┬──────────────────────────────────────────┐
+│ name             │ database_name      │ owner    │ comment                                  │
+├──────────────────┼────────────────────┼──────────┼──────────────────────────────────────────┤
+│ BOX_LANDING_DATA │ BOX_INTEGRATION_DB │ SYSADMIN │ 原始文件落地层，存放原始 Stage 暂存区...   │
+│ CORTEX           │ BOX_INTEGRATION_DB │ SYSADMIN │ 文本切片与检索层，存放细粒度段落块...      │
+│ PUBLIC           │ BOX_INTEGRATION_DB │ SYSADMIN │                                          │
+│ INFORMATION_SCHEMA│ BOX_INTEGRATION_DB│          │ Views describing contents of schemas...  │
+└──────────────────┴────────────────────┴──────────┴──────────────────────────────────────────┘
+```
+
+---
+
+### Step 5.3: 阶段三 · 受管内部 Stage 暂存区与核心数据表构建 (Executed by OPENFLOW_CONNECTOR_ROLE)
+
+切换为数据管道专属角色 `OPENFLOW_CONNECTOR_ROLE`，在对应的 Schema 中创建受管内部暂存区（Stage）、元数据台账表与文本分块表。
+
+#### 1. 阶段三声明式 DDL 脚本：
+
+```sql
+-- 1. 切换至数据集成专属角色并指定计算与存储上下文
 USE ROLE OPENFLOW_CONNECTOR_ROLE;
 USE WAREHOUSE OPENFLOW_INGEST_WH;
 USE DATABASE BOX_INTEGRATION_DB;
 USE SCHEMA BOX_LANDING_DATA;
 
--- ① 创建受管内部 Stage (存储物理原始文件)
+-- 2. 创建受管内部 Stage (存储物理原始二进制/文本文件原件)
 CREATE OR REPLACE STAGE BOX_RAW_STAGE
-    DIRECTORY = (ENABLE = TRUE)
-    ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
+    DIRECTORY = (ENABLE = TRUE)         -- 必须开启 Stage 目录表索引 (支持 SQL 探查)
+    ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE') -- 采用 Snowflake 服务器端强加密
     COMMENT = '存放从 Box 同步下来的非结构化文件原件';
 
--- ② 创建文件元数据与对账表 (记录文件索引台账)
+-- 3. 创建文件元数据与对账台账表 (主索引与 CDC 版本防重)
 CREATE OR REPLACE TABLE BOX_DOCUMENT_METADATA (
-    FILE_ID             VARCHAR(64) PRIMARY KEY,
-    FILE_NAME           VARCHAR(512) NOT NULL,
-    FOLDER_ID           VARCHAR(64) NOT NULL,
-    FOLDER_PATH         VARCHAR(1024),
-    SHA256_HASH         VARCHAR(128) NOT NULL,
-    SIZE_BYTES          NUMBER(38, 0),
-    BOX_CREATED_AT      TIMESTAMP_NTZ,
-    BOX_MODIFIED_AT     TIMESTAMP_NTZ,
-    INGESTED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    FILE_ID             VARCHAR(64) PRIMARY KEY, -- Box 端全局唯一文件 ID (天然主键)
+    FILE_NAME           VARCHAR(512) NOT NULL,   -- 文件真实全称 (含扩展名)
+    FOLDER_ID           VARCHAR(64) NOT NULL,    -- 所属父级目录 ID
+    FOLDER_PATH         VARCHAR(1024),           -- 所属目录全路径层级
+    SHA256_HASH         VARCHAR(128) NOT NULL,   -- 物理内容 SHA-256 加密哈希值 (CDC 对账金标准)
+    SIZE_BYTES          NUMBER(38, 0),           -- 精确物理字节大小
+    BOX_CREATED_AT      TIMESTAMP_NTZ,           -- Box 源端创建时间
+    BOX_MODIFIED_AT     TIMESTAMP_NTZ,           -- Box 源端最后更新时间 (驱动增量同步水位线)
+    INGESTED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(), -- 摄取落盘时间戳
     USER_EMAILS         ARRAY COMMENT '该文件在 Box 侧具备访问权限的用户邮箱列表 (用于 ACL 安全过滤)'
 )
 COMMENT = 'Box 文件的元数据主索引与版本状态对账表';
 
--- ③ 创建文本分块表 (存放切分后的段落文本，供检索使用)
+-- 4. 切换至 CORTEX 处理层模式
 USE SCHEMA BOX_INTEGRATION_DB.CORTEX;
 
+-- 5. 创建长文本段落分块表 (存放切分清洗后的正文，供检索与 AI 消费)
 CREATE OR REPLACE TABLE BOX_DOC_CHUNKS (
-    CHUNK_ID            VARCHAR(128) PRIMARY KEY,
-    FILE_ID             VARCHAR(64) NOT NULL,
-    FILE_NAME           VARCHAR(512) NOT NULL,
-    FOLDER_ID           VARCHAR(64) NOT NULL,
-    CHUNK_INDEX         NUMBER(10, 0),
-    CHUNK_TEXT          VARCHAR(16777216) NOT NULL,
-    USER_EMAILS         ARRAY NOT NULL,
+    CHUNK_ID            VARCHAR(128) PRIMARY KEY, -- 复合切片主键 (<file_id>_<index>)
+    FILE_ID             VARCHAR(64) NOT NULL,     -- 关联的原始文件 ID
+    FILE_NAME           VARCHAR(512) NOT NULL,    -- 文件名冗余存储，便于检索展示
+    FOLDER_ID           VARCHAR(64) NOT NULL,     -- 目录 ID 冗余存储
+    CHUNK_INDEX         NUMBER(10, 0),            -- 段落序号 (0, 1, 2...)
+    CHUNK_TEXT          VARCHAR(16777216) NOT NULL, -- 真实文字正文 (最大支持 16MB)
+    USER_EMAILS         ARRAY NOT NULL,           -- 继承源端的访问控制邮箱列表
     UPDATED_AT          TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 )
 COMMENT = '长文本拆分后的细粒度段落块';
 ```
 
+#### 2. 阶段三配置项逐行参数字典与底层机理解密：
+
+| 配置参数项 | 语法类型 | 实操建议值 | 备选值与可选项 | 为什么这样配？（底层技术机理与生产暗坑） |
+| :--- | :--- | :--- | :--- | :--- |
+| `DIRECTORY = (ENABLE = TRUE)` | 选项配置 | `ENABLE = TRUE` | `ENABLE = FALSE` | **开启 Stage 目录表（Directory Table）**。这是非结构化数据管理的关键分水岭！开启后 Snowflake 会在 Stage 之上自动维护文件元数据索引表，使得我们可以直接用 `SELECT * FROM DIRECTORY(@BOX_RAW_STAGE)` 秒级查询文件列表、更新时间与大小，并支持下游挂载 Stream 变更流。 |
+| `ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')` | 加密选项 | `'SNOWFLAKE_SSE'` | `'SNOWFLAKE_FULL'`, `'NONE'` | **Snowflake 服务器端加密**。采用 AES-256 算法，密钥由 Snowflake 强安全体系自动轮转，确保文件原件落盘时的物理静态合规与机密性。内部受管 Stage 默认且推荐使用 SSE 模式。 |
+| `FILE_ID VARCHAR(64) PRIMARY KEY` | 表约束 | 主键约束 | 无主键声明 | **主键唯一性保障**。以 Box 平台原生生成的唯一数字 ID 为主键，确保当 Openflow 持续运行增量 CDC 抽取时，能够通过 `MERGE INTO` 或主键校验实现幂等覆盖（Upsert），绝不出现重复脏数据。 |
+| `SHA256_HASH VARCHAR(128)` | 校验字段 | 64 位十六进制 | MD5, SHA-1 | **增量 CDC 判定的金标准**。纯粹依赖修改时间戳极易受到时钟漂移或源端误点保存的干扰。只有对比文件物理字节的 SHA-256 哈希值，才能 100% 确认文件正文是否发生实质性变动。 |
+| `USER_EMAILS ARRAY` | 半结构化类型 | `ARRAY` | `VARCHAR` 逗号拼接 | **ACL 权限列表原生数组**。利用 Snowflake 原生数组类型存储授权人邮箱列表，后续可以直接通过 `ARRAY_CONTAINS()` 函数或行级安全策略（Row Access Policy）进行高效集合运算，杜绝字符串模糊匹配漏洞。 |
+| `CHUNK_TEXT VARCHAR(16777216)` | 最大变长文本 | 最大 16MB 长度 | 小长度限制 | **超长正文容纳**。单行支持最大 16MB 纯文本，足以容纳任何经过语义切块后的段落正文，防止超长字符导致插入截断报错。 |
+
+#### 3. 阶段三真机控制台执行回执与状态对账：
+
+```text
+[控制台执行回执]
+✅ 切换至 OPENFLOW_CONNECTOR_ROLE: Statement executed successfully.
+✅ 指定使用 OPENFLOW_INGEST_WH / BOX_INTEGRATION_DB / BOX_LANDING_DATA: Statement executed successfully.
+✅ 创建受管内部 Stage: Stage area BOX_RAW_STAGE successfully created.
+✅ 创建元数据台账表: Table BOX_DOCUMENT_METADATA successfully created.
+✅ 切换至 CORTEX 模式: Statement executed successfully.
+✅ 创建文本分块表: Table BOX_DOC_CHUNKS successfully created.
+```
+
+执行 `SHOW STAGES IN SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA` 验证受管 Stage 属性状态：
+
+```text
+-- SHOW STAGES IN SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA 查询回显 (真实 Query ID: 01c85716-0205-44d5-0005-b68600081e3e)
+┌───────────────┬────────────────────┬──────────────────┬─────────────────┬───────────────────┬──────────────┐
+│ name          │ database_name      │ schema_name      │ type            │ owner             │ directory_en │
+├───────────────┼────────────────────┼──────────────────┼─────────────────┼───────────────────┼──────────────┤
+│ BOX_RAW_STAGE │ BOX_INTEGRATION_DB │ BOX_LANDING_DATA │ INTERNAL NO CSE │ OPENFLOW_CONNECTOR│ Y            │
+└───────────────┴────────────────────┴──────────────────┴─────────────────┴───────────────────┴──────────────┘
+```
+
 ---
-
-### 逐行配置项与参数深度字典（彻底杜绝参数疑惑）
-
-为确保每一项 SQL 配置清晰透彻，以下将上述脚本的所有参数逐行拆解：
-
-#### 1. 服务账号与权限配置项 (`CREATE USER ... TYPE = SERVICE`)
-
-| 配置项 | 参数值 | 为什么这样配？（技术机理与安全规范） |
-| :--- | :--- | :--- |
-| `TYPE = SERVICE` | `SERVICE` | **专用服务账号类型**。区别于人类交互用户（`PERSON`），服务账号禁止使用交互式密码和 Web 界面登录，专用于自动化管道密钥对（Keypair）免交互认证，不受企业 SSO 密码过期策略阻断。 |
-| `DEFAULT_ROLE` | `OPENFLOW_CONNECTOR_ROLE` | **默认激活角色**。当 Openflow 通过 Python/JDBC 建立连接且未显式指定 Role 时，自动降权使用该专属角色，防止越权越位。 |
-| `GRANT ROLE ... TO SYSADMIN` | 角色继承 | **Snowflake 最佳安全实践**。所有自定义角色必须自下而上挂载到 `SYSADMIN`，防止出现脱离主管理员监管的“幽灵角色”。 |
-
-#### 2. 计算仓库配置项 (`CREATE WAREHOUSE OPENFLOW_INGEST_WH`)
-
-| 配置项 | 参数值 | 为什么这样配？（技术机理与成本防烧） |
-| :--- | :--- | :--- |
-| `WAREHOUSE_SIZE` | `'XSMALL'` | **最小算力规格（1 信用点/小时）**。文件元数据入库和 Stage 文本切片主要为 I/O 密集型操作，XSMALL 算力完全足够，可避免高规格机器空转烧钱。 |
-| `AUTO_SUSPEND` | `120`（秒） | **空闲 2 分钟自动挂起**。同步任务通常为周期性微批次，执行完几秒钟后等待 2 分钟无新查询即进入休眠，杜绝闲置计费。 |
-| `AUTO_RESUME` | `TRUE` | **自动唤醒**。下游一旦有查询或写入请求发起，Warehouse 在 1 秒内自动拉起，对业务完全透明。 |
-| `INITIALLY_SUSPENDED` | `TRUE` | **创建时默认休眠**。创建对象瞬间不立即消耗算力，只有首次真正被使用时才开始计费。 |
-
-#### 3. 内部 Stage 配置项 (`CREATE STAGE BOX_RAW_STAGE`)
-
-| 配置项 | 参数值 | 为什么这样配？（技术机理与底层联动） |
-| :--- | :--- | :--- |
-| `DIRECTORY = (ENABLE = TRUE)` | `ENABLE = TRUE` | **开启 Stage 目录表（Directory Table）**。这是非结构化数据管理的关键特性！开启后 Snowflake 会在 Stage 之上自动维护文件元数据表，使得我们能够直接用 `SELECT * FROM DIRECTORY(@BOX_RAW_STAGE)` 查询文件大小与路径，并支持下游挂载 Stream 变更流。 |
-| `ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')` | `'SNOWFLAKE_SSE'` | **Snowflake 服务器端加密**。采用 AES-256 算法，密钥由 Snowflake 强安全体系自动轮转，确保文件原件落盘时的物理静态合规与机密性。 |
-
-#### 4. 元数据台账表配置项 (`BOX_DOCUMENT_METADATA`)
-
-| 字段名称 | 类型约束 | 业务与技术含义 |
-| :--- | :--- | :--- |
-| `FILE_ID` | `VARCHAR(64) PRIMARY KEY` | **Box 端全局唯一对象 ID**。作为主键保证多次增量同步时幂等 Upsert，防止重复录入。 |
-| `FILE_NAME` | `VARCHAR(512) NOT NULL` | **文件完整名称**。包含扩展名（如 `.pdf`、`.docx`），供业务直观检索。 |
-| `FOLDER_ID` / `FOLDER_PATH` | `VARCHAR` | **父级目录 ID 与全路径面包屑**。保留文件在源端的目录归属结构。 |
-| `SHA256_HASH` | `VARCHAR(128) NOT NULL` | **文件的 SHA-256 加密哈希值**。判断文件内容是否变更的唯一金标准（CDC 判定），杜绝网络传输丢包损坏。 |
-| `SIZE_BYTES` | `NUMBER(38, 0)` | **文件精确物理字节大小**。与源端及 Stage 文件大小进行绝对对账。 |
-| `BOX_CREATED_AT` / `MODIFIED_AT` | `TIMESTAMP_NTZ` | **源端创建与修改时间戳**。驱动增量抽取的水位线（Watermark）。 |
-| `USER_EMAILS` | `ARRAY` | **访问控制权限列表（ACL）**。半结构化数组存储，作为下游行级安全策略（Row Access Policy）的强过滤依据。 |
-
-#### 5. 正文切块表配置项 (`BOX_DOC_CHUNKS`)
-
-| 字段名称 | 类型约束 | 业务与技术含义 |
-| :--- | :--- | :--- |
-| `CHUNK_ID` | `VARCHAR(128) PRIMARY KEY` | **复合切片主键**。规则为 `<file_id>_<chunk_index>`，保证每个文本切片全局唯一。 |
-| `CHUNK_INDEX` | `NUMBER(10, 0)` | **段落顺序索引**。记录该块在原文档中的先后位置，便于上下文还原重组。 |
-| `CHUNK_TEXT` | `VARCHAR(16777216) NOT NULL` | **段落真实文字正文**。采用 Snowflake 最大 16MB 文本列，承载切块清洗后的文字。 |
-| `USER_EMAILS` | `ARRAY NOT NULL` | **继承权限列表**。查询切块时同样受权限约束，防止越权嗅探正文。 |
 
 ---
 

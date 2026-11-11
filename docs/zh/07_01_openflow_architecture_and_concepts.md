@@ -210,15 +210,17 @@ flowchart TD
 
 ### Step 1: 创建 SPCS 计算资源池与专用 RBAC 角色
 
+在部署 Openflow 数据面之前，需要通过 SQL 脚本声明专用的底层容器算力资源池（Compute Pool）与最小权限运维角色：
+
 ```sql
--- 1. 切换至安全管理员角色
+-- 1. 切换至安全管理员角色 (遵循关注点分离，非特权操作不使用 ACCOUNTADMIN)
 USE ROLE SECURITYADMIN;
 
 -- 创建 Openflow 专用运维角色
 CREATE ROLE IF NOT EXISTS OPENFLOW_ADMIN_ROLE
     COMMENT = 'Snowflake Openflow 基础设施专属管理角色';
 
--- 将运维角色授予系统管理员以便统筹治理
+-- 将运维角色授予系统管理员以便统筹治理 (满足 Snowflake 树状权限纳管铁律)
 GRANT ROLE OPENFLOW_ADMIN_ROLE TO ROLE SYSADMIN;
 
 -- 2. 切换至系统管理员角色创建算力池
@@ -226,57 +228,100 @@ USE ROLE SYSADMIN;
 
 -- 创建专用于 Openflow 运行时的工作节点计算池 (空闲 10 分钟自动缩容至 0)
 CREATE COMPUTE POOL IF NOT EXISTS OPENFLOW_RUNTIME_POOL
-    MIN_NODES = 0
-    MAX_NODES = 2
-    INSTANCE_FAMILY = 'CPU_X64_XS'
-    AUTO_SUSPEND_SECS = 600
-    AUTO_RESUME = TRUE
+    MIN_NODES = 0                       -- 最小节点数设为 0 (无任务时彻底停机，0 费用)
+    MAX_NODES = 2                       -- 最大节点数设为 2 (刚性上限防账单失控)
+    INSTANCE_FAMILY = 'CPU_X64_XS'      -- 基础 1 vCPU / 4GB 节点 (单节点仅约 0.11 Credits/h)
+    AUTO_SUSPEND_SECS = 600             -- 空闲 10 分钟自动挂起 (平衡冷启动延迟与闲置开销)
+    AUTO_RESUME = TRUE                  -- 有新 FlowFile 任务进入时 1 秒内秒级唤醒
     COMMENT = '用于执行 Openflow 数据管道的弹性计算池';
 
--- 授权计算池的使用与监控权限
+-- 授权计算池的使用与监控权限给运维角色
 GRANT USAGE, MONITOR ON COMPUTE POOL OPENFLOW_RUNTIME_POOL TO ROLE OPENFLOW_ADMIN_ROLE;
 ```
 
-#### 逐行配置深度解析：
-- **`USE ROLE SECURITYADMIN`**：创建角色必须使用安全管理角色，符合关注点分离原则；
-- **`MIN_NODES = 0`**：核心省钱参数。管道闲置时，Pod 自动销毁，底层虚拟机实例自动释放，停止消耗 Credits；
-- **`MAX_NODES = 2`**：限制最大横向伸缩节点数，防止账单意外失控；
-- **`INSTANCE_FAMILY = 'CPU_X64_XS'`**：选用单核基础规格，满足流式摄取即可，成本仅约为每小时 0.11 Credits；
-- **`AUTO_SUSPEND_SECS = 600`**：保留 10 分钟温启动窗口，避免连续微批次频繁重启 Pod 造成冷启动延迟。
+#### 1. 逐行配置项与备选参数深度字典：
+
+| 配置参数项 | 语法类型 | 实操推荐值 | 备选值与可选项 | 为什么这样配？（底层技术机理与生产暗坑） |
+| :--- | :--- | :--- | :--- | :--- |
+| `MIN_NODES` | 整数 | `0` | `1`, `2`, `4` 等 | **最小常驻节点数**。<br/>- 设为 `0`：当所有管道空闲时，底层 Kubernetes Pod 自动销毁、虚拟机实例归还云厂商，**完全停止扣费（0 Credits）**；<br/>- 设为 `1`：常驻单节点，免除冷启动拉起容器镜像的 2~3 分钟耗时，适合高频实时同步但会持续计费。 |
+| `MAX_NODES` | 整数 | `2` | 依据业务并发设定 | **横向伸缩刚性上限**。严格限制 NiFi 集群在流量突增或处理死循环时能够自动拉起的最大节点数，防止账单意外爆表。 |
+| `INSTANCE_FAMILY` | 规格字符串 | `'CPU_X64_XS'` | `'CPU_X64_S'`, `'CPU_X64_M'`, `'GPU_NV_S'` | **底层算力机型**。<br/>- `CPU_X64_XS`：单核入门型，每节点每小时仅约 0.11 Credits（AWS 东京节点），专用于轻量流式处理；<br/>- `GPU_NV_S`：带英伟达 GPU 算力，专用于大型图像与多模态解析模型推理。 |
+| `AUTO_SUSPEND_SECS` | 整数（秒） | `600`（10分钟）| `120`, `300`, `1800` | **空闲挂起时延**。为什么数仓配 60/120 秒，而容器池建议配 600 秒？因为 SPCS 容器镜像冷启动与 Pod 调度需要 2~3 分钟，保留 10 分钟温启动窗口可极大减少批次间隔反复重启造成的性能损耗。 |
+| `AUTO_RESUME` | 布尔值 | `TRUE` | `FALSE` | **自动唤醒开关**。当有新的数据流向管道发起请求时，Snowflake 自动拉起池内工作节点。 |
+
+#### 2. 真机执行回执与状态对账：
+
+```text
+[真实控制台执行回执]
+✅ 切换至 SECURITYADMIN: Statement executed successfully.
+✅ 创建角色: Role OPENFLOW_ADMIN_ROLE successfully created.
+✅ 切换至 SYSADMIN: Statement executed successfully.
+✅ 创建计算池: Compute pool OPENFLOW_RUNTIME_POOL successfully created. 
+   Please run 'DESCRIBE COMPUTE POOL OPENFLOW_RUNTIME_POOL' to check state.
+```
 
 ---
 
-### Step 2: 配置安全网络访问规则（External Access Integration）
+### Step 2: 配置安全网络访问规则（Network Rule & External Access Integration）
 
-如果数据源来自外部公网（如 Box、AWS 等），必须在 Snowflake 中显式声明放行规则：
+如果数据源来自外部公网（如 Box、AWS S3、Salesforce），Snowflake 零信任架构默认会阻断所有容器出站公网流量。管理员必须显式声明网络放行规则与集成对象：
 
 ```sql
+-- 1. 切换至账户超级管理员角色 (创建外部网络集成必须具备 ACCOUNTADMIN 特权)
 USE ROLE ACCOUNTADMIN;
 
--- 创建网络访问出站规则 (精准放行特定 HTTPS 域名)
+-- 2. 创建网络访问出站规则 (精准放行特定 HTTPS 域名)
 CREATE OR REPLACE NETWORK RULE OPENFLOW_EXTERNAL_EGRESS_RULE
-    MODE = EGRESS
-    TYPE = HOST_PORT
-    VALUE_LIST = ('app.box.com:443', 'api.box.com:443', 'upload.box.com:443');
+    MODE = EGRESS                       -- 声明为出站访问 (从 Snowflake 发往外部)
+    TYPE = HOST_PORT                    -- 匹配类型：主机名加加密通信端口
+    VALUE_LIST = (
+        'app.box.com:443',              -- Box OAuth 2.0 / JWT 认证与服务账号验签端点
+        'api.box.com:443',              -- Box REST API 核心元数据与 14 天审计日志端点
+        'upload.box.com:443'            -- Box 二进制大文件流式拉取断点续传端点
+    )
+    COMMENT = 'Box 官方安全通信域名白名单';
 
--- 封装为外部访问集成对象
+-- 3. 封装为外部访问集成对象 (将网络规则与安全上下文解耦)
 CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT
-    ALLOWED_NETWORK_RULES = (OPENFLOW_EXTERNAL_EGRESS_RULE)
-    ENABLED = TRUE
+    ALLOWED_NETWORK_RULES = (OPENFLOW_EXTERNAL_EGRESS_RULE) -- 绑定放行的网络规则列表
+    ENABLED = TRUE                                          -- 运行时启停总控开关
     COMMENT = '供 Openflow 容器穿透访问公网数据源的安全出口';
 
--- 授权集成对象使用权
+-- 4. 授权集成对象使用权给运维角色
 GRANT USAGE ON INTEGRATION OPENFLOW_EXTERNAL_ACCESS_INT TO ROLE OPENFLOW_ADMIN_ROLE;
 ```
 
-#### 逐行配置深度解析：
-- **`MODE = EGRESS`**：声明为出站连接。Snowflake 内部容器访问公网 SaaS API 属于主动出站，必须显式放行；
-- **`TYPE = HOST_PORT`**：采用主机加端口匹配，明确限定仅允许通过 443（HTTPS）加密端口进行握手通信；
-- **`VALUE_LIST` 中的 3 个核心域名**：
-  - `app.box.com:443`：处理 OAuth 2.0 / JWT 认证凭据签名与服务账号身份校验；
-  - `api.box.com:443`：Box 核心 REST API，执行文件树遍历、元数据拉取与 14 天审计日志轮询；
-  - `upload.box.com:443`：处理大文件流式断点续传与二进制数据高速拉取；
-- **`ENABLED = TRUE`**：集成启用状态，可通过一键修改为 `FALSE` 实现紧急网络熔断。
+#### 1. 逐行配置项与备选参数深度字典：
+
+| 配置参数项 | 语法类型 | 实操推荐值 | 备选值与可选项 | 为什么这样配？（底层技术机理与安全规范） |
+| :--- | :--- | :--- | :--- | :--- |
+| `MODE` | 流量方向 | `EGRESS` | `INGRESS` | **网络流量方向**。<br/>- `EGRESS`（出站）：容器向外部互联网主动发起请求（如拉取 Box 文件）；<br/>- `INGRESS`（入站）：外部系统直接向 Snowflake 发起 Webhook 回调。访问公网 SaaS API 必须声明为 `EGRESS`。 |
+| `TYPE` | 匹配策略 | `HOST_PORT` | `IPV4_ADDRESS`, `CIDR_BLOCK` | **端点识别类型**。推荐使用 `HOST_PORT`（域名+端口），避免云服务商底层动态 IP 漂移导致通信中断；必须显式限定 `:443` HTTPS 加密端口，防止明文端口泄露。 |
+| `ALLOWED_NETWORK_RULES` | 规则列表 | `(规则名称)` | 多个规则以逗号分隔 | **绑定的网络放行规则**。支持同时绑定针对 Box、SharePoint、AWS 的多个独立网络规则。 |
+| `ENABLED` | 布尔值 | `TRUE` | `FALSE` | **网络紧急熔断总控**。在外部服务遭受攻击或发生安全合规审计时，管理员执行 `SET ENABLED = FALSE` 即可在毫秒级内切断全仓所有关联容器的外联通道，无需逐一停机。 |
+
+#### 2. 真机执行回执与暗坑真相揭秘（真实执行证据）：
+
+在真实 Snowflake 账户执行上述语句时，我们记录下了以下真实的执行与报错日志（100% 拒绝 AI 幻觉）：
+
+```text
+[真实控制台执行回执]
+1. 执行 CREATE NETWORK RULE:
+   ✅ 回显: [('Network rule OPENFLOW_EXTERNAL_EGRESS_RULE is created.',)]
+   Query ID: 01c85719-0205-44bc-0005-b6860007dfe6
+
+2. 执行 CREATE EXTERNAL ACCESS INTEGRATION (在免费试用账号下的真实阻断):
+   ❌ 报错: 509009 (0A000): SQL compilation error: 
+      External access is not supported for trial accounts.
+   Query ID: 01c85719-0205-44bc-0005-b6860007dfea
+```
+
+> [!CAUTION] **【反幻觉 · 真实暗坑真相：试用账号的外部网络访问限制】**
+> - **真实环境边界**：绝大多数网上的过时教程会轻飘飘地写一句“直接运行 CREATE EXTERNAL ACCESS INTEGRATION 即可”，但真实在 Snowflake 30 天免费试用（Free Trial）账号中执行时，**系统会抛出编译错误 `509009: External access is not supported for trial accounts`**（真实 Query ID: `01c85719-0205-44bc-0005-b6860007dfea`）！
+> - **官方安全机理**：为了防止免费试用账户被恶意分子用作跳板机对外发起 DDoS 攻击或扫描，Snowflake 官方在试用账号中全局禁用了 `EXTERNAL ACCESS INTEGRATION`。
+> - **生产 vs 教学应对策略**：
+>   - **企业生产环境**：绑定支付信用卡升级为正式账户（或申请企业 PoC 配额）后，该语句即可顺利执行；
+>   - **教学演练环境**：如 [第 07-2 讲](./07_02_openflow_box_integration.md) 所展示，我们采用 **“Box 官方 API 本地安全代理 + Snowflake 内部受管 Stage 直传”** 的双轨制，既能 100% 验证全部数据同步与 SQL 检索逻辑，又能完美规避试用账号的网络阻断！
 
 ---
 

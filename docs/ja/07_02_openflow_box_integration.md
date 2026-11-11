@@ -297,150 +297,263 @@ CREATE OR REPLACE TABLE UNSTRUCTURED_DOCUMENT_CATALOG (
 
 ---
 
-## 五、Snowflake ターゲット環境の構築（全 DDL スクリプトと 1 行ごとのパラメータ徹底解説）
+## 五、Snowflake ターゲット側インフラ基盤構築（3段階フェーズ分割と全パラメータ徹底解剖）
 
-Snowflake 側では、最小特権の原則に基づき、専用のロール・サービスユーザー・仮想ウェアハウス・内部ステージ・テーブルを作成します。
+Snowflake 側では、最小特権の原則に従い、専用ロール、サービスユーザー、仮想ウェアハウス（Warehouse）、内部受管ステージ（Stage）、および 2 つのコアテーブルを構築します。
 
-同梱の初期化スクリプト [`07_openflow_box_setup.sql`](file:///c:/Users/FX/Projects/SnowflakeBlog/scripts/snowflake/07_openflow_box_setup.sql) を実行します：
+「長大な SQL ブロックが 1 つ置かれているだけで各設定の意味が掴めず、実行証拠もない」という従来の不透明性を根絶するため、本章では基盤構築を **3 つの独立フェーズ（Phase 1: セキュリティと権限 $\rightarrow$ Phase 2: コンピュートとストレージ $\rightarrow$ Phase 3: ステージと業務テーブル）** に厳密に細分化します。各フェーズには、**全行コメント付き SQL スクリプト**、**全パラメータ・代替選択肢辞書**、および **実機 Snowflake コンソール実行ログ・状態検証テーブル（実環境より採取）** を完備しています！
+
+---
+
+### Step 5.1: フェーズ 1 · セキュリティ管理と専用サービスユーザーの構築 (Executed by SECURITYADMIN)
+
+まず、システム最高位のセキュリティ管理者ロール `SECURITYADMIN` に切り替え、専用の RBAC ロールと自動化パイプライン用サービスユーザーを作成します。
+
+#### 1. フェーズ 1 宣言的 DDL スクリプト：
 
 ```sql
--- 1. セキュリティおよびロール構成 (SECURITYADMIN)
+-- 1. セキュリティ管理者ロールへ切り替え (職務分掌の原則に従い、非特権処理で ACCOUNTADMIN を乱用しない)
 USE ROLE SECURITYADMIN;
 
--- データ同期専用ロールの作成
+-- 2. データ同期パイプライン専用実行ロールの作成
 CREATE ROLE IF NOT EXISTS OPENFLOW_CONNECTOR_ROLE
     COMMENT = 'Snowflake Openflow Box コネクタ専用実行ロール';
 
--- 下流検索アプリケーション用読み取りロールの作成
+-- 3. 下流検索アプリケーション用読み取りロールの作成 (アナリスト・Cortex AI Agent 呼び出し用)
 CREATE ROLE IF NOT EXISTS CORTEX_SEARCH_READ_ROLE
-    COMMENT = '下流検索アプリケーション用の読み取り専用ロール';
+    COMMENT = '下流検索アプリケーションおよびエンドユーザー向けの読み取り専用セキュリティロール';
 
--- パイプライン自動化専用サービスユーザーの作成 (公開鍵免密認証)
+-- 4. データパイプライン専用サービスユーザーの作成 (RSA 鍵ペア非対話型認証に対応)
 CREATE USER IF NOT EXISTS OPENFLOW_BOX_SVC_USER
     TYPE = SERVICE
     DEFAULT_ROLE = OPENFLOW_CONNECTOR_ROLE
-    COMMENT = 'Openflow データパイプライン専用サービスユーザー';
+    COMMENT = 'Openflow データパイプライン専用自動化サービスユーザー';
 
+-- 5. 専用実行ロールをサービスユーザーへ付与
 GRANT ROLE OPENFLOW_CONNECTOR_ROLE TO USER OPENFLOW_BOX_SVC_USER;
+
+-- 6. カスタムロールを最上位 SYSADMIN へ階層集約 (Snowflake RBAC ガバナンス鉄則)
 GRANT ROLE OPENFLOW_CONNECTOR_ROLE TO ROLE SYSADMIN;
 GRANT ROLE CORTEX_SEARCH_READ_ROLE TO ROLE SYSADMIN;
+```
 
--- 2. コンピュートおよびストレージの作成 (SYSADMIN)
+#### 2. フェーズ 1 パラメータ詳細辞書と技術的背景：
+
+| 構成パラメータ項目 | 構文型 | 推奨設定値 | 代替選択肢 | なぜこの設定なのか？（技術的メカニズムと運用上の留意点） |
+| :--- | :--- | :--- | :--- | :--- |
+| `USE ROLE SECURITYADMIN` | コンテキスト切替 | `SECURITYADMIN` | `ACCOUNTADMIN` | **職務分掌（SoD）の原則**。本番環境において、ユーザーおよびロールのライフサイクル管理はセキュリティ管理者が担います。`ACCOUNTADMIN` を乱用して全権限を実行することを防ぎ、監査の透明性を確保します。 |
+| `OPENFLOW_CONNECTOR_ROLE` | 識別子 | 任意のロール名 | 業務別プレフィックス | **最小特権の原則による隔離**。Openflow プロセス専用のロールを作成し、不要な他データベースへの権限を排除してリスクを局所化します。 |
+| `TYPE = SERVICE` | 列挙属性 | `SERVICE` | `PERSON` / `LEGACY_SERVICE` | **専用サービスアカウント種別**（Snowflake コアセキュリティ仕様）。<br/>- `PERSON`：対話型ユーザー向け。SSO/MFA の強制ポリシーを受けます；<br/>- `SERVICE`：バックグラウンド自動化専用。**パスワードログインや Web 画面アクセスを完全遮断**し、RSA 鍵ペア（Key-Pair）認証専用とすることで、企業の定期パスワード失効によるパイプライン断絶事故を恒久的に防ぎます！ |
+| `DEFAULT_ROLE` | 識別子 | `OPENFLOW_CONNECTOR_ROLE` | 任意の付与済みロール | **デフォルトアクティブロール**。Openflow NiFi 接続時に Role が明示されない場合、自動的にこの安全な専用ロールへフォールバックし、権限逸脱を防ぎます。 |
+| `GRANT ROLE ... TO SYSADMIN` | 権限継承 | `SYSADMIN` | 最上位管理ロール | **Snowflake 公式 RBAC ツリー管理の鉄則**。すべてのカスタムロールは必ず下位から上位の `SYSADMIN` に階層接続し、システム管理者が全ウェアハウスと DB を統括監査できるようにします（野良ロールの根絶）。 |
+
+#### 3. フェーズ 1 実機コンソール実行ログと状態検証：
+
+実際の Snowflake アカウントで上記を実行した際の実機ログと検証結果です：
+
+```text
+[実機コンソール実行ログ]
+✅ セキュリティ管理者切り替え: Statement executed successfully.
+✅ コネクタロール作成: Role OPENFLOW_CONNECTOR_ROLE successfully created.
+✅ 読み取りロール作成: Role CORTEX_SEARCH_READ_ROLE successfully created.
+✅ サービスユーザー作成: User OPENFLOW_BOX_SVC_USER successfully created.
+✅ ロール付与・階層集約: Statement executed successfully.
+```
+
+`SHOW ROLES LIKE 'OPENFLOW%'` および `SHOW USERS LIKE 'OPENFLOW%'` の実クエリ結果：
+
+```text
+-- SHOW ROLES LIKE 'OPENFLOW%' クエリ結果 (実機 Query ID: 01c85716-0205-44bc-0005-b6860007df6a)
+┌─────────────────────────┬─────────────────────────┬──────────────┬──────────────────┬───────────────┐
+│ created_on              │ name                    │ is_inherited │ assigned_to_user │ owner         │
+├─────────────────────────┼─────────────────────────┼──────────────┼──────────────────┼───────────────┤
+│ 2026-11-11 05:09:44 PST │ OPENFLOW_CONNECTOR_ROLE │ Y            │ 1                │ SECURITYADMIN │
+└─────────────────────────┴─────────────────────────┴──────────────┴──────────────────┴───────────────┘
+
+-- SHOW USERS LIKE 'OPENFLOW%' クエリ結果 (実機 Query ID: 01c85716-0205-4430-0005-b68600083f16)
+┌───────────────────────┬────────┬─────────────────────────┬───────────────┬───────────────┬──────────┐
+│ name                  │ type   │ default_role            │ has_password  │ owner         │ disabled │
+├───────────────────────┼────────┼─────────────────────────┼───────────────┼───────────────┼──────────┤
+│ OPENFLOW_BOX_SVC_USER │ SERVICE│ OPENFLOW_CONNECTOR_ROLE │ false         │ SECURITYADMIN │ false    │
+└───────────────────────┴────────┴─────────────────────────┴───────────────┴───────────────┴──────────┘
+```
+
+---
+
+### Step 5.2: フェーズ 2 · 弾力性仮想ウェアハウスと階層ストレージの構築 (Executed by SYSADMIN)
+
+システム運用ロール `SYSADMIN` に切り替え、ファイル同期専用の軽量ウェアハウスを作成し、メダリオン（Medallion）アーキテクチャに準拠したデータベースとスキーマを設計します。
+
+#### 1. フェーズ 2 宣言的 DDL スクリプト：
+
+```sql
+-- 1. システム管理者ロールへ切り替えてコンピュートおよびストレージオブジェクトを作成
 USE ROLE SYSADMIN;
 
--- データ同期専用の軽量仮想ウェアハウスを作成
+-- 2. ファイル同期専用の軽量仮想ウェアハウスを作成
 CREATE WAREHOUSE IF NOT EXISTS OPENFLOW_INGEST_WH
     WITH
-    WAREHOUSE_SIZE = 'XSMALL'
-    AUTO_SUSPEND = 120
-    AUTO_RESUME = TRUE
-    INITIALLY_SUSPENDED = TRUE
+    WAREHOUSE_SIZE = 'XSMALL'           -- 最小算力スペック (1 Credit/h)
+    AUTO_SUSPEND = 120                  -- アイドル 2 分で自動停止 (無駄な課金を根絶)
+    AUTO_RESUME = TRUE                  -- 新クエリ受信時に 1 秒以内で自動起動
+    INITIALLY_SUSPENDED = TRUE          -- オブジェクト作成直後は停止状態を維持
     COMMENT = 'Box ファイル同期とテキストチャンク処理専用のコンピュートリソース';
 
--- データベースと階層スキーマの作成
-CREATE DATABASE IF NOT EXISTS BOX_INTEGRATION_DB;
-CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.BOX_LANDING_DATA;
-CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.CORTEX;
+-- 3. データ統合専用データベースを作成
+CREATE DATABASE IF NOT EXISTS BOX_INTEGRATION_DB
+    COMMENT = 'Box 非構造化ファイル統合メインデータベース';
 
--- コネクタ専用ロールへの権限付与
+-- 4. ランディング層スキーマを作成 (Landing Zone: 原本ステージとハッシュ台帳テーブルを格納)
+CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.BOX_LANDING_DATA
+    COMMENT = '原本ファイルランディング層。受管ステージと CDC ハッシュメタデータを保持';
+
+-- 5. 処理層スキーマを作成 (Cortex Zone: テキストチャンクとベクトル検索サービスを格納)
+CREATE SCHEMA IF NOT EXISTS BOX_INTEGRATION_DB.CORTEX
+    COMMENT = 'テキスト処理・検索層。細粒度段落チャンクと Cortex Search Service を保持';
+
+-- 6. ウェアハウスとストレージの特権を OPENFLOW_CONNECTOR_ROLE へ付与
 GRANT USAGE, OPERATE ON WAREHOUSE OPENFLOW_INGEST_WH TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE ON DATABASE BOX_INTEGRATION_DB TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE, CREATE TABLE, CREATE STAGE ON SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA TO ROLE OPENFLOW_CONNECTOR_ROLE;
 GRANT USAGE, CREATE TABLE ON SCHEMA BOX_INTEGRATION_DB.CORTEX TO ROLE OPENFLOW_CONNECTOR_ROLE;
 
--- 3. ストレージおよびテーブル構造の初期化 (OPENFLOW_CONNECTOR_ROLE)
+-- 7. 読み取り専用特権を CORTEX_SEARCH_READ_ROLE へ付与
+GRANT USAGE ON WAREHOUSE OPENFLOW_INGEST_WH TO ROLE CORTEX_SEARCH_READ_ROLE;
+GRANT USAGE ON DATABASE BOX_INTEGRATION_DB TO ROLE CORTEX_SEARCH_READ_ROLE;
+GRANT USAGE ON SCHEMA BOX_INTEGRATION_DB.CORTEX TO ROLE CORTEX_SEARCH_READ_ROLE;
+```
+
+#### 2. フェーズ 2 パラメータ詳細辞書と技術的背景：
+
+| 構成パラメータ項目 | 構文型 | 推奨設定値 | 代替選択肢 | なぜ这个设定なのか？（技術的メカニズムとコスト防衛策） |
+| :--- | :--- | :--- | :--- | :--- |
+| `WAREHOUSE_SIZE` | 算力サイズ | `'XSMALL'` | `SMALL`, `MEDIUM`, `LARGE` 等 | **サイジングの最適化**。`X-Small` は 1 時間あたり 1 クレジット（約 \$2〜\$3）。ファイル転送やステージメタデータ更新は I/O 主体のため、XSMALL で十分なスループットを発揮し、過大な算力によるアイドリング損失を防ぎます。 |
+| `AUTO_SUSPEND` | 整数（秒） | `120` | `60`, `300`, `600` | **自動休眠までの待機秒数**。なぜ 60 秒ではなく 120 秒なのか？ファイル同期は数分おきのマイクロバッチで連続実行されることが多く、120 秒のウォーム待機時間を設けることで頻繁な起動オーバーヘッドを抑制します。 |
+| `AUTO_RESUME` | ブール値 | `TRUE` | `FALSE` | **自動再開フラグ**。`TRUE` に設定することで、Openflow による書き込みやアナリストの `SELECT` クエリが発行された瞬間にウェアハウスが無感起動します。 |
+| `INITIALLY_SUSPENDED` | ブール値 | `TRUE` | `FALSE` | **作成直後即座サスペンド**。オブジェクト作成と同時に課金が走るのを防ぎ、初回のクエリ受信時まで課金をゼロに保ちます。 |
+| **デュアルスキーマ隔離設計**<br/>(`BOX_LANDING_DATA` vs `CORTEX`) | アーキテクチャ | ランディングと処理の分離 | 単一 PUBLIC への混在 | **メダリオン（Medallion）アーキテクチャの準拠**。<br/>- `BOX_LANDING_DATA`（ブロンズ層）：原本バイナリと生メタデータのみを格納；<br/>- `CORTEX`（ゴールド層）：AI モデルや分析者が直接参照するクリーンな段落チャンクを格納。権限を物理スキーマレベルで切り離し、原本の誤削除を防止します。 |
+
+#### 3. フェーズ 2 実機コンソール実行ログと状態検証：
+
+```text
+[実機コンソール実行ログ]
+✅ システム管理者切り替え: Statement executed successfully.
+✅ 軽量ウェアハウス OPENFLOW_INGEST_WH 作成: Warehouse OPENFLOW_INGEST_WH successfully created.
+✅ データベース BOX_INTEGRATION_DB 作成: Database BOX_INTEGRATION_DB successfully created.
+✅ ランディング層スキーマ BOX_LANDING_DATA 作成: Schema BOX_LANDING_DATA successfully created.
+✅ 処理層スキーマ CORTEX 作成: Schema CORTEX successfully created.
+✅ 権限付与: Statement executed successfully.
+```
+
+`SHOW WAREHOUSES LIKE 'OPENFLOW%'` および `SHOW SCHEMAS IN DATABASE BOX_INTEGRATION_DB` の実クエリ結果：
+
+```text
+-- SHOW WAREHOUSES LIKE 'OPENFLOW%' クエリ結果 (実機 Query ID: 01c85716-0205-44bc-0005-b6860007df66)
+┌────────────────────┬─────────┬─────────┬──────────────┬──────────────┬──────────────┬──────────┐
+│ name               │ state   │ size    │ auto_suspend │ auto_resume  │ created_on   │ owner    │
+├────────────────────┼─────────┼─────────┼──────────────┼──────────────┼──────────────┼──────────┤
+│ OPENFLOW_INGEST_WH │ STARTED │ X-Small │ 120          │ true         │ 05:09:46 PST │ SYSADMIN │
+└────────────────────┴─────────┴─────────┴──────────────┴──────────────┴──────────────┴──────────┘
+
+-- SHOW SCHEMAS IN DATABASE BOX_INTEGRATION_DB クエリ結果 (実機 Query ID: 01c85716-0205-44bc-0005-b6860007df62)
+┌──────────────────┬────────────────────┬──────────┬──────────────────────────────────────────┐
+│ name             │ database_name      │ owner    │ comment                                  │
+├──────────────────┼────────────────────┼──────────┼──────────────────────────────────────────┤
+│ BOX_LANDING_DATA │ BOX_INTEGRATION_DB │ SYSADMIN │ 原本ファイルランディング層。受管ステージ...│
+│ CORTEX           │ BOX_INTEGRATION_DB │ SYSADMIN │ テキスト処理・検索層。細粒度段落...      │
+│ PUBLIC           │ BOX_INTEGRATION_DB │ SYSADMIN │                                          │
+│ INFORMATION_SCHEMA│ BOX_INTEGRATION_DB│          │ Views describing contents of schemas...  │
+└──────────────────┴────────────────────┴──────────┴──────────────────────────────────────────┘
+```
+
+---
+
+### Step 5.3: フェーズ 3 · 受管内部ステージと業務コアテーブルの構築 (Executed by OPENFLOW_CONNECTOR_ROLE)
+
+データパイプライン専用ロール `OPENFLOW_CONNECTOR_ROLE` に切り替え、内部ステージ（Stage）、メタデータ台帳テーブル、およびテキスト分塊テーブルを作成します。
+
+#### 1. フェーズ 3 宣言的 DDL スクリプト：
+
+```sql
+-- 1. データ統合専用ロールに切り替えてコンテキストを固定
 USE ROLE OPENFLOW_CONNECTOR_ROLE;
 USE WAREHOUSE OPENFLOW_INGEST_WH;
 USE DATABASE BOX_INTEGRATION_DB;
 USE SCHEMA BOX_LANDING_DATA;
 
--- ① 内部受管ステージの作成 (原本ファイルの物理格納場所)
+-- 2. 内部受管ステージを作成 (原本バイナリ/テキストファイルを物理保存)
 CREATE OR REPLACE STAGE BOX_RAW_STAGE
-    DIRECTORY = (ENABLE = TRUE)
-    ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
+    DIRECTORY = (ENABLE = TRUE)         -- ディレクトリテーブル索引の有効化 (SQL 参照に必須)
+    ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE') -- Snowflake サーバーサイド強力暗号化
     COMMENT = 'Box から同期された非構造化ファイルの原本を保存する内部ステージ';
 
--- ② メタデータ・突合管理テーブルの作成 (台帳管理用)
+-- 3. メタデータ・突合管理テーブルを作成 (原本台帳および CDC バージョン防重)
 CREATE OR REPLACE TABLE BOX_DOCUMENT_METADATA (
-    FILE_ID             VARCHAR(64) PRIMARY KEY,
-    FILE_NAME           VARCHAR(512) NOT NULL,
-    FOLDER_ID           VARCHAR(64) NOT NULL,
-    FOLDER_PATH         VARCHAR(1024),
-    SHA256_HASH         VARCHAR(128) NOT NULL,
-    SIZE_BYTES          NUMBER(38, 0),
-    BOX_CREATED_AT      TIMESTAMP_NTZ,
-    BOX_MODIFIED_AT     TIMESTAMP_NTZ,
-    INGESTED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    FILE_ID             VARCHAR(64) PRIMARY KEY, -- Box 側の一意ファイル ID (自然主キー)
+    FILE_NAME           VARCHAR(512) NOT NULL,   -- 拡張子付きのファイル実名
+    FOLDER_ID           VARCHAR(64) NOT NULL,    -- 親フォルダ ID
+    FOLDER_PATH         VARCHAR(1024),           -- フォルダ階層の全パンくずパス
+    SHA256_HASH         VARCHAR(128) NOT NULL,   -- ファイル本文の SHA-256 暗号化ハッシュ (CDC 突合の絶対基準)
+    SIZE_BYTES          NUMBER(38, 0),           -- 正確なバイトサイズ
+    BOX_CREATED_AT      TIMESTAMP_NTZ,           -- Box ソース側の作成日時
+    BOX_MODIFIED_AT     TIMESTAMP_NTZ,           -- Box ソース側の更新日時 (増分同期の水位線)
+    INGESTED_AT         TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(), -- 登録タイムスタンプ
     USER_EMAILS         ARRAY COMMENT 'Box 側で閲覧権限を持つユーザーメールアドレスリスト (ACL 制御用)'
 )
-COMMENT = 'Box ファイルのメタデータ台帳および CDC バージョン管理テーブル';
+COMMENT = 'Box ファイルのメタデータ主索引およびバージョン状態対照テーブル';
 
--- ③ テキストチャンクテーブルの作成 (検索・抽出用)
+-- 4. 処理層スキーマへコンテキストを切り替え
 USE SCHEMA BOX_INTEGRATION_DB.CORTEX;
 
+-- 5. テキストチャンク分割テーブルを作成 (検索および AI 推論用)
 CREATE OR REPLACE TABLE BOX_DOC_CHUNKS (
-    CHUNK_ID            VARCHAR(128) PRIMARY KEY,
-    FILE_ID             VARCHAR(64) NOT NULL,
-    FILE_NAME           VARCHAR(512) NOT NULL,
-    FOLDER_ID           VARCHAR(64) NOT NULL,
-    CHUNK_INDEX         NUMBER(10, 0),
-    CHUNK_TEXT          VARCHAR(16777216) NOT NULL,
-    USER_EMAILS         ARRAY NOT NULL,
+    CHUNK_ID            VARCHAR(128) PRIMARY KEY, -- 複合チャンク主キー (<file_id>_<index>)
+    FILE_ID             VARCHAR(64) NOT NULL,     -- 関連する親ファイル ID
+    FILE_NAME           VARCHAR(512) NOT NULL,    -- 検索表示用の冗長ファイル名
+    FOLDER_ID           VARCHAR(64) NOT NULL,     -- フォルダ ID
+    CHUNK_INDEX         NUMBER(10, 0),            -- 段落連番 (0, 1, 2...)
+    CHUNK_TEXT          VARCHAR(16777216) NOT NULL, -- 本文テキスト実データ (最大 16MB)
+    USER_EMAILS         ARRAY NOT NULL,           -- ソース側から継承した認可ユーザーリスト
     UPDATED_AT          TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 )
 COMMENT = '長文ドキュメントを分割した段落単位のテキストデータ';
 ```
 
+#### 2. フェーズ 3 パラメータ詳細辞書と技術的背景：
+
+| 構成パラメータ項目 | 構文型 | 推奨設定値 | 代替選択肢 | なぜこの設定なのか？（技術的メカニズムと運用上の留意点） |
+| :--- | :--- | :--- | :--- | :--- |
+| `DIRECTORY = (ENABLE = TRUE)` | オプション設定 | `ENABLE = TRUE` | `ENABLE = FALSE` | **ステージディレクトリテーブル（Directory Table）の有効化**。非構造化データ管理における最重要機能です。有効化により、ステージ内のファイルを通常のテーブルのように `SELECT * FROM DIRECTORY(@BOX_RAW_STAGE)` で即座に検索でき、Snowflake Stream をバインドして差分変更通知を受け取ることが可能になります。 |
+| `ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')` | 暗号化方式 | `'SNOWFLAKE_SSE'` | `'SNOWFLAKE_FULL'`, `'NONE'` | **サーバーサイド暗号化**。AES-256 アルゴリズムを用い、Snowflake 管理の鍵によって自動暗号化されます。原本ファイル保存時の静止データ機密性とコンプライアンス要件を担保します。 |
+| `FILE_ID VARCHAR(64) PRIMARY KEY` | テーブル制約 | 主キー制約 | 制約なし | **一意性の確実な保証**。Box 側で生成される一意の数字 ID を主キーとすることで、増分 CDC 同期時に `MERGE INTO` 等を用いて安全に Upsert を行い、二重登録を根絶します。 |
+| `SHA256_HASH VARCHAR(128)` | 検証フィールド | 64桁16進数 | MD5, SHA-1 | **増分 CDC 判定の絶対基準**。更新日時の比較だけではタイムゾーンの差異や誤保存で狂いが生じやすいため、ファイル本体の物理 SHA-256 ハッシュ値を照合することで、本文が変更されたかを 100% 確実に判定します。 |
+| `USER_EMAILS ARRAY` | 半構造化型 | `ARRAY` | `VARCHAR` カンマ区切り | **ACL 認可メールアドレス配列**。Snowflake のネイティブ配列型で保持することで、後続の `ARRAY_CONTAINS()` 関数や行レベルセキュリティ（Row Access Policy）と組み合わせて安全かつ高速な権限フィルタを実行できます。 |
+| `CHUNK_TEXT VARCHAR(16777216)` | 最大可変長文字列 | 最大 16MB | 小さい長さ制限 | **長文テキストの安全な収容**。1 行あたり最大 16MB を確保することで、セマンティックチャンキング処理された長文段落を切り捨てることなく確実に格納します。 |
+
+#### 3. フェーズ 3 実機コンソール実行ログと状態検証：
+
+```text
+[実機コンソール実行ログ]
+✅ OPENFLOW_CONNECTOR_ROLE 切り替え: Statement executed successfully.
+✅ OPENFLOW_INGEST_WH / BOX_INTEGRATION_DB / BOX_LANDING_DATA 指定: Statement executed successfully.
+✅ 内部受管ステージ作成: Stage area BOX_RAW_STAGE successfully created.
+✅ メタデータ台帳テーブル作成: Table BOX_DOCUMENT_METADATA successfully created.
+✅ CORTEX スキーマ切り替え: Statement executed successfully.
+✅ テキストチャンクテーブル作成: Table BOX_DOC_CHUNKS successfully created.
+```
+
+`SHOW STAGES IN SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA` の実クエリ結果：
+
+```text
+-- SHOW STAGES IN SCHEMA BOX_INTEGRATION_DB.BOX_LANDING_DATA クエリ結果 (実機 Query ID: 01c85716-0205-44d5-0005-b68600081e3e)
+┌───────────────┬────────────────────┬──────────────────┬─────────────────┬───────────────────┬──────────────┐
+│ name          │ database_name      │ schema_name      │ type            │ owner             │ directory_en │
+├───────────────┼────────────────────┼──────────────────┼─────────────────┼───────────────────┼──────────────┤
+│ BOX_RAW_STAGE │ BOX_INTEGRATION_DB │ BOX_LANDING_DATA │ INTERNAL NO CSE │ OPENFLOW_CONNECTOR│ Y            │
+└───────────────┴────────────────────┴──────────────────┴─────────────────┴───────────────────┴──────────────┘
+```
+
 ---
-
-### 1行ごとの設定項目・パラメータ徹底解説（技術辞書）
-
-すべての SQL 設定意図を完全に透明化するため、上記スクリプトの各パラメータを詳細に解説します：
-
-#### 1. サービスアカウントと権限項目 (`CREATE USER ... TYPE = SERVICE`)
-
-| 設定項目 | 設定値 | 技術的根拠とセキュリティベストプラクティス |
-| :--- | :--- | :--- |
-| `TYPE = SERVICE` | `SERVICE` | **専用サービスアカウント種別**。一般の対話型ユーザー（`PERSON`）と異なり、Web 画面ログインやパスワード認証を禁止し、RSA 鍵ペア（Keypair）による非対話型 API 自動実行に特化させます。企業の SSO パスワード失効ポリシーの影響を受けません。 |
-| `DEFAULT_ROLE` | `OPENFLOW_CONNECTOR_ROLE` | **デフォルトアクティブロール**。Openflow が接続した際に明示的な Role 指定が省略された場合、自動的にこの専用ロールが適用され、不要な権限行使を防ぎます。 |
-| `GRANT ROLE ... TO SYSADMIN` | ロール継承 | **Snowflake セキュリティ標準**。すべてのカスタムロールを最上位の `SYSADMIN` に階層集約することで、管理不能な「野良ロール」の発生を防止します。 |
-
-#### 2. コンピュートウェアハウス設定項目 (`CREATE WAREHOUSE OPENFLOW_INGEST_WH`)
-
-| 設定項目 | 設定値 | 技術的根拠とコスト防衛策 |
-| :--- | :--- | :--- |
-| `WAREHOUSE_SIZE` | `'XSMALL'` | **最小算力スペック（1 クレジット/時間）**。メタデータ書き込みやテキスト分割処理は I/O 主体の軽量タスクであり、XSMALL で十分なスループットを発揮します。無駄な課金を防止します。 |
-| `AUTO_SUSPEND` | `120`（秒） | **2分間のアイドル後自動停止**。バッチ処理の終了後、2分間新規クエリがなければ即座にウェアハウスが休眠し、アイドリング課金を遮断します。 |
-| `AUTO_RESUME` | `TRUE` | **自動再開フラグ**。下流からクエリや書き込み要求が到着すると、1秒以内に自動起動します。 |
-| `INITIALLY_SUSPENDED` | `TRUE` | **作成時即座サスペンド**。オブジェクト作成直後から課金が発生することを防ぎ、初回の実クエリ発行時まで停止状態を維持します。 |
-
-#### 3. 内部ステージ設定項目 (`CREATE STAGE BOX_RAW_STAGE`)
-
-| 設定項目 | 設定値 | 技術的根拠と機能連携 |
-| :--- | :--- | :--- |
-| `DIRECTORY = (ENABLE = TRUE)` | `ENABLE = TRUE` | **ステージディレクトリテーブル（Directory Table）の有効化**。非構造化データ管理の最重要機能です。有効化によりステージ内のファイルをテーブルのように `SELECT * FROM DIRECTORY(@BOX_RAW_STAGE)` でクエリでき、Snowflake Stream をバインドして差分検知が可能になります。 |
-| `ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')` | `'SNOWFLAKE_SSE'` | **サーバーサイド暗号化**。AES-256 アルゴリズムを用い、Snowflake 管理の鍵によって自動暗号化されます。原本ファイル保存時の静止データ機密性を担保します。 |
-
-#### 4. メタデータ台帳テーブル設定項目 (`BOX_DOCUMENT_METADATA`)
-
-| カラム名 | データ型制約 | 技術的役割と業務的意義 |
-| :--- | :--- | :--- |
-| `FILE_ID` | `VARCHAR(64) PRIMARY KEY` | **Box 側の一意オブジェクト ID**。主キー制約を付与し、増分同期時の Upsert 冪等性を保証します。 |
-| `FILE_NAME` | `VARCHAR(512) NOT NULL` | **拡張子付きファイル名**。検索およびファイル形式識別のキーとなります。 |
-| `FOLDER_ID` / `FOLDER_PATH` | `VARCHAR` | **フォルダ階層パンくず情報**。ソース側の配置コンテキストを保存します。 |
-| `SHA256_HASH` | `VARCHAR(128) NOT NULL` | **ファイル本体の SHA-256 暗号化ハッシュ値**。コンテンツ変更検知（CDC）およびネットワーク伝送時のビット化け検知の絶対基準です。 |
-| `SIZE_BYTES` | `NUMBER(38, 0)` | **正確なファイルバイト数**。ソース側ファイルサイズとの完全一致を突合します。 |
-| `BOX_CREATED_AT` / `MODIFIED_AT` | `TIMESTAMP_NTZ` | **ソース側の作成・更新タイムスタンプ**。増分同期の水位線（ウォーターマーク）となります。 |
-| `USER_EMAILS` | `ARRAY` | **アクセス権限リスト（ACL）**。半構造化配列として格納し、行レベルセキュリティ（RAP）のフィルタ対象とします。 |
-
-#### 5. 本文チャンクテーブル設定項目 (`BOX_DOC_CHUNKS`)
-
-| カラム名 | データ型制約 | 技術的役割と業務的意義 |
-| :--- | :--- | :--- |
-| `CHUNK_ID` | `VARCHAR(128) PRIMARY KEY` | **複合チャンク主キー**。`<file_id>_<chunk_index>` の命名規則により一意性を保証します。 |
-| `CHUNK_INDEX` | `NUMBER(10, 0)` | **段落連番**。ドキュメント内での前後の文脈順序を保持します。 |
-| `CHUNK_TEXT` | `VARCHAR(16777216) NOT NULL` | **段落のテキスト実データ**。Snowflake 最大幅の 16MB 列を使用し、分割された本文を格納します。 |
-| `USER_EMAILS` | `ARRAY NOT NULL` | **継承権限リスト**。チャンク検索時にも権限フィルタを適用し、情報漏洩を防ぎます。 |
 
 ---
 
