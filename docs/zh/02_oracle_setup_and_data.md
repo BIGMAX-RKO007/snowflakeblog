@@ -770,4 +770,4 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 本章在本地环境中成功搭建起了 100% 高保真的 Oracle 11g 金融核心业务源库，创建了专属的 **`MITSUI_SRC` 模式属主** 与 **`MITSUI_EXTRACTOR` 只读抽取账号**，构建了典型的 **`CUST_MASTER` 维度主表** 与 **`CUST_TRADE_DETAIL` 事实流水表**，灌入了高覆盖率的双表测试数据，并通过自动化脚本完成了全流程实战测试。
 
 在接下来的章节中，我们将正式开启云端建设与迁移战役：
-- 👉 **[第 03 章：Snowflake 企业级 RBAC 权限设计与环境搭建实战](03_snowflake_rbac_setup.md)**：使用 `USERADMIN` 和 `SYSADMIN` 双轨角色，在 Snowflake 端严格落地三井证券三层业务角色体系，并根据本章确立的转换哲学创建目标三段式命名空间 `MITSUI_SEC_DB.RAW_ORACLE` 下的双表！
+- 👉 **[第 03-1 讲：Snowflake 企业级 RBAC 权限模型与环境搭建](03_01_rbac_architecture_and_roles.md)**：使用 `USERADMIN` 和 `SYSADMIN` 双轨角色，在 Snowflake 端严格落地三井证券三层业务角色体系，并根据本章确立的转换哲学创建目标三段式命名空间 `MITSUI_SEC_DB.RAW_ORACLE` 下的双表！

@@ -769,4 +769,4 @@ SELECT COUNT(*) AS NULL_STATUS_COUNT FROM CUST_MASTER WHERE STATUS_CD IS NULL;
 本章では、金融実務に即した高精度な Oracle 11g 移行元データベースをローカルに構築し、専用の **`MITSUI_SRC` スキーマ所有者** と **`MITSUI_EXTRACTOR` 抽出専用アカウント** を整備しました。さらに **`CUST_MASTER` 顧客基本台帳** と **`CUST_TRADE_DETAIL` 顧客取引明細** の 2 テーブル構成をデプロイし、高カバレッジな模擬データを投入して自動化スクリプトによる実機検証を完了しました。
 
 次章からは、いよいよクラウド側の環境構築と移行エンジニアリングが本格始動します：
-- 👉 **[第 03 章：Snowflake エンタープライズ RBAC 権限設計と環境構築実践](03_snowflake_rbac_setup.md)**：`USERADMIN` と `SYSADMIN` の 2 系統ロールを用い、三井証券の 3 階層ロール体系を Snowflake 上に構築。本章の設計に基づき、3 階層ネームスペース `MITSUI_SEC_DB.RAW_ORACLE` 配下にターゲット 2 テーブルを作成します！
+- 👉 **[第 03-1 講：Snowflake エンタープライズ RBAC 権限モデルと環境構築](03_01_rbac_architecture_and_roles.md)**：`USERADMIN` と `SYSADMIN` の 2 系統ロールを用い、三井証券の 3 階層ロール体系を Snowflake 上に構築。本章の設計に基づき、3 階層ネームスペース `MITSUI_SEC_DB.RAW_ORACLE` 配下にターゲット 2 テーブルを作成します！

@@ -29,7 +29,7 @@ export default withMermaid(
                 { text: '00. 背景とアーキテクチャ設計', link: '/00_architecture_overview' },
                 { text: '01. アカウント開設と初期設定', link: '/01_snowflake_signup' },
                 { text: '02. Oracle環境構築と模擬データ投入', link: '/02_oracle_setup_and_data' },
-                { text: '03. 3層RBAC権限モデルと環境構築', link: '/03_snowflake_rbac_setup' },
+                { text: '03. アクセス制御とユーザー定義 (03-1 〜 03-2)', link: '/03_01_rbac_architecture_and_roles' },
                 { text: '04. データ移行実務 (COPY INTO)', link: '/04_data_migration' },
                 { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                 { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
@@ -84,7 +84,14 @@ export default withMermaid(
                   { text: '00. プロジェクト背景とアーキテクチャ設計', link: '/00_architecture_overview' },
                   { text: '01. Snowflake アカウント開設と初期設定', link: '/01_snowflake_signup' },
                   { text: '02. Oracle 移行元環境構築と模擬データ投入', link: '/02_oracle_setup_and_data' },
-                  { text: '03. 3層RBAC権限モデルと環境構築', link: '/03_snowflake_rbac_setup' },
+                  {
+                    text: '03. アクセス制御とユーザー定義 (03-1 〜 03-2)',
+                    collapsed: true,
+                    items: [
+                      { text: '03-1. 3層RBAC権限モデルと環境構築', link: '/03_01_rbac_architecture_and_roles' },
+                      { text: '03-2. エンタープライズユーザー定義とパラメータ設計実務', link: '/03_02_enterprise_user_definition_and_parameter_sheet' },
+                    ]
+                  },
                   { text: '04. データ移行実務（抽出・ステージ・取込）', link: '/04_data_migration' },
                   { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                   { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
@@ -124,7 +131,14 @@ export default withMermaid(
                   { text: '00. プロジェクト背景とアーキテクチャ設計', link: '/00_architecture_overview' },
                   { text: '01. Snowflake アカウント開設と初期設定', link: '/01_snowflake_signup' },
                   { text: '02. Oracle 移行元環境構築と模擬データ投入', link: '/02_oracle_setup_and_data' },
-                  { text: '03. 3層RBAC権限モデルと環境構築', link: '/03_snowflake_rbac_setup' },
+                  {
+                    text: '03. アクセス制御とユーザー定義 (03-1 〜 03-2)',
+                    collapsed: true,
+                    items: [
+                      { text: '03-1. 3層RBAC権限モデルと環境構築', link: '/03_01_rbac_architecture_and_roles' },
+                      { text: '03-2. エンタープライズユーザー定義とパラメータ設計実務', link: '/03_02_enterprise_user_definition_and_parameter_sheet' },
+                    ]
+                  },
                   { text: '04. データ移行実務（抽出・ステージ・取込）', link: '/04_data_migration' },
                   { text: '05. 移行後データ突合検証・整合性監査', link: '/05_data_reconciliation' },
                   { text: '06. トラブルシューティングとベストプラクティス', link: '/06_troubleshooting_tips' },
@@ -192,7 +206,7 @@ export default withMermaid(
                 { text: '00. 业务背景与架构设计', link: '/zh/00_architecture_overview' },
                 { text: '01. 账号申请与配置', link: '/zh/01_snowflake_signup' },
                 { text: '02. Oracle环境与模拟数据', link: '/zh/02_oracle_setup_and_data' },
-                { text: '03. Snowflake RBAC权限搭建', link: '/zh/03_snowflake_rbac_setup' },
+                { text: '03. 访问控制与用户定义 (03-1 〜 03-2)', link: '/zh/03_01_rbac_architecture_and_roles' },
                 { text: '04. 数据迁移实战', link: '/zh/04_data_migration' },
                 { text: '05. 数据突合对账', link: '/zh/05_data_reconciliation' },
                 { text: '06. 生产避坑指南', link: '/zh/06_troubleshooting_tips' },
@@ -247,7 +261,14 @@ export default withMermaid(
                   { text: '00. 业务背景与架构设计', link: '/zh/00_architecture_overview' },
                   { text: '01. Snowflake 账号申请与初始化', link: '/zh/01_snowflake_signup' },
                   { text: '02. Oracle 11g 搭建与模拟数据', link: '/zh/02_oracle_setup_and_data' },
-                  { text: '03. Snowflake RBAC 权限设计实战', link: '/zh/03_snowflake_rbac_setup' },
+                  {
+                    text: '03. 访问控制与用户定义 (03-1 〜 03-2)',
+                    collapsed: true,
+                    items: [
+                      { text: '03-1. 3层RBAC权限模型与环境构建', link: '/zh/03_01_rbac_architecture_and_roles' },
+                      { text: '03-2. 企业级用户定义全景与生产参数设计实战', link: '/zh/03_02_enterprise_user_definition_and_parameter_sheet' },
+                    ]
+                  },
                   { text: '04. 数据迁移：Stage 与 COPY INTO', link: '/zh/04_data_migration' },
                   { text: '05. 迁移后两方数据差异突合对账', link: '/zh/05_data_reconciliation' },
                   { text: '06. 生产避坑指南与解决方案', link: '/zh/06_troubleshooting_tips' },
@@ -287,7 +308,14 @@ export default withMermaid(
                   { text: '00. 业务背景与架构设计', link: '/zh/00_architecture_overview' },
                   { text: '01. Snowflake 账号申请与初始化', link: '/zh/01_snowflake_signup' },
                   { text: '02. Oracle 11g 搭建与模拟数据', link: '/zh/02_oracle_setup_and_data' },
-                  { text: '03. Snowflake RBAC 权限设计实战', link: '/zh/03_snowflake_rbac_setup' },
+                  {
+                    text: '03. 访问控制与用户定义 (03-1 〜 03-2)',
+                    collapsed: true,
+                    items: [
+                      { text: '03-1. 3层RBAC权限模型与环境构建', link: '/zh/03_01_rbac_architecture_and_roles' },
+                      { text: '03-2. 企业级用户定义全景与生产参数设计实战', link: '/zh/03_02_enterprise_user_definition_and_parameter_sheet' },
+                    ]
+                  },
                   { text: '04. 数据迁移：Stage 与 COPY INTO', link: '/zh/04_data_migration' },
                   { text: '05. 迁移后两方数据差异突合对账', link: '/zh/05_data_reconciliation' },
                   { text: '06. 生产避坑指南与解决方案', link: '/zh/06_troubleshooting_tips' },

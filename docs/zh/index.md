@@ -17,7 +17,7 @@ hero:
       link: /zh/dbt/01_what_is_dbt
     - theme: alt
       text: 查阅 3 层 RBAC 设计
-      link: /zh/03_snowflake_rbac_setup
+      link: /zh/03_01_rbac_architecture_and_roles
 
 features:
   - icon: 🏛️
@@ -103,8 +103,9 @@ flowchart LR
    30 天免费试用环境申请、云平台（AWS/Azure）选定、首次控制台登录与初始配置。
 3. [**02. Oracle 源端环境搭建与测试数据生成**](/zh/02_oracle_setup_and_data)  
    Docker 极速拉起 Oracle 11g XE、构建覆盖 11 组极端金融业务边界的测试数据集与数据提取脚本。
-4. [**03. 3 层 RBAC 权限模型与环境初始化**](/zh/03_snowflake_rbac_setup)  
-   落地 MITSUI_ADMIN / ENGINEER / ANALYST 三权分立设计，执行 Step 4.1~4.15 自动化授权脚本。
+4. [**03. 访问控制与企业级用户定义 (03-1 〜 03-2)**](/zh/03_01_rbac_architecture_and_roles)  
+   - [03-1. 3 层 RBAC 权限模型与环境初始化](/zh/03_01_rbac_architecture_and_roles)：落地 MITSUI_ADMIN / ENGINEER / ANALYST 三权分立设计，执行 Step 4.1~4.15 自动化授权脚本。  
+   - [03-2. 企业级用户定义全景与生产参数设计实战](/zh/03_02_enterprise_user_definition_and_parameter_sheet)：详解《用户定义参数设计书》、PERSON vs SERVICE、会话参数注入与 DataStage/ETL 批处理用户实战。
 5. [**04. 数据迁移实务（抽取、阶段、装载）**](/zh/04_data_migration)  
    通过 SnowSQL 上传至内部命名暂存区、执行 `COPY INTO` 批量高性能数据导入并追踪加载日志。
 6. [**05. 迁移后新旧数据严密对账与审计**](/zh/05_data_reconciliation)  
