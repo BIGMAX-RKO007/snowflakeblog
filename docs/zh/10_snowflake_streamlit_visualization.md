@@ -422,6 +422,37 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ---
 
+##### 5. 下拉菜单第二个选项深度剖析：`リポジトリから作成` (Git 集成) 与两类 Python 环境的本质区别
+
+当在下拉菜单中点击第二个选项 **`リポジトリから作成 (Create from repository)`** 时，系统会弹出面向现代 DevOps 工程的专属创建弹窗：
+
+![点击下拉菜单选择「リポジトリから作成」](../images/10_step_03_gui_select_from_repository.png)
+
+![「リポジトリから作成」弹窗中的两类 Python 环境选项（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
+
+在弹窗中央，最核心也是最引人注目的配置项，正是 **「Python環境 (Python Environment)」** 的两大单选卡片。这代表了 Snowflake 平台目前两种截然不同的执行底座：
+
+###### 【核心技术对比】：コンテナで実行 (Container Runtime) vs ウェアハウスで実行 (Warehouse Runtime)
+
+| 核心评估维度 | 左卡片：コンテナで実行 (Run on Container)<br/>*(新一代 SPCS 容器运行时)* | 右卡片：ウェアハウスで実行 (Run on Warehouse)<br/>*(经典 Virtual Warehouse 运行时 · **⭐ 教学推荐**)* |
+| :--- | :--- | :--- |
+| **底层算力基础设施** | **Snowpark Container Services (SPCS)** 容器算力池：<br/>应用代码运行在专用 Docker 容器中（可挂载 CPU 或高性能 **GPU** 算力）；内部 SQL 查询转发给虚拟仓库。 | **Virtual Warehouse (虚拟计算仓库)**：<br/>应用前端 Python 进程与内部 SQL 统一在数仓虚拟机中执行，无需额外容器。 |
+| **应用实例与多用户共享** | **单例常驻共享模式 (Shared App Service)**：<br/>所有访问看板的用户共享同一个后台容器服务进程，首屏渲染秒开，适合高并发大屏。 | **每用户独立会话模式 (Per-viewer Session)**：<br/>每个访问页面的用户都会在数仓内启动专属 Python 进程，彼此完全隔离。 |
+| **第三方 Python 依赖包生态** | **全生态自由引入 (PyPI & 私有源)**：<br/>官方标注 *“さらに多くのパッケージリソースが含まれます”*。可通过 `pyproject.toml` 或 `requirements.txt` 引入任意开源库，包括需要 C 扩展、Rust 或复杂编译的库（如 PyTorch、Transformers）。 | **受限 Anaconda 白名单模式**：<br/>官方标注 *“Snowflake Anacondaのパッケージをサポートします”*。只能使用 Snowflake 官方 Anaconda 通道内审核收录的受信任包（通过 `environment.yml` 声明）。 |
+| **休眠机制与生命周期** | **长效服务型**：<br/>用户无操作后应用保持存活 **3 天**，3 天后终止服务；底层算力池按照 Compute Pool 的挂起策略休眠。 | **短效敏捷型**：<br/>由前文介绍的 **约 15 分钟 WebSocket 超时** 和数仓 `AUTO_SUSPEND`（如 60 秒）双重守护，无操作后极速休眠。 |
+| **计费结算机制** | **双重计费**：<br/>消耗 Compute Pool 容器算力（如 `CPU_X64_XS` 约 0.11 credits/node/h）＋ 查询时的 Warehouse Credits。 | **单一计费（极致省钱）**：<br/>纯粹消耗 Virtual Warehouse Credits（`X-Small` 仅 1 credit/h），无操作即刻休眠，成本最透明可控！ |
+| **账号配额门槛** | **需要 SPCS 权限与算力配额**：<br/>在标准的 30 天免费试用账号中，容易受到容器配额（Quota）拦截。 | **零门槛（全账号原生通用）**：<br/>所有 Snowflake 账户标配，不受容器额度限制，开箱即用。 |
+
+> 📖 **官方权威文档链接**：
+> - [About Streamlit in Snowflake runtimes (Container vs Warehouse)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes)
+> - [Create a Streamlit app from a repository (Git 仓库集成)](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)
+> - [Managing Python dependencies in Streamlit in Snowflake](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/dependency-management)
+
+> 💡 **学习与演练阶段选型建议**：
+> 在本教程及后续的学习验证中，**强烈建议选择「ウェアハウスで実行 (Run on Warehouse)」**！这样既能完美使用 Snowflake 原生数仓算力跑通数据可视化全流程，又能避开 SPCS 容器池在试用账号下的配额限制与常驻扣费隐患。
+
+---
+
 #### Step 4.B2: 默认工作区全景、左侧工程目录树解密与官方模板源码逐行精讲
 
 当创建应用完成后（或直接点击 `+ Streamlit アプリ` 主按钮极速跳入后），系统会直接打开三栏式沉浸式在线工作区：

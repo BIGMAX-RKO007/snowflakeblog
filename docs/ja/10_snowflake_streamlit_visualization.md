@@ -418,6 +418,37 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 
 ---
 
+##### 5. ドロップダウン第2オプションの徹底解剖：`リポジトリから作成` (Git 連携) と 2 種類の Python 環境の根本的差異
+
+ドロップダウンの 2 つ目の項目 **`リポジトリから作成 (Create from repository)`** をクリックすると、現代の DevOps CI/CD パイプラインに最適化された専用ダイアログが表示されます：
+
+![ドロップダウンから「リポジトリから作成」を選択](../images/10_step_03_gui_select_from_repository.png)
+
+![「リポジトリから作成」ダイアログ内の2種類のPython環境選択（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
+
+ダイアログの中央には、最も重要かつ注目すべき選択肢である **「Python環境 (Python Environment)」** の 2 つのカードが配置されています。これは、Snowflake 内部における全く異なる 2 種類の実行基盤を表しています：
+
+###### 【コア技術比較】：コンテナで実行 (Container Runtime) vs ウェアハウスで実行 (Warehouse Runtime)
+
+| 比較評価軸 | 左カード：コンテナで実行 (Run on Container)<br/>*(次世代 SPCS コンテナランタイム)* | 右カード：ウェアハウスで実行 (Run on Warehouse)<br/>*(実績豊富な仮想ウェアハウスランタイム · **⭐ 本章推奨**)* |
+| :--- | :--- | :--- |
+| **基盤インフラ** | **Snowpark Container Services (SPCS)** 算力プール：<br/>アプリコードは専用 Docker コンテナ内で実行（CPU または高性能 **GPU** を割り当て可能）。内部クエリは仮想ウェアハウスへ送信。 | **Virtual Warehouse (仮想計算ウェアハウス)**：<br/>アプリのフロントエンド Python プロセスと SQL クエリの双方がウェアハウス VM 上で一元的に実行されます。 |
+| **インスタンス共有モデル** | **単一サービス常駐共有モデル (Shared App Service)**：<br/>アプリを閲覧する全ユーザーが同一のコンテナサービスを共有。起動後の初回レンダリングが極めて高速。 | **閲覧者ごとの独立セッションモデル (Per-viewer Session)**：<br/>ユーザーが画面を開くたびにウェアハウス内に個別の Python 実行環境が立ち上がります。 |
+| **外部ライブラリの自由度** | **フルオープン自由導入 (PyPI / 外部インデックス)**：<br/>UI 説明: *“さらに多くのパッケージリソースが含まれます”*。<br/>`pyproject.toml` や `requirements.txt` を通じて、PyTorch、Transformers など C 拡張や特殊コンパイルが必要な任意の外部ライブラリを導入可能。 | **厳格な Anaconda ホワイトリスト制**：<br/>UI 説明: *“Snowflake Anacondaのパッケージをサポートします”*。<br/>Snowflake 審査済みの Anaconda チャネル内のパッケージのみ利用可能（`environment.yml` で宣言）。 |
+| **スリープ・ライフサイクル** | **長期常駐サービス型**：<br/>非アクティブ状態が **3 日間** 継続した後にサービス終了。基盤プールは Compute Pool の自動サスペンドに従います。 | **短期アジャイル型**：<br/>前述の **約 15 分の WebSocket タイムアウト** およびウェアハウスの `AUTO_SUSPEND`（例: 60 秒）により、利用停止後即座にスリープ。 |
+| **コスト課金構造** | **二重課金モデル**：<br/>Compute Pool のコンテナノード費用（秒単位）＋ SQL 発行時の仮想ウェアハウス Credits。 | **単一課金モデル（コスト最優先）**：<br/>純粋に Virtual Warehouse Credits のみ（`X-Small` で 1 クレジット/時）。無操作時は即休止し、最も透明・安全！ |
+| **アカウント権限とクォータ** | **SPCS 権限と専用クォータが必須**：<br/>30 日無料トライアルアカウントでは、コンテナプールの作成クォータ制限に抵触しやすい。 | **ゼロ制限（全アカウント標準対応）**：<br/>すべての Snowflake アカウントで標準提供されており、クォータ制限を受けずに即利用可能。 |
+
+> 📖 **公式ドキュメントリファレンス**：
+> - [About Streamlit in Snowflake runtimes (Container vs Warehouse)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes)
+> - [Create a Streamlit app from a repository (Git リポジトリ連携)](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)
+> - [Managing Python dependencies in Streamlit in Snowflake](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/dependency-management)
+
+> 💡 **学習・検証時の選定ガイド**：
+> 本チュートリアルを含む検証や一般的な社内ダッシュボード開発においては、**「ウェアハウスで実行 (Run on Warehouse)」の選択を強く推奨します**！SPCS コンテナプールの常時課金やトライアル制限を完全に回避しながら、Snowflake の強力なデータ連携を安全に体験できます。
+
+---
+
 #### Step 4.B2: デフォルトワークスペース全貌、左側プロジェクトツリー解読と公式テンプレートコードの行毎解説
 
 アプリ作成完了時（または `+ Streamlit アプリ` ボタンを直接クリックした際）、3 カラム構成の Snowsight オンラインワークスペースが開きます：
