@@ -1,192 +1,238 @@
-# 第 10 章：Streamlit in Snowflake (SiS) データ可視化完全ガイド —— API メトリクスから対話型ダッシュボード構築
+# 第 10 章：Streamlit in Snowflake (SiS) 現代データ可視化完全実践 —— ワークスペース開発・ワンクリックデプロイ(展開)から本番ダッシュボードまで
 
-> 本章は **《尚硅谷技術講義執筆規約 (shangguigu-style)》** に完全準拠して執筆されています：本質を突く極限のシンプル比較、業務ノイズを廃した純粋技術フォーカス、実機ログ付き3ステップ実践、落とし穴の事前開示と回避策、前提条件の明確化。
+> 本章は **《尚硅谷技術講義執筆規範 (shangguigu-style)》** に基づき根本から再構成されています：
+> - **冒頭極簡比較**：コンテナランタイム (SPCS) vs 従来型ウェアハウスランタイム (Warehouse) の本質的差異と約 90% のコスト格差を直撃；
+> - **近代的ライフサイクル確立**：モダンワークスペース（Workspace）を軸とする **Dev（安全隔離開発） $\to$ Test（即時検証） $\to$ Deploy（ワンクリック展開）** の標準リリースフローを確立；
+> - **本番の落とし穴回避**：15 分 WebSocket 自動切断スリープ機能と `.streamlit/config.toml` による課金防護壁を完全解説；
+> - **環境前提ゼロの事実主義**：東京リージョンの実稼働 Snowflake アカウント（`mvfryvt-nv04752`）で全コードを検証済み。再現可能な本番水準のスキーマ探査ダッシュボード（Schema Table Inspector）を提供します。
 
 ---
 
-## はじめに：極限までシンプルなメンタルモデル
+## 🎯 導入：開門見山、極限までシンプルなメンタルモデル
 
-外部 API から Snowflake DWH へデータを取り込んだ後、データエンジニアが直面する次の大きな課題は：**「冷淡な SQL テーブルを、いかにして素早く対話的で即応性の高い可視化ダッシュボードへ昇華させるか？」** です。
+外部 API データの取り込みが完了したデータエンジニアが次に直面する核心的課題は、**「無機質な SQL テーブルを、いかにして迅速に操作性と即時応答性を備えたダッシュボードへ昇華させるか？」** です。
 
-従来の BI ダッシュボード構築（Tableau、PowerBI、Metabase 等）やカスタム Web 開発（React + FastAPI 等）では、複雑な ODBC/JDBC 接続設定が必要であり、何より**データベース管理者の ID・パスワードを外部サーバーに設定しなければならない**という重大なセキュリティ懸念が存在していました。また、データ更新のたびにネットワーク経由でデータが外部へ流出していました。
+従来、可視化ダッシュボードの構築には外部 BI ツール（Tableau、PowerBI 等）の導入や Web アプリの自作が必要でした。これらは接続文字列の管理負荷だけでなく、**データ参照のたびに公衆網を経由してデータを移動させる必要があり、遅延とセキュリティ漏洩の温床**となっていました。
 
-Snowflake が提供する **Streamlit in Snowflake（SiS）** は、この課題を根本から解決します。世界標準の Python 可視化フレームワーク Streamlit が、**Snowflake のコア計算エンジン内部に完全ネイティブ統合**されているのです！
+Snowflake が投入した **Streamlit in Snowflake（略称 SiS）** は、この旧来の構成を根底から覆しました。世界標準の Python 可視化フレームワーク Streamlit が、**Snowflake のコア計算エンジン内部へネイティブ統合**されたのです！
 
-### 直感比較：従来の外部 BI vs Streamlit in Snowflake (SiS)
+### 外部 BI vs Streamlit in Snowflake (SiS) のアーキテクチャ対比
 
 ```
-【従来アプローチ：外部 BI サーバー型（長大な経路・認証情報漏洩リスク・データ流出）】
-  ┌─────────────────┐      ODBC/JDBC コネクション      ┌──────────────────┐     公衆網転送     ┌─────────────────┐
-  │  Snowflake DWH  │ <═════════════════════════════> │  外部 BI サーバー │ ══════════════> │  エンドユーザーブラウザ │
-  └─────────────────┘                                 └──────────────────┘                  └─────────────────┘
-                                                        ▲ 接続アカウント管理の負担と漏洩リスク
-                                                        ▲ データが DWH のセキュリティ境界外へ流出
+【従来の外部 BI 構成（長大な経路・資格情報露出・データ外部移送）】
+  ┌─────────────────┐      ODBC/JDBC 接続         ┌──────────────────┐     公衆網転送     ┌─────────────────┐
+  │  Snowflake DWH  │ <═════════════════════════> │   外部 BI サーバ  │ ══════════════> │ ユーザーブラウザ │
+  └─────────────────┘                              └──────────────────┘                  └─────────────────┘
+                                                     ▲ 接続アカウントの管理漏洩リスク
+                                                     ▲ 表示遅延が大きく、ガバナンス境界外へ流出
 
-【現代アプローチ：Streamlit in Snowflake ネイティブ型（外部サーバー不要・認証情報ゼロ・DWH内完結）】
+【Streamlit in Snowflake ネイティブ構成（外部不要・パスワード不要・倉内即時描画）】
   ┌────────────────────────────────────────────────────────────────────────┐
-  │ Snowflake 仮想ウェアハウス (Virtual Warehouse)                          │
+  │ Snowflake ガバナンス・計算境界内部                                     │
   │                                                                        │
-  │   Streamlit コンテナランタイム (Python 3.10)                           │
+  │   Streamlit 実行基盤（SPCS コンテナ または 仮想ウェアハウス）            │
   │       │                                                                │
-  │       ├───── 1. パスワード不要のコンテキスト取得 ──> session = get_active_session()
+  │       ├───── 1. パスワード不要でセッション取得 ──> conn = st.connection("snowflake") │
   │       │                                                                │
-  │       └───── 2. メモリ内での超高速描画 ──────────> st.metric / st.line_chart
+  │       └───── 2. 倉内メモリで即時レンダリング ───> st.metric / st.line_chart │
   │                       │                                                │
+  │   【近代的開発フロー】：ワークスペース (Dev) ──> 即時プレビュー (Test) ──> 右上 [展開] (Deploy)│
   └───────────────────────┼────────────────────────────────────────────────┘
-                          ▼ Snowsight 管理画面内にセキュアにインライン描画
+                          ▼ Snowsight Web UI 内部にセキュアに埋め込み描画
                   ┌─────────────────┐
-                  │ エンドユーザーブラウザ │ (アクセスユーザー自身の Snowflake RBAC 権限を直接継承)
+                  │ ユーザーブラウザ │ (アクセス者自身の Snowflake RBAC 権限を完全継承)
                   └─────────────────┘
 ```
 
-- **読者の疑問**：Snowflake 上で Streamlit を動かす際、DB のパスワードはどこに書くのか？ユーザーがスライダーを動かしたとき、クエリでクレジットが爆発しないか？コードとして自動デプロイ（DevOps）するには？
-- **本章のゴール**：業務の装飾を徹底排除し、純粋な技術構成に集中します。監視指標テーブルの作成から、**KPI メトリクスカード・動的フィルタ・トレンド折れ線グラフ・リアルタイム明細テーブル** の実装、そして Stage + SQL による自動デプロイとキャッシュ制御までを一気に完遂します！
-
-> 📖 **Snowflake & Streamlit 公式ドキュメント**：
-> - [Streamlit in Snowflake (SiS) アーキテクチャ概要と基本概念](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit)
-> - [SiS セキュリティモデルと必要なロール権限 (Privileges Required)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
-> - [Streamlit 公式 API リファレンス (Streamlit Documentation)](https://docs.streamlit.io/develop/api-reference)
-
 ---
 
-## 一、前提条件と事前準備 (Prerequisites)
+## ⚖️ 1. 2大ランタイムの徹底選定：コンテナで実行 (Container) vs ウェアハウスで実行 (Warehouse)
 
-ハンズオンを開始する前に、以下の要件を確認してください：
+Snowflake 上で Streamlit アプリを構築する際、最初に直面する最も重要な技術判断は、**「どの実行基盤（Python Runtime）を選択するか？」** です。
 
-| 構成要素 | 必要スペック / 権限 | 役割 |
+新規作成ウィザードにおいて、**Snowflake 公式は左側の「コンテナで実行 (Run on Container)」に最初からデフォルトの青いチェックマーク（✔️ Default）を付与しています**。これはプラットフォーム全体の戦略的進化を象徴しています：
+
+![Snowflake ウィザード内の2種類のPython環境選択（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
+
+### 📊 核心的技術仕様と実際のコスト対比
+
+| 比較評価軸 | 左カード：コンテナで実行 (Run on Container)<br/>*(次世代 SPCS コンテナランタイム · **✔️ 公式デフォルト**)* | 右カード：ウェアハウスで実行 (Run on Warehouse)<br/>*(従来型 DWH 単体仮想マシン · ⚠️ レガシー指定)* |
 | :--- | :--- | :--- |
-| **実行ロール** | `ACCOUNTADMIN`（または `CREATE STREAMLIT`、`CREATE STAGE` を持つロール） | 内部ステージと Streamlit アプリケーションオブジェクトの作成 |
-| **コンピュート** | 稼働中の仮想ウェアハウス（例：`COMPUTE_WH`） | SQL クエリの実行および Python コードの実行コンテナ |
-| **テストDB・スキーマ** | 読み書き可能な環境（本書では `DEV_DEMO_DB.API_INTEGRATION` を使用） | 指標テーブルおよび Streamlit ソースコードの保管 |
-| **Python 知識** | 基本的な Python 文法と Pandas 操作 | UI コンポーネントとデータ集計ロジックの実装 |
+| **公式の戦略的位置づけ** | **Snowflake が全社的に推進する次世代の標準ランタイム**：<br/>UI で事前選択されており、今後の機能拡張の主軸。 | **下位互換性のための移行用選択肢 (Legacy)**：<br/>作成入口に `レガシー` 表記が付与され、段階的に主流から外れる旧方式。 |
+| **実際のランニングコスト（費用対効果）** | **圧倒的な低コスト（約 0.11 credits/時から）**：<br/>Snowpark Container Services (SPCS) の計算プールを利用し、最小構成（`CPU_X64_XS`）では **約 0.11 credits / node / 時**。仮想ウェアハウス（1.0 credit/時）と比較して **約 90% のコスト削減** が可能！軽量な Web ダッシュボードにとって極めて経済的。 | **高止まりする固定コスト（最低 1.0 credit/時）**：<br/>最小スペックの `X-Small` 仮想ウェアハウスであっても、1 時間稼働するごとに固定で **1.0 credit** を消費するため、長時間の開発や待機におけるコストがコンテナより格段に高くなります。 |
+| **外部 Python パッケージエコシステム** | **フルオープン自由導入（全 PyPI エコシステム解放）**：<br/>UI 説明: *“さらに多くのパッケージリソースが含まれます”*。<br/>`pyproject.toml` や `requirements.txt` を通じて任意の pip パッケージを導入可能。C/Rust 拡張やコンパイルを要する機械学習・LLM ライブラリ（PyTorch、Transformers、LangChain、DuckDB など）もネイティブ動作。 | **厳格な Anaconda ホワイトリスト制**：<br/>UI 説明: *“Snowflake Anacondaのパッケージをサポートします”*。<br/>Snowflake 審査済みの Anaconda チャネル内のパッケージに限定（`environment.yml` で宣言）。チャネルに存在しない pip ライブラリはインポート不可でエラーとなります。 |
+| **インスタンス共有モデル** | **単一サービス常駐共有モデル (Shared App Service)**：<br/>複数ユーザーが同一のコンテナサービスを共有。初回起動後のレンダリングが即時応答し、社内共有大画面に最適。 | **閲覧者ごとの独立セッションモデル (Per-viewer Session)**：<br/>ユーザーごとにウェアハウス内で個別の Python 実行環境が立ち上がるため、アクセス集中時にメモリ負荷が増大。 |
+| **ハードウェアと拡張性** | CPU プールに加え、高性能 **GPU** ノードの割り当てが可能。倉内でのローカル LLM や画像生成を直接サポート。 | 標準的な CPU 仮想マシンのみに限定。 |
+
+> 📌 **アーキテクチャ選定の結論**：
+> 公式が「コンテナで実行 (Container Runtime)」をデフォルトに定めた理由は明白であり、**「圧倒的に安価（約 0.11 vs 1.0 credit/h）」「PyPI 全面開放による圧倒的なパッケージ自由度」「GPU 対応」** にあります。SPCS クォータが利用可能な環境では、公式推奨に従いコンテナランタイムを最優先に採用すべきです。コンテナプールが未割り当ての旧来の制限環境においてのみ、右側の Warehouse モードを下位互換の代替策として選択します。
 
 ---
 
-## 二、技術アーキテクチャとデータフロー
+## 🛠️ 2. 近代的開発の王道：ワークスペース全ライフサイクル実践（`Dev` $\to$ `Test` $\to$ `展開 / Deploy`）
 
-Streamlit in Snowflake は Snowpark フレームワークとシームレスに結合し、DWH 内の完全ゼロコピー処理を実現しています：
+現代の Snowflake エンジニアリングでは、検証前のコードを本番スキーマに直接書き込む行為は推奨されません。公式が推奨する標準的な開発フローは、**「個人ワークスペースのサンドボックスで安全にコーディング（Dev） $\to$ 即時プレビュー（Test） $\to$ 右上ボタンで一発『展開』（Deploy）」** です。
 
-```mermaid
-flowchart TD
-    subgraph Storage["ストレージ層 (Snowflake Storage)"]
-        TBL[("業務データ / API 監視テーブル<br/>(DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics)")]
-        STG["内部 Stage 領域<br/>(streamlit_app.py と environment.yml を保管)"]
-    end
+### Step 1: 正確な画面ナビゲーションとワークスペースへの進入
 
-    subgraph Warehouse["コンピュート層 (Snowflake Compute Warehouse)"]
-        CTX["Snowpark Context<br/>session = get_active_session()"]
-        CACHE["キャッシュ制御層<br/>@st.cache_data(ttl=600)"]
-        EXEC["SQL 実行エンジン<br/>session.sql('SELECT ...').to_pandas()"]
-        UI["Streamlit 描画エンジン<br/>• st.metric (KPI)<br/>• st.selectbox (対話操作)<br/>• st.line_chart (チャート)<br/>• st.dataframe (表)"]
-    end
+Snowsight コンソールへログインし、左側メニューの **「ワークスペース (Workspaces)」 $\to$ 「Streamlit」** を選択します（URL: `#/streamlit-apps`）：
 
-    subgraph Client["フロントエンド表示 (Snowsight Browser)"]
-        BROWSER["ユーザーブラウザ UI<br/>(外部認証情報一切なし・RBAC 直接継承)"]
-    end
+![Snowsight ナビゲーション：ワークスペース -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
 
-    STG --> UI
-    CTX --> EXEC
-    TBL --> EXEC
-    EXEC --> CACHE
-    CACHE --> UI
-    UI <== "WebSocket 双方向通信" ==> BROWSER
+画面右上の青色メインボタン **`+ Streamlit アプリ`** を直接クリックします：
+システムは即座に現在のユーザー専用のプライベート領域（`USER$<USER_NAME>.PUBLIC.DEFAULT$`）内に近代的な開発サンドボックスを展開し、オンライン IDE を起動します：
+
+![Snowsight Streamlit オンラインワークスペース全景（左側プロジェクトツリー・中央エディタ・右側リアルタイム描画）](../images/10_step_03_gui_quick_create_editor.png)
+
+---
+
+### Step 2: 近代プロジェクト構成 4 点セットの解読（Snowflake CLI v2 標準）
+
+左側のファイルツリーには、近代ソフトウェア工学の標準に準拠した 4 つのコアファイルが表示されます：
+
+| ファイル名 | 準拠規格 | 役割と詳細 |
+| :--- | :--- | :--- |
+| **`streamlit_app.py`** | Python 3.11 コアスクリプト | **メインエントリーポイント**：Streamlit の UI コンポーネント（`st.title`、`st.slider`、`st.metric` 等）とデータ取得ロジックを記述。ユーザー操作のたびにリアクティブに自頂下方へ再評価されます。 |
+| **`snowflake.yml`** | YAML (Snowflake CLI v2) | **プロジェクト定義ファイル**：アプリ名（`title: "無題"`）、メインファイル指定、コンピュート定義、パッケージ対象ファイルリスト（`artifacts`）を定義。端末からの `snow streamlit deploy` 自動デプロイに完全対応。 |
+| **`pyproject.toml`** | TOML (PEP 517/518/621) | **近代パッケージ・バージョン管理**：旧来の脆弱な `environment.yml` を刷新。Python バージョンとコア依存（`streamlit[snowflake]`）を明示し、超高速パッケージマネージャ `uv`（`[tool.uv]`）と統合。 |
+| **`.streamlit/config.toml`** | TOML (Streamlit 公式設定) | **テーマとタイムアウト制御**：ダッシュボードの表示色設定、および最重要となる **`[snowflake.sleep]` アプリ単位スリープ時間設定**（例: `streamlitSleepTimeoutMinutes = 15`）を保持。 |
+
+---
+
+### Step 3: オンライン編集・ホットリロード検証と上部 4 大アクションボタン
+
+Monaco エディタ画面上部には、開発の中枢となる 4 つのボタンが配置されています：
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 自分のワークスペース > 無題 > streamlit_app.py                                     │
+│ [ 実行 ]              [ ⚙️ 設定 ]         [ 📤 共有 ]        [ 🚀 展開 (Deploy) ] │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### コスト構造の深層解剖：Stage に Python スクリプトを保存すると課金されるのか？（Stage 保管コスト vs ウェアハウス計算コスト精算）
+1. **`[ 実行 ]` (Run)**：現在の Python コードを再評価し、右側のプレビュー画面を即時リロード。
+2. **`[ ⚙️ 設定 ]` (Settings)**：アプリのタイトル、コンピュートリソース、コンテキストを変更。
+3. **`[ 📤 共有 ]` (Share)**：チームメンバーへの共同編集・閲覧権限を設定。
+4. **`[ 🚀 展開 ]` (Deploy · 現代デプロイの中核！)**：**開発完了後の正式リリースボタン**！
 
-ステージ（Stage）で Streamlit スクリプトをホストする際、多くのエンジニアが抱く疑問が**「Python スクリプトを Snowflake Stage に保存しておくと、保管料が継続的に発生するのではないか？高額な課金が発生するリスクはないのか？」**という点です。
+#### 公式デフォルトテンプレートのコアロジック解説 (`streamlit_app.py`)
 
-> [!IMPORTANT] **核心結論：Stage の保管費用はほぼ 0 ドル（無視できるレベル）です。真の課金要因は背後で稼働する Virtual Warehouse（仮想ウェアハウス）のコンピュートコストです！**
+ワークスペース初期生成時のテンプレートコードは、公式の最新標準に準拠しています：
 
-#### 1. ストレージ課金の詳細計算：月額 0.000001 ドル未満（事実上無料）
-- **課金体系**：Snowflake の内部ステージは、クラウドプロバイダ標準のオブジェクトストレージ容量に応じて課金されます（通常 **$23.00 〜 $40.00 / TB / 月**、約 $0.000022 / MB / 月）；
-- **ファイルサイズ**：Streamlit の Python スクリプト（`streamlit_app.py` や `streamlit_schema_inspector.py`）は通常わずか **5 KB 〜 20 KB** 程度です；
-- **計算式**：
-  $$\text{月額保管料} = \frac{20 \text{ KB}}{1024 \times 1024 \times 1024 \text{ KB}} \times \$23.00 \approx \$0.00000043 \text{ USD / 月}$$
-  ステージ内に **100 個** の複雑な Python ダッシュボードスクリプトを丸 1 年間保管し続けたとしても、総額は **1 セント（約 1.5 円）未満** です。
+```python
+# 1. コアライブラリのインポート
+import streamlit as st
+import os
 
-#### 2. 真の課金要因：仮想ウェアハウス（Virtual Warehouse）のコンピュートコスト
-- **稼働の実態**：Streamlit in Snowflake は静的な HTML ホスティングではなく、Python コンテナの実行および SQL 発行のために背後で **Virtual Warehouse** を起動・消費します；
-- **単価基準**：最小サイズである `X-Small` ウェアハウスでも、1 時間の稼働につき **1 クレジット**（通常レート換算で約 **$2.00 〜 $3.00 / 時間**）を消費します；
-- **重大な落とし穴（タブの放置）**：Streamlit フロントエンドは **WebSocket によるハートビート通信（Live Heartbeat）** を維持します。開発者が Snowsight でダッシュボードを開いたまま、**ブラウザタブを閉じずに放置してしまうと**、フロントエンドからの通信によりウェアハウスの自動サスペンドが遅延・阻害されるリスクがあります；
-- **空転の代償**：1 日あたり 24 クレジット（約 $48 〜 $72）が浪費され、数日でトライアル枠（400 ドル）を使い切ってしまう事態に陥ります。
+# 2. タイトルとバージョン表示
+st.title(f"Example Streamlit App :balloon: {st.__version__}")
+st.write(
+    """Replace this example with your own code!
+    **And if you're new to Streamlit,** check out our easy-to-follow guides at
+    [docs.streamlit.io](https://docs.streamlit.io).
+    """
+)
 
-#### 3. 公式プラットフォーム安全防壁：デフォルト約15分の WebSocket タイムアウトと自動スリープ機構
+# 3. 倉内標準セッション取得 (Snowflake Connection)
+# st.connection 経由で現在のログインユーザーのセッションを取得（接続タイムアウト TTL 自動管理）
+conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
+session = conn.session()
 
-ユーザーが画面を開いたまま放置してしまうリスクに対し、Snowflake 公式はプラットフォーム層で**セッションライフサイクルとスリープ機構（Sleep Timeout）**を提供しています：
+# 4. スライダー入力コンポーネント
+hifives_val = st.slider(
+    "Number of high-fives in Q3",
+    min_value=0,
+    max_value=90,
+    value=60,
+    help="Use this to enter the number of high-fives you gave in Q3",
+)
 
-> 📖 **公式ドキュメントリファレンス**：
-> - [Manage sleep timeout for a Streamlit app using a warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/manage-sleep-timeout)
-> - [About Streamlit in Snowflake - WebSocket timeout](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#websocket-timeout)
-
-- **デフォルト約 15 分の WebSocket 切断（WebSocket Timeout）**：
-  ユーザーがブラウザで Streamlit アプリを開くと、フロントエンドと Snowflake バックエンド間で WebSocket 双方向通信が確立されます。**アカウントレベル（Account-level）**では、デフォルトで**約 15 分間の非アクティブ状態でタイムアウト**するように設定されています。15 分間有効な操作がない場合、WebSocket 接続はサーバー側で自動切断され、Streamlit アプリは**一時停止/スリープ（Suspend/Sleep）**状態へ移行します。
-- **アクティビティ判定（マウスの移動で即時リセット）**：
-  公式ドキュメントに明記されている通り、ユーザーがアプリ画面上で**マウスを移動（Mouse movement over the app）**させるだけでアクティブ状態と判定され、**15 分のタイマーが自動的にリセット**されます。
-- **ブラウザバックグラウンドタブのスロットリング**：
-  アプリを開いたタブが背面に回ると、モダンブラウザ（Chrome, Edge）の省電力機能によりバックグラウンドのタイマーが一時停止・遅延され、探活信号が途切れるため、バックグラウンドでは 15 分タイムアウトによる切断が迅速に発動します。
-- **アプリごとのカスタムスリープタイマー (`.streamlit/config.toml`)**：
-  ウェアハウスランタイムを使用するアプリでは、サポートに連絡することなく、Stage のアプリルートディレクトリに `.streamlit/config.toml` を配置することで、スリープまでの時間を **5分 〜 240分（最長4時間）** の間で独自に設定可能です：
-  ```toml
-  [snowflake.sleep]
-  streamlitSleepTimeoutMinutes = 15  # 5 〜 240 分の間で指定可能
-  ```
-  *(注：アカウント全体のデフォルト 15 分 WebSocket タイムアウトを変更したい場合は、Snowflake サポートへの申請が必要です)*。
-
-#### 4. コスト爆発を防ぐ 5 つの安全ロック（The 5 Anti-Burn Safety Locks）
-快適な開発と確実なコスト管理を両立するため、以下の 5 重防護を必ず実施します：
-1. **60秒自動サスペンドの徹底**：ウェアハウスに `AUTO_SUSPEND = 60` を強制設定（クエリ停止後 1 分で即時休止）；
-2. **関数レベルの強力メモリキャッシュ**：DWH からデータを取得する全関数に `@st.cache_data(ttl=600)`（10分キャッシュ）を付与。テーブル切り替えやドロップダウン操作時にメモリからミリ秒で応答させ、**DWH への多重 SQL クエリを完全に遮断**；
-3. **厳格なクエリ件数制限**：データプレビューには必ず `LIMIT 50` を付与し、数千万行のフルスキャンを防止；
-4. **アプリ固有のスリープタイマー設定**：`.streamlit/config.toml` で `streamlitSleepTimeoutMinutes = 15` を設定し、公式の 15 分安全機構と連動；
-5. **ブラウザタブの確実なクローズと手動サスペンド**：作業完了後はタブを閉じ、必要に応じて `ALTER WAREHOUSE <wh> SUSPEND;` を実行。
+# 5. 棒グラフの即時レンダリング
+# スライダーを動かすとスクリプトが再実行され、グラフがダイナミックに連動
+st.subheader("Number of high-fives")
+st.bar_chart({
+    "high-fives": [50, 20, hifives_val],
+})
+```
 
 ---
 
-## 三、コア関数と設定パラメータ定義（完全辞書）
+### Step 4: 核心のハイライト · ワンクリック本番リリース (`[ 🚀 展開 (Deploy) ]`)
 
-> 📖 **公式 API リファレンスマニュアル**：
-> - [get_active_session API リファレンス (Snowpark Python)](https://docs.snowflake.com/ja/developer-guide/snowpark/reference/python/latest/api/snowflake.snowpark.context.get_active_session)
-> - [st.cache_data キャッシュ動作仕様と TTL ガイド](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_data)
-> - [Streamlit Core ウィジェット & チャート API](https://docs.streamlit.io/develop/api-reference/layout/st.columns)
+ワークスペースで動作検証を完了したら、煩雑な DDL コマンドやファイル転送を手動実行する必要はありません：
 
-| 関数 / 文法 | コード例 | 推奨設定 | 技術的役割と解説 |
-| :--- | :--- | :--- | :--- |
-| `get_active_session()` | `from snowflake.snowpark.context import get_active_session` | コード先頭で呼び出し | **パスワードレス認証**：ログイン中ユーザーのセッションと RBAC 権限を自動取得。接続文字列は不要。 |
-| `@st.cache_data` | `@st.cache_data(ttl=600)` | 全ての SQL 呼び出しに必須 | **クエリ防壁（キャッシュ）**：結果をメモリに保持。スライダー等の操作時に DWH の二重クエリ（課金）を遮断。 |
-| `st.metric()` | `st.metric(label="総呼出数", value=1240, delta="+12%")` | ダッシュボード上部に配置 | **KPI スコアカード**：重要指標の現在値および増減率を直感的に表示。 |
-| `st.selectbox()` | `st.selectbox("分類選択", options=['All', 'A', 'B'])` | 多角的ドリルダウン | **対話型ドロップダウン**：選択変更時にアプリをリアクティブに再描画。 |
-| `st.line_chart()` | `st.line_chart(df.set_index('DATE')['REVENUE'])` | インデックスに日付を設定 | **トレンド折れ線グラフ**：Altair ベースの高品質な時系列グラフを描画。 |
-| `st.dataframe()` | `st.dataframe(df, use_container_width=True)` | 幅 100% 設定推奨 | **対話型テーブル**：列のソート、テキスト検索、CSV ダウンロード機能付き表。 |
-| `streamlitSleepTimeoutMinutes` | `[snowflake.sleep]` 設定 | 推奨値 `15`（範囲 5〜240） | **アプリ固有スリープタイマー**：`.streamlit/config.toml` 内で無操作時のアプリ自動サスペンド時間を制御。WebSocket 15分タイムアウトと連動。 |
+1. エディタ右上の青色ボタン **`「展開 (Deploy)」`** をクリック；
+2. 表示されるデプロイウィザードで配備先を指定：
+   - **アプリタイトル (App Title)**：正式なアプリ名称（例: `DEV_DEMO_DASHBOARD`）；
+   - **アプリの場所 (App Location)**：物理配置先の Database と Schema（例: `DEV_DEMO_DB.API_INTEGRATION`）；
+   - **クエリウェアハウス (Query Warehouse)**：データクエリを実行する仮想ウェアハウス（例: `COMPUTE_WH`）；
+3. デプロイを実行すると、コードが自動パッケージングされ、指定のネームスペース配下に永続化された Streamlit オブジェクトが正式生成されます！
+
+#### 実機メタデータの証跡検証（実環境クエリ検証結果）
+
+バックエンドで `SHOW STREAMLITS;` を実行すると、ワークスペースから展開されたアプリのメタデータが明確に記録されていることが分かります：
+
+```text
+Name: ST658619B1D62298C0E9E309D122F8B666CDD245F4 
+DB: USER$FANXIAO | Schema: PUBLIC | Owner: 無題 
+Metadata: {
+  "sourceWorkspaceUri": "workspace:/USER%2524.PUBLIC.DEFAULT%2524/無題",
+  "sourceWorkspacePath": "/ws/USER%24/PUBLIC/DEFAULT%24/無題/streamlit_app.py",
+  "sourceWorkspaceUserId": "FANXIAO",
+  "createActionSource": "create-app"
+}
+```
+これは、ワークスペースが単なる一時メモではなく、**正式なデプロイパイプラインを備えた近代的な開発資産**であることを完全に証明しています。
 
 ---
 
-## 四、2つのデプロイパス（デュアルトラック）実践ハンズオン：DevOps コード管理 vs Web GUI ノーコード探索
+## 🧭 3. 分岐パスの解明：ドロップダウン 2 大メニューの役割と境界
 
-エンタープライズの本番実務において、Streamlit in Snowflake はエンジニアリングの自動化とビジネスの俊敏性を両立する 2 つの導入パスを提供します：
-- **トラック A（DevOps / CI/CD コード管理デプロイ）**：データエンジニアやプラットフォームアーキテクト向け。内部ステージ + SQL DDL による宣言的管理を行い、Git や CI/CD 自動デプロイパイプラインに統合；
-- **トラック B（Snowsight Web GUI 対話型探索）**：ビジネスアナリスト（BA）や迅速な PoC 検証向け。Snowflake の Web 管理画面から数クリックで即座に対話型アプリケーションを立ち上げ。
+右上の **`+ Streamlit アプリ`** ボタンの右側にある矢印をクリックすると、2 つの補足エントリーが展開されます：
+
+![Streamlit 作成ボタンとドロップダウン選択肢](../images/10_step_03_gui_create_dropdown_options.png)
+
+### 1. エントリー A：`リポジトリから作成 (Create from Repository)` —— Git CI/CD 連携
+- **技術的位置づけ**：成熟したデータ基盤チーム向け。ソースコードを外部 Git（GitHub / GitLab）で一元管理し、Web 画面での手作業による改変を排除します。
+- **操作概要**：
+  1. 「リポジトリから作成」を選択し、「メインファイルを選択」をクリック；
+  2. Git Repository オブジェクトを含むデータベースとブランチ内のエントリーポイントを指定：
+     
+     ![Git リポジトリファイル選択ダイアログ](../images/10_step_03_gui_repo_select_database.png)
+     
+  3. 配置先スキーマと Python 環境（公式デフォルトの **「コンテナで実行」** 推奨）を選択して連携を完了します。
+
+### 2. エントリー B：`ウェアハウスで作成 (レガシー)` —— 過去資産の下位互換モード
+- **技術的位置づけ**：Snowflake 初期仕様の作成方式であり、公式に **`レガシー (Legacy)`** と指定されています。
+- **特徴と制約**：
+  - ワークスペースを経由せず、最初から本番スキーマ配下にオブジェクトを直接書き込む旧来型；
+  - 仮想ウェアハウス（最低 1.0 credit/h）の単体 VM 実行に限定；
+  - 旧式の Conda `environment.yml` を使用し、Anaconda 公式ホワイトリスト内のライブラリに制限される；
+  - **適用場面**：数年前に作成された古い単一ファイルスクリプトの改修や、SPCS クォータが利用できない旧環境でのみ代替利用します。
 
 ---
 
-### トラック A（DevOps / CI/CD コード管理デプロイ）：API 監視ダッシュボード
+## 💻 4. 本番水準実践：倉内データ表ダイナミック探査ダッシュボード (Schema Table Inspector)
 
-#### Step 4.A1: 監視指標テーブルの作成とテストデータ投入
+実際のデータ分析や DWH 運用において、**「各データベースやスキーマ配下の全テーブル一覧をスキャンし、即座に前 50 行のサンプルデータとカラム型を調査できる」** ツールは極めて実用的です。
+
+以下に、最新のベストプラクティスに基づき設計された完全な本番コードを示します。
+
+### Step 1: テスト用テーブルとデータの準備 (`DEV_DEMO_DB.API_INTEGRATION`)
 
 ```sql
 USE DATABASE DEV_DEMO_DB;
 USE SCHEMA API_INTEGRATION;
 
--- 1. 技術検証用テーブルの作成
-CREATE OR REPLACE TABLE test_sales_metrics (
+-- 1. テスト指標テーブル作成
+CREATE TABLE IF NOT EXISTS test_sales_metrics (
     date DATE,
     category STRING,
     revenue NUMBER(10,2),
     api_call_count INT
 );
 
--- 2. サンプルデータの挿入
+-- 2. 模擬データの投入
 INSERT INTO test_sales_metrics VALUES
   ('2026-10-25', 'Electronics', 12500.50, 420),
   ('2026-10-26', 'Clothing', 8400.00, 310),
@@ -195,688 +241,166 @@ INSERT INTO test_sales_metrics VALUES
   ('2026-10-29', 'Electronics', 14200.00, 480);
 ```
 
-> **コンソール実行結果とテーブル確認スクリーンショット**：
-> ```text
-> Table TEST_SALES_METRICS successfully created.
-> number of rows inserted: 5
-> ```
->
-> `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics;` を実行し、準備された 5 レコードの指標データを確認：
->
-> ![Snowflake 監視指標テーブル確認](../images/10_step_01_test_sales_metrics_table.png)
-
 ---
 
-#### Step 4.A2: Streamlit アプリケーションコードの作成 (`streamlit_app.py`)
-
-KPI カード、動的フィルタ、折れ線グラフ、明細表を統合したスクリプトを作成します：
+### Step 2: 完全な本番アプリコード (`streamlit_schema_inspector.py`)
 
 ```python
 # ==============================================================================
-# ファイル名: streamlit_app.py
-# 目的: Streamlit in Snowflake 本番対話型ダッシュボード
+# ファイル名: streamlit_schema_inspector.py
+# 核心用途: 本番水準の倉内データ表ダイナミック探査ツール (10分キャッシュ防護と階層探索)
 # ==============================================================================
 import streamlit as st
-from snowflake.snowpark.context import get_active_session
+import pandas as pd
 
-# 1. ページ基本設定 (ワイド画面モード)
-st.set_page_config(page_title="Snowflake API 監視ダッシュボード", layout="wide")
-st.title("📊 Snowflake API 呼出・業務指標リアルタイム監視")
+# 1. ページ初期設定
+st.set_page_config(page_title="Snowflake 倉内データ表探査ツール", layout="wide", page_icon="🔍")
+st.title("🔍 Snowflake データアーキテクチャ・表構造ダイナミック探査")
 
-# 2. パスワードレスでセッション取得
-session = get_active_session()
+# 2. パスワード不要の安全なセッション取得
+conn = st.connection("snowflake")
+session = conn.session()
 
-# 3. 課金防止の核心：cache_data による 10 分間クエリキャッシュ
+# 3. 課金暴走防止の核心：cache_data による 10 分間メモリキャッシュ
 @st.cache_data(ttl=600)
-def load_data():
-    sql = """
-        SELECT 
-            date,
-            category,
-            revenue,
-            api_call_count
-        FROM DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics
-        ORDER BY date ASC
-    """
-    return session.sql(sql).to_pandas()
+def get_databases():
+    """アカウント内の全データベース一覧を取得"""
+    df = session.sql("SHOW DATABASES").to_pandas()
+    return sorted(df["name"].tolist())
 
-raw_df = load_data()
+@st.cache_data(ttl=600)
+def get_schemas(db_name):
+    """指定データベース内の全スキーマ一覧を取得"""
+    df = session.sql(f"SHOW SCHEMAS IN DATABASE {db_name}").to_pandas()
+    return sorted(df["name"].tolist())
 
-# 4. サイドバー絞り込みコントロール
-st.sidebar.header("🔍 多角的ドリルダウンフィルタ")
-categories = ["すべて (All)"] + sorted(list(raw_df["CATEGORY"].unique()))
-selected_category = st.sidebar.selectbox("カテゴリ選択：", categories)
+@st.cache_data(ttl=600)
+def get_tables(db_name, schema_name):
+    """指定スキーマ内のテーブル一覧と行数概要を取得"""
+    df = session.sql(f"SHOW TABLES IN SCHEMA {db_name}.{schema_name}").to_pandas()
+    if df.empty:
+        return pd.DataFrame()
+    return df[["name", "rows", "bytes", "owner", "created_on"]]
 
-if selected_category != "すべて (All)":
-    df = raw_df[raw_df["CATEGORY"] == selected_category]
+@st.cache_data(ttl=300)
+def preview_table_data(full_table_name):
+    """先頭 50 行のサンプルデータを抽出 (LIMIT 句で数倉負荷を抑制)"""
+    return session.sql(f"SELECT * FROM {full_table_name} LIMIT 50").to_pandas()
+
+# 4. サイドバーによる階層型ナビゲーション
+st.sidebar.header("📁 ネームスペース選択")
+databases = get_databases()
+selected_db = st.sidebar.selectbox("データベース (Database)：", databases, index=0)
+
+schemas = get_schemas(selected_db)
+selected_schema = st.sidebar.selectbox("スキーマ (Schema)：", schemas, index=0)
+
+# 5. メインキャンバス：テーブル一覧の可視化
+st.subheader(f"📊 `{selected_db}.{selected_schema}` 配下のテーブル資産")
+tables_df = get_tables(selected_db, selected_schema)
+
+if tables_df.empty:
+    st.info("⚠️ 指定スキーマ内に利用可能なテーブルが存在しません。")
 else:
-    df = raw_df
+    # サマリー指標
+    m1, m2 = st.columns(2)
+    m1.metric("テーブル総数", len(tables_df))
+    total_rows = tables_df["rows"].sum() if "rows" in tables_df.columns else 0
+    m2.metric("総レコード行数", f"{total_rows:,}")
+    
+    # メタデータ一覧表示
+    st.dataframe(tables_df, use_container_width=True, hide_index=True)
+    
+    st.divider()
+    
+    # 6. テーブル詳細サンプルのドリルダウン
+    selected_table = st.selectbox("サンプルデータを調査するテーブルを選択：", tables_df["name"].tolist())
+    if selected_table:
+        full_name = f"{selected_db}.{selected_schema}.{selected_table}"
+        st.write(f"🔬 **`{full_name}` の先頭 50 行サンプル：**")
+        
+        sample_df = preview_table_data(full_name)
+        st.dataframe(sample_df, use_container_width=True)
+        
+        # カラム構造サマリー
+        with st.expander("📋 カラム定義およびデータ型の確認"):
+            col_info = pd.DataFrame({
+                "カラム名 (Column)": sample_df.columns,
+                "Python 型": [str(t) for t in sample_df.dtypes]
+            })
+            st.table(col_info)
 
-# 5. 上部 KPI メトリクスカードの表示
-kpi1, kpi2, kpi3 = st.columns(3)
-total_revenue = df["REVENUE"].sum()
-total_api_calls = df["API_CALL_COUNT"].sum()
-avg_revenue_per_call = total_revenue / total_api_calls if total_api_calls > 0 else 0
-
-with kpi1:
-    st.metric(label="総売上金額 (USD)", value=f"${total_revenue:,.2f}", delta="+8.5%")
-with kpi2:
-    st.metric(label="外部 API 総呼出数", value=f"{total_api_calls:,}", delta="+120")
-with kpi3:
-    st.metric(label="呼出あたり売上貢献", value=f"${avg_revenue_per_call:.2f}")
-
-st.divider()
-
-# 6. チャートと詳細テーブルの並列レイアウト
-chart_col, table_col = st.columns([3, 2])
-
-with chart_col:
-    st.subheader("📈 日別売上推移チャート")
-    chart_data = df.groupby("DATE")["REVENUE"].sum().reset_index()
-    st.line_chart(chart_data.set_index("DATE")["REVENUE"])
-
-with table_col:
-    st.subheader("📋 リアルタイム明細レコード")
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-# 7. 手動キャッシュ更新ボタン
-if st.button("🔄 キャッシュをクリアして再取得"):
+# 7. 強制更新ボタン
+if st.sidebar.button("🔄 メタデータキャッシュをクリアして再取得"):
     st.cache_data.clear()
     st.rerun()
 ```
 
 ---
 
-#### Step 4.A3: Stage + SQL による DevOps 自動デプロイ
+### Step 3: デプロイ済み資産の確認と組織内共有
 
-Snowsight 画面での手作業による貼り付けを排し、Git や CI/CD パイプラインと直結できる標準方式を採用します：
+ワークスペースから **「展開」** を実行して `DEV_DEMO_DB.API_INTEGRATION` へリリースすると、アプリ一覧に正式な永続化オブジェクトとして登録されます：
 
-> 📖 **公式 DDL・デプロイ仕様**：
-> - [CREATE STREAMLIT 構文仕様とパラメータリファレンス](https://docs.snowflake.com/ja/sql-reference/sql/create-streamlit)
-> - [Snowflake 内部ステージでの Streamlit ファイル管理ガイド](https://docs.snowflake.com/ja/developer-guide/streamlit/create-streamlit-sql)
+![Streamlit アプリ一覧画面で正式オブジェクトとして登録されている様子](../images/10_step_03_gui_app_list_dual_created.png)
 
-```sql
--- 1. 内部ステージの作成 (Directory Table 有効化)
-CREATE OR REPLACE STAGE dev_streamlit_stage DIRECTORY = (ENABLE = TRUE);
-
--- 2. スクリプトのアップロード
-PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-
--- 3. DDL による Streamlit オブジェクト作成
-CREATE OR REPLACE STREAMLIT dev_demo_dashboard
-  ROOT_LOCATION = '@DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage'
-  MAIN_FILE = 'streamlit_app.py'
-  QUERY_WAREHOUSE = 'COMPUTE_WH'
-  COMMENT = 'API 監視・可視化本番ダッシュボード (トラック A - DevOps)';
-```
-
-> **ステージ内ファイル確認スクリーンショット**：
->
-> `LIST @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage;` を実行し、`streamlit_app.py` が正常に配置されたことを確認：
->
-> ![Snowflake 内部ステージの Streamlit ファイル一覧](../images/10_step_02_stage_streamlit_file.png)
+アクセス権を持つ組織メンバー全員がカタログ経由でアプリを起動可能となり、全ての SQL クエリは Snowflake の安全なガバナンス境界内で完結します！
 
 ---
 
-#### Step 4.A4: デプロイ結果の確認とアクセス
+## 🛡️ 5. 費用精算と課金暴走防止の安全装置（Cost & Anti-Burn Governance）
 
-> 📖 **公式メタデータコマンド仕様**：[SHOW STREAMLITS 公式構文リファレンス](https://docs.snowflake.com/ja/sql-reference/sql/show-streamlits)
+ダッシュボード運用にあたり、アーキテクトは **「ストレージ費用」** と **「コンピュート費用」** の 2 つを明確に区別して設計する必要があります。
 
-```sql
-SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
-```
-
-> **実機クエリ結果**：
-> ```text
-> ┌──────────────────────────┬─────────────────────┬───────────────┬─────────────────┬──────────┬────────────┐
-> │ created_on               │ name                │ database_name │ schema_name     │ owner    │ warehouse  │
-> ├──────────────────────────┼─────────────────────┼───────────────┼─────────────────┼──────────┼────────────┤
-> │ 2026-11-02 08:38:52 PST  │ DEV_DEMO_DASHBOARD  │ DEV_DEMO_DB   │ API_INTEGRATION │ SYSADMIN │ COMPUTE_WH │
-> └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
-> ```
-
-Snowflake Snowsight 管理画面で左メニューの **「ワークスペース (Workspaces)」 -> 「Streamlit」**（または `#/streamlit-apps`）をクリックすると、一覧に登録された **`DEV_DEMO_DASHBOARD`** が確認できます：
-
-![Snowflake Streamlit アプリ一覧](../images/10_step_03_streamlit_app_list.png)
-
-クリックしてダッシュボードを開くと、DWH 内でセキュアに即時描画された対話型ダッシュボードが表示されます：
-
-![Streamlit in Snowflake 稼働実機画面](../images/10_step_04_streamlit_dashboard_live.png)
+### 1. ストレージ費用の真実：月額 0.000001 ドル未満（懸念無用）
+- **課金体系**：コードファイルは標準クラウドオブジェクトストレージ単価（約 **$23.00 / TB / 月**）で課金；
+- **ファイルサイズ**：Streamlit Python コードは通常 **10 KB ~ 30 KB** 程度；
+- **精算結果**：
+  $$\text{月間ストレージ費用} = \frac{30 \text{ KB}}{1024 \times 1024 \times 1024 \text{ KB}} \times \$23.00 \approx \$0.00000065 \text{ USD / 月}$$
+  ダッシュボードを 100 本保管しても、年間コストは **1 セント未満** です。コードの保存容量による課金は実質ゼロとみなして問題ありません。
 
 ---
 
-### トラック B（Snowsight Web GUI 対話型探索）：ウェアハウス内動的テーブルインスペクター (Schema Table Inspector)
+### 2. コンピュート課金の防護線と公式 15 分タイムアウト機構
+実際の費用は**計算リソース（コンピュート）**で発生します：
+- **コンテナランタイム (SPCS)**：最小構成 `CPU_X64_XS` は **約 0.11 credits/h**。非アクティブ時の自動サスペンドに対応；
+- **ウェアハウスランタイム (Warehouse)**：最小構成 `X-Small` でも **1.0 credit/h**。`AUTO_SUSPEND = 60`（1 分で自動停止）が必須。
 
-分析業務や PoC においては、ターミナルを開いたり `PUT` コマンドを打つことなく、**Snowsight の Web 画面上だけで素早くアプリを作成し、指定した Database / Schema 内の全テーブルを自動スキャンして、クリックしたテーブルのメタデータとサンプル行を即座に探査したい**というニーズが数多く存在します。
+#### 公式標準防衛：デフォルト 15 分の WebSocket タイムアウト切断
+ブラウザを開いたまま離席した際の空転を防ぐため、Snowflake はプラットフォーム標準で安全弁を備えています：
 
-#### Step 4.B1: Snowsight Web 画面からの Streamlit ナビゲーションとアプリ作成
+> 📖 **公式ドキュメント**：
+> - [Manage sleep timeout for a Streamlit app](https://docs.snowflake.com/ja/developer-guide/streamlit/manage-sleep-timeout)
+> - [WebSocket timeout in Streamlit in Snowflake](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#websocket-timeout)
 
-1. **Streamlit 画面への正確なナビゲーション（最新 Snowsight UI 対応）**：
-   Snowsight 管理コンソール（ホーム画面 `ホーム / Home`）から Streamlit 資産管理画面へアクセスするには、以下の 2 つのルートがあります：
-   - **ルート 1（サイドバーメニュー、推奨）**：左側「データを扱う」セクションの **「ワークスペース (Workspaces)」** にマウスを合わせ、展開されたサブメニューから **「Streamlit」** をクリック（URL パスは `#/streamlit-apps`）；
-   - **ルート 2（ホームプロジェクトタブ）**：ホーム画面下部のプロジェクト一覧で **「Streamlits」** タブをクリックし、既存のアプリ資産（`SCHEMA_TABLE_INSPECTOR` 等）を直接確認。
-
-> **Snowsight コンソール実機ナビゲーション画面（赤枠ハイライト）**：
->
-> 以下の実機キャプチャの通り、左側「ワークスペース」ホバーから「Streamlit」を選択する正確な位置を赤枠で明示しています（旧 UI ドキュメントの曖昧な表記を排除）：
->
-> ![Snowsight コンソールナビゲーション：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
-
-2. **作成方式の技術調査：メインボタンの直接クリック vs ドロップダウン2大オプション（3パターンの完全解剖）**：
-
-Streamlit 管理画面の右上には、青色のメインボタン **`+ Streamlit アプリ`** と、その横に下向きの三角ドロップダウンアイコンが配置されています。この挙動の違いには、以下の 3 種類の異なるアーキテクチャが関わっています：
-
-![Streamlit 作成ボタンとドロップダウン作成オプション（ウェアハウスで作成 vs リポジトリから作成）](../images/10_step_03_gui_create_dropdown_options.png)
-
-| 作成アプローチ | トリガーされる挙動と内部メカニズム | 適用シナリオ・メリット・デメリット | 公式ドキュメントリファレンス |
-| :--- | :--- | :--- | :--- |
-| **パターン ①：`+ Streamlit アプリ` メインボタンを直接クリック<br/>*(モダンワークスペース・公式標準開発フロー · ⭐ 推奨)* | **モダンワークスペースプロジェクトモード (Workspace Project)**：<br/>最新のプロジェクト骨格（`snowflake.yml`、`pyproject.toml`、`.streamlit/config.toml`）を備えた安全なサンドボックス環境が即座に生成され、フル機能 IDE が開きます。<br/><br/>**中核となる開発ライフサイクル：Dev $\to$ Test $\to$ Deploy (展開)**<br/>個人ワークスペース内で安全にコーディングと即時プレビュー検証を行い、完成後にエディタ右上の **`「展開 (Deploy)」`** ボタンを 1 クリックするだけで、任意のデータベース・スキーマへ正式な本番オブジェクトとしてデプロイ可能です！ | **メリット**：近代的な「開発 $\to$ 検証 $\to$ 展開」のソフトウェア工学ライフサイクルを完全準拠。Snowflake CLI v2 互換の構成ファイル群を完備。右上の「展開」で即座に本番公開。<br/>**デメリット**：初見では単なる一時的メモ帳と誤解しやすい。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight)<br/>[Snowflake CLI Streamlit Deploy](https://docs.snowflake.com/ja/developer-guide/snowflake-cli-v2/command-reference/streamlit-commands/deploy) |
-| **パターン ②：ドロップダウン `ウェアハウスで作成 (レガシー)` を選択<br/>*(Create in Warehouse - Legacy)*<br/>*(⚠️ 公式に「レガシー」と明記された旧来方式)* | **従来型 DWH 直接配置モード**：設定ポップアップが開き、最初から本番 Database / Schema 配下に直接オブジェクトを作成し、仮想ウェアハウス（`COMPUTE_WH`）をバインドします。<br/><br/>**なぜ公式に「レガシー (Legacy)」と表記されているのか？**<br/>コンテナランタイムやモダンワークスペースが標準となった現在、本番スキーマに直接スクリプトを書き込み、Anaconda ホワイトリストに依存し、最低 1.0 credit/h を消費する旧来モデルは Legacy に分類されています。過去資産との下位互換のために維持されています。 | **メリット**：設定が単一ステップで完了する。<br/>**デメリット**：開発環境と本番環境の分離がなく危険。Anaconda ホワイトリスト以外の外部 pip パッケージを導入不可。ウェアハウス費用（1.0 credit/h〜）が常時発生。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
-| **パターン ③：ドロップダウン `リポジトリから作成` を選択<br/>*(Create from Repository)* | **Git 連携エンタープライズ CI/CD モード**：Git リポジトリ設定ウィザードが開き、Snowflake 内に登録済みの Git Repository オブジェクト（GitHub / GitLab / Azure DevOps）からブランチとエントリーポイントとなる `.py` を直接指定します。 | **メリット**：外部 Git による一元管理、CI/CD 自動化連携。複数ファイル構成の本格的アプリを標準サポート。<br/>**デメリット**：事前に Snowflake 側で Git 連携シークレットとリポジトリ定義が必要。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git 連携の概要](https://docs.snowflake.com/ja/developer-guide/git/git-overview) |
-
-3. **作成ポップアップでのパラメータ入力（クラシックウェアハウスモードの実機全手順）**：
-   - ドロップダウン矢印をクリックし、**`ウェアハウスで作成 (レガシー)`** を選択します：
-     
-     ![ドロップダウンから「ウェアハウスで作成 (レガシー)」を選択](../images/10_step_03_gui_select_warehouse_legacy.png)
-
-   - 表示された正式な作成ダイアログで、以下の 3 大コア属性を指定します：
-     - **アプリタイトル (App Title)**：アプリ名称を入力（例: `SCHEMA_TABLE_INSPECTOR`、実測例: `FANXIAO 2026-11-11 8:25pm`）；
-     - **アプリの場所 (App location)**：物理的な格納先 Database と Schema（例: `AIRBNB` $\rightarrow$ `DEV`、または `DEV_DEMO_DB` $\rightarrow$ `API_INTEGRATION`）；
-     - **アプリウェアハウス (Warehouse)**：実行と描画を担当するコンピュートリソース（例: `COMPUTE_WH`）；
-     
-     ![Snowsight ウェアハウス Streamlit 作成ダイアログ](../images/10_step_03_gui_modal_warehouse_create.png)
-
-   - 右下の青色ボタン **`作成 (Create)`** をクリックすると、指定したスキーマ配下に永続化された Streamlit 実体オブジェクトが作成され、クラシックエディタが開きます：
-     
-     ![クラシックウェアハウスモードのエディタ実機画面（左側ファイル/DBツリー・environment.yml・v1.52.2表示）](../images/10_step_03_gui_legacy_editor_live.png)
-
-   - Streamlit アプリ一覧画面に戻ると、作成されたアプリの「場所」に **`AIRBNB.DEV`** が明確に記録されていることが確認できます：
-     
-     ![Streamlit アプリ一覧で物理配置場所が AIRBNB.DEV と明示されている様子](../images/10_step_03_gui_app_list_created.png)
+1. **デフォルト 15 分無操作切断**：
+   15 分間ユーザー操作が検知されない場合、サーバ側から WebSocket 接続を切断し、アプリは **スリープ（Sleep）** 状態へ移行してコンピュート消費を停止します。
+2. **アクティブ判定**：
+   マウスカーソルを画面上で**移動・操作**するだけで探活エンジンが検知し、15 分タイマーがリセットされます。
+3. **アプリ個別スリープ制御 (`.streamlit/config.toml`)**：
+   プロジェクト設定ファイル内でスリープまでの猶予時間（5〜240分）を明示的に指定可能：
+   ```toml
+   [snowflake.sleep]
+   streamlitSleepTimeoutMinutes = 15
+   ```
 
 ---
 
-##### 4. 技術的深層解明：直接クリック作成 vs ドロップダウン作成の本質的差異 —— ワークスペースプロジェクト (Dev) とワンクリックデプロイ (展開 / Deploy)
-
-多くのエンジニアが実機で操作した際に疑問を抱きます：**「メインボタンを直接クリックすると個人ワークスペースに入り、ドロップダウンメニューでは DB やスキーマを選択して直接作成する。この 2 つの設計思想にはどのような本質的違いがあるのか？」**
-
-これは、Snowflake が推進する**近代的ソフトウェア工学ライフサイクル（Dev $\to$ Test $\to$ Deploy）**と**旧来のモノリシック直書き方式**の世代交代を如実に物語っています：
-
-| 比較評価軸 | パターン A：`+ Streamlit アプリ` 直接クリック<br/>*(モダンワークスペースプロジェクト · 現代の標準開発フロー · ⭐ 推奨)* | パターン B：`ウェアハウスで作成 (レガシー)`<br/>*(従来の DWH スキーマ直書き方式 · ⚠️ 公式 Legacy 指定)* |
-| :--- | :--- | :--- |
-| **開発ライフサイクルと位置づけ** | **開発サンドボックス環境（Development Sandbox）**：<br/>「自分のワークスペース」内で安全にコーディング・検証を行い、本番 DWH の既存テーブル資産に一切影響を与えずにホットリロード開発が可能。 | **本番スキーマ直書き（Direct Schema Object）**：<br/>開発検証と本番公開の境界がなく、最初から本番スキーマ配下にオブジェクトを物理配置して直接コードを編集する旧来型。 |
-| **デプロイ機能 (展開 / Deploy)** | **エディタ右上の「展開 (Deploy)」ボタンで本番公開**：<br/>ワークスペースで開発・テストが完了した後、画面右上の **`「展開 (Deploy)」`** ボタンをクリックするだけで、対象 Database / Schema へ一発で本番オブジェクトとして昇格・配備可能！ | **「展開」機能なし（現地直接保存）**：<br/>エディタでの保存がそのまま本番オブジェクトの更新となるため、作りかけのコードを私的に保持する機能がありません。 |
-| **プロジェクトファイル構成** | **最新モダン 4 点セット（Snowflake CLI v2 準拠）**：<br/>- `streamlit_app.py`：メインエントリーポイント<br/>- `snowflake.yml`：CLI v2 プロジェクト定義・自動デプロイ設定<br/>- `pyproject.toml`：現代的 Python 依存関係・バージョン定義<br/>- `.streamlit/config.toml`：テーマとタイムアウト制御 | **クラシック軽量 2 点セット（旧 Conda 形式）**：<br/>- `streamlit_app.py`<br/>- `environment.yml` (Anaconda パッケージ宣言)<br/>*（プロジェクト定義や CLI デプロイ設定を持たない）* |
-| **Streamlit ランタイム版数** | **最新アグレッシブ版（例: v1.66.1）** | **長期安定基線版（例: v1.52.2）** |
-| **セッション取得コード** | 公式推奨の近代的コード：`conn = st.connection("snowflake")` / `session = conn.session()` | レガシー互換：`from snowflake.snowpark.context import get_active_session` |
-| **権限と安全分離** | 開発中は作成者本人のみ参照可能で、共有スキーマを汚染しない。完成後に「展開」を実行して初めて社内 RBAC を付与。 | 作成直後から対象スキーマ内に公開され、未完成アプリがカタログ上に露見するリスクがある。 |
-
-> 💡 **アーキテクトによる選定指針**：
-> - **現代の正統派開発フロー**：**`+ Streamlit アプリ`** メインボタンを採用！ワークスペースの近代 4 点セットで安全に開発・検証し、完成したら右上の **`「展開 (Deploy)」`** で本番 DWH へ正式リリースする；
-> - **過去資産の保守**：過去に `environment.yml` で構築された古い単一ファイルスクリプトを改修する場合に限り、下位互換用の `ウェアハウスで作成 (レガシー)` を利用する。
+### 3. コスト浪費を防ぐ 5 大安全基準
+1. **公式標準のコンテナランタイムを最優先**（約 0.11 credits/h でウェアハウス比 90% 削減）；
+2. **データ取得関数には必ず `@st.cache_data(ttl=600)` を付与**（メモリキャッシュで不要な重複クエリを遮断）；
+3. **明細クエリには必ず `LIMIT 50` などの上限を設ける**（数千万行のスキャンを防止）；
+4. **仮想ウェアハウスを利用する場合は `AUTO_SUSPEND = 60` を厳守**；
+5. **`.streamlit/config.toml` に `streamlitSleepTimeoutMinutes = 15` を定義する**。
 
 ---
 
-##### 5. ドロップダウン第2オプションの徹底解剖：なぜ公式は「コンテナで実行 (Container Runtime)」をデフォルトに定めたのか？ —— コンテナ vs ウェアハウスの真のコスト対効果とエコシステム
-
-ドロップダウンの 2 つ目の項目 **`リポジトリから作成 (Create from repository)`** をクリックすると、現代の DevOps CI/CD パイプラインに最適化された専用ダイアログが表示されます：
-
-![ドロップダウンから「リポジトリから作成」を選択](../images/10_step_03_gui_select_from_repository.png)
-
-![「リポジトリから作成」ダイアログ内の2種類のPython環境選択（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
-
-ダイアログの中央には、最も重要かつ注目すべき選択肢である **「Python環境 (Python Environment)」** の 2 つのカードが配置されています。**ここで極めて重要な事実として、Snowflake 公式の UI 画面では左側の「コンテナで実行 (Run on Container)」に最初からデフォルトの青いチェックマーク（✔️ Default）が付与されています！**
-
-###### 【コア技術比較】：コンテナで実行 (Container Runtime · 公式デフォルト) vs ウェアハウスで実行 (Warehouse Runtime · 従来移行用)
-
-| 比較評価軸 | 左カード：コンテナで実行 (Run on Container)<br/>*(次世代 SPCS コンテナランタイム · **✔️ 公式デフォルト**)* | 右カード：ウェアハウスで実行 (Run on Warehouse)<br/>*(従来型 DWH 単体仮想マシン · ⚠️ レガシーモード)* |
-| :--- | :--- | :--- |
-| **公式の戦略的位置づけ** | **Snowflake が全社的に推進する次世代の公式デフォルト**：<br/>UI で事前選択されており、今後の機能拡張の主軸。 | **下位互換性のための移行用選択肢 (Legacy)**：<br/>作成入口に `レガシー` 表記が付与され、段階的に主流から外れる旧方式。 |
-| **実際のランニングコスト（費用対効果）** | **圧倒的な低コスト（約 0.11 credits/時から）**：<br/>Snowpark Container Services (SPCS) の計算プールを利用し、最小構成（`CPU_X64_XS`）では **約 0.11 credits / node / 時**。仮想ウェアハウス（1.0 credit/時）と比較して **約 90% のコスト削減** が可能！軽量な Web ダッシュボードにとって極めて経済的。 | **高止まりする固定コスト（最低 1.0 credit/時）**：<br/>最小スペックの `X-Small` 仮想ウェアハウスであっても、1 時間稼働するごとに固定で **1.0 credit** を消費するため、長時間の開発や待機におけるコストがコンテナより格段に高くなります。 |
-| **外部 Python パッケージエコシステム** | **フルオープン自由導入（全 PyPI エコシステム解放）**：<br/>UI 説明: *“さらに多くのパッケージリソースが含まれます”*。<br/>`pyproject.toml` や `requirements.txt` を通じて任意の pip パッケージを導入可能。C/Rust 拡張やコンパイルを要する機械学習・LLM ライブラリ（PyTorch、Transformers、LangChain、DuckDB など）もネイティブ動作。 | **厳格な Anaconda ホワイトリスト制**：<br/>UI 説明: *“Snowflake Anacondaのパッケージをサポートします”*。<br/>Snowflake 審査済みの Anaconda チャネル内のパッケージに限定（`environment.yml` で宣言）。チャネルに存在しない pip ライブラリはインポート不可でエラーとなります。 |
-| **インスタンス共有モデル** | **単一サービス常駐共有モデル (Shared App Service)**：<br/>複数ユーザーが同一のコンテナサービスを共有。初回起動後のレンダリングが即時応答し、社内共有大画面に最適。 | **閲覧者ごとの独立セッションモデル (Per-viewer Session)**：<br/>ユーザーごとにウェアハウス内で個別の Python 実行環境が立ち上がるため、アクセス集中時にメモリ負荷が増大。 |
-| **ハードウェアと拡張性** | CPU プールに加え、高性能 **GPU** ノードの割り当てが可能。倉内でのローカル LLM や画像生成を直接サポート。 | 標準的な CPU 仮想マシンのみに限定。 |
-
-> 📖 **公式ドキュメントリファレンス**：
-> - [About Streamlit in Snowflake runtimes (Container vs Warehouse)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes)
-> - [Create a Streamlit app from a repository (Git リポジトリ連携)](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)
-> - [Managing Python dependencies in Streamlit in Snowflake](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/dependency-management)
-
-> 📌 **アーキテクチャ選定の結論**：
-> 公式が「コンテナで実行 (Container Runtime)」をデフォルトに定めた理由は明白であり、**「圧倒的に安価（約 0.11 vs 1.0 credit/h）」「PyPI 全面開放による圧倒的なパッケージ自由度」「GPU 対応」** にあります。SPCS クォータが利用可能な環境では、公式推奨に従いコンテナランタイムを最優先に採用すべきです。コンテナプールが未割り当ての旧来の制限環境においてのみ、右側の Warehouse モードを下位互換の代替策として選択します。
-
----
-
-##### 6. 実機操作プロセスの全容振り返り：Git 連携から「2 つの作成方式の結果がなぜ酷似するのか」の深層解明
-
-実際の操作において、ドロップダウンメニューの第 2 項目 **`リポジトリから作成 (Create from repository)`** を用いて、リポジトリ探索からアプリ生成までの一連のフローを体験しました。以下では、実測キャプチャ 6 点に沿ってこのプロセスを詳細に紐解き、最も核心的な疑問である **「なぜ異なるドロップダウン項目から作成したのに、エディタやプレビュー画面がほぼ同一に見えるのか？」** に答えます。
-
-###### (1) 実機操作フローの完全トレースと画面解説
-
-1. **ステップ 1：Git リポジトリファイル紐付けウィザードの起動**：
-   「Streamlitアプリを作成」ダイアログで、**「リポジトリ内のファイルの場所」** 入力欄の「メインファイルを選択」をクリックします：
-   
-   ![「リポジトリ内のファイルの場所」で「メインファイルを選択」をクリック](../images/10_step_03_gui_repo_modal_file_select.png)
-
-2. **ステップ 2：DWH 内の Git リポジトリエンティティの探索**：
-   サブダイアログ **「リポジトリのStreamlitを選択 (プレビュー)」** が表示され、*“Gitリポジトリを含んでいるデータベースを選択するか新規Gitリポジトリに接続してください”* と案内されます。アカウント内でアクセス可能なデータベース（`AIRBNB`、`DEV_DEMO_DB`、`SNOWFLAKE` 等）がプルダウンに一覧表示されます：
-   
-   ![Git リポジトリを含むデータベースの選択を促すサブダイアログ](../images/10_step_03_gui_repo_select_database.png)
-   
-   > 💡 **技術的背景**：Snowflake は GitHub / GitLab などの外部リモートリポジトリをテーブルと同等のデータベースオブジェクトとして統合できます（`CREATE GIT REPOSITORY` 構文）。現状の各 DB 配下に未連携の場合は、ファイル選択をスキップして主作成画面に戻ります。
-
-3. **ステップ 3：アプリの物理配置場所（アプリの場所）の厳密な指定**：
-   主ダイアログの **「アプリの場所」** エリアにて、本アプリが Horizon Catalog のどの Database / Schema に登録されるかを決定します：
-   
-   ![主ダイアログでアプリの場所（格納先 DB と Schema）を指定](../images/10_step_03_gui_repo_modal_app_location.png)
-   
-   「データベースを選択」ドロップダウンを開き、利用可能な業務データベース（`AIRBNB` や `DEV_DEMO_DB`）から **`DEV_DEMO_DB`** を選択し、スキーマ（例: `API_INTEGRATION`）を割り当てます：
-   
-   ![利用可能なデータベース一覧から DEV_DEMO_DB を選択](../images/10_step_03_gui_repo_app_location_db_list.png)
-
-4. **ステップ 4：ランタイムの選択決定論（最も重要な分岐点！）**：
-   「Python環境」において、**「ウェアハウスで実行 (Run on Warehouse)」** を選択。クエリウェアハウスには `COMPUTE_WH` を指定し、アプリタイトルを `FANXIAO 2026-11-11 8:37pm` と命名して右下の **`作成 (Create)`** ボタンを押下します！
-
-5. **ステップ 5：コードエディタとプレビュー画面の起動**：
-   作成完了後、見慣れたクラシックエディタが立ち上がります。左側には軽量な 2 点セット（`environment.yml` + `streamlit_app.py`）が並び、右側のプレビューでは Streamlit **v1.52.2** のサンプルダッシュボードが安定稼働します：
-   
-   ![リポジトリ作成完了後に起動したエディタ画面（v1.52.2 + environment.yml）](../images/10_step_03_gui_repo_created_editor_result.jpg)
-
-6. **ステップ 6：Streamlit アプリ一覧での突き合わせ検証**：
-   アプリ管理一覧画面に戻ると、実機検証で作成した 2 つのアプリがそれぞれの場所に正しく並んでいることが確認できます：
-   
-   ![Streamlit アプリ一覧で両アプリの物理配置場所を対照確認](../images/10_step_03_gui_app_list_dual_created.png)
-   
-   - **アプリ ①（8:25pm 作成）**：`FANXIAO 2026-11-11 8:25pm` $\rightarrow$ 格納先は明確に **`AIRBNB.DEV`**；
-   - **アプリ ②（8:37pm 作成）**：`FANXIAO 2026-11-11 8:37pm` $\rightarrow$ 格納先は明確に **`DEV_DEMO_DB.API_INTEGRATION`**。
-
----
-
-###### (2) 深層疑問の解明：なぜ 2 つのドロップダウン作成結果がこれほど似ているのか？
-
-多くのエンジニアがこの検証で疑問を持ちます：**「一方はクラシックウェアハウス作成、もう一方はリポジトリ連携作成という別メニューなのに、なぜ開いたエディタや構成ファイル（`environment.yml`）、Streamlit バージョン（v1.52.2）が全く同じに見えるのか？」**
-
-その本質的な理由は、**「選択した Python ランタイム基盤（Python Runtime Engine）こそが、エディタの画面形態と技術スタックを決定づける唯一の決定的要因だから」** です。
-
-| 影響因子 | ルート ②：`ウェアハウスで作成 (レガシー)` | ルート ③：`リポジトリから作成`（実機選択） | ルート ③（仮に「コンテナで実行」を選んだ場合） |
-| :--- | :--- | :--- | :--- |
-| **選択した Python 環境** | **ウェアハウス実行 (Warehouse)**<br/>*(固定・選択肢なし)* | **ウェアハウス実行 (Warehouse)**<br/>*(右側カードを明示的に選択)* | **コンテナ実行 (Container)**<br/>*(左側 SPCS カードを選択)* |
-| **基盤インフラ** | 仮想計算ウェアハウス VM | 仮想計算ウェアハウス VM | SPCS Docker コンテナプール (Pod) |
-| **Streamlit エンジン版数** | **v1.52.2 (長期安定版)** | **v1.52.2 (長期安定版)** | **v1.66+ (最新モダン版)** |
-| **依存関係管理** | **`environment.yml` (Conda)** | **`environment.yml` (Conda)** | **`pyproject.toml` (uv/pip)** |
-| **ファイルツリー構成** | 軽量 2 点セット (`app.py` + `env.yml`) | 軽量 2 点セット (`app.py` + `env.yml`) | モダン 4 点セット (`snowflake.yml` 等) |
-| **サイドバー機能** | ファイルツリー ＋ **DWH テーブル探査** | ファイルツリー ＋ **DWH テーブル探査** | プロジェクトファイルツリー単体 |
-| **両者の唯一の差異** | **ソースコードの格納場所**：<br/>DWH 内部 Stage に格納、物理位置は `AIRBNB.DEV`。 | **ソースコードの格納場所**：<br/>本来はリモート Git を参照。未指定時は `DEV_DEMO_DB.API_INTEGRATION` に格納。 | **全面的なアーキテクチャ刷新**：<br/>ライブラリ自由度、プロセス常駐方式まで全てが別物。 |
-
-> 📌 **まとめ**：
-> 2 つのメニューは独立した別システムではなく、**同一の実行基盤に対する異なるエントリーポイント**です。「リポジトリから作成」ダイアログであっても **「ウェアハウスで実行」** を選択した瞬間、Snowflake はクラシックモードと同一の仮想ウェアハウス実行基盤（Warehouse Runtime v1.52.2）をプロビジョニングします。これこそが、両者のエディタ外観・構成ファイル・実行画面が完全に一致する技術的背景です！
-
----
-
-#### Step 4.B2: デフォルトワークスペース全貌、上部「展開」デプロイボタン、左側プロジェクトツリー解読と公式テンプレートコード精講
-
-アプリ作成完了時（`+ Streamlit アプリ` メインボタンからモダンワークスペースに入った際）、3 カラム構成の Snowsight オンライン IDE が開きます：
-- **左側**：プロジェクトファイルツリー（`snowflake.yml`、`pyproject.toml` 等の近代構成）；
-- **中央**：Monaco 内核のオンラインコードエディタ（構文ハイライト・自動補完対応）；
-- **右側**：リアルタイムに描画されるインタラクティブ Web 画面（スライダー操作で即座にグラフ連動）；
-- **上部ツールバー（4 大中核ボタンと最重要「展開」機能）**：
-  - **`[ 実行 ]` (Run)**：Python コードを再評価し、右側のプレビュー画面を即時リロード；
-  - **`[ ⚙️ 設定 ]` (Settings)**：アプリのタイトル、ウェアハウス、コンテキスト設定を変更；
-  - **`[ 📤 共有 ]` (Share)**：特定ロールへの閲覧・編集権限を付与；
-  - **`[ 🚀 展開 ]` (Deploy · 現代デプロイの中枢！)**：**開発完了後の正式リリースボタン**！ワークスペースのサンドボックスで検証を終えた後、この **「展開」** をクリックし、対象 Database と Schema を選択するだけで、企業本番 DWH オブジェクトとして一発デプロイ・永続化されます！
-
-> **Snowsight Streamlit オンラインワークスペース実機キャプチャ（3 カラム構成）**：
->
-> 以下の実機画面の通り、上部に「実行」「設定」「共有」および核心となる「展開」ボタンが配置され、左側に最新の Streamlit in Snowflake 標準ファイル群、中央にテンプレート Python コード、右側にスライダーと棒グラフを含む公式サンプルアプリが即時レンダリングされています：
->
-> ![Snowsight Streamlit オンラインワークスペース全景（左側プロジェクトツリー・中央エディタ・右側リアルタイム描画）](../images/10_step_03_gui_quick_create_editor.png)
-
-##### 1. 左側プロジェクトツリーの全ファイル構成とその技術的役割
-
-左側のツリーに表示されている 4 つの標準設定ファイルの技術的役割は以下の通りです：
-
-| ファイルパス / 相対配置 | 準拠規格・技術標準 | Snowflake アーキテクチャにおける役割と詳細 |
-| :--- | :--- | :--- |
-| **`streamlit_app.py`** | Python 3.11 コアスクリプト | **メインアプリケーションコード (Main Entrypoint)**：フロントエンドコンポーネント定義（`st.title`、`st.slider`、`st.bar_chart`）と Snowflake 倉内データ操作ロジックを保持。ユーザー操作時に自頂下方へリアクティブに再実行されます。 |
-| **`snowflake.yml`** | YAML (Snowflake CLI v2 規格) | **モダンアプリケーション定義ファイル (Project Definition)**：アプリのタイトル（`title: "無題"`）、エントリーポイント（`main_file: streamlit_app.py`）、クエリウェアハウス（`query_warehouse: "COMPUTE_WH"`）、コンピュートプール（`compute_pool: "SYSTEM_COMPUTE_POOL_CPU"`）、およびデプロイ対象ファイル（`artifacts`）を宣言。`snow streamlit deploy` による CI/CD 自動化に対応。 |
-| **`pyproject.toml`** | TOML (PEP 517/518/621 規格) | **Python パッケージ・依存関係管理**：旧来の `environment.yml` を置き換える最新標準。Python バージョン（`requires-python = "~=3.11.0"`）やライブラリ依存関係（`dependencies = ["streamlit[snowflake]"]`）を定義し、超高速パッケージマネージャ `uv`（`[tool.uv]`）によるバージョン固定に対応。 |
-| **`.streamlit/config.toml`** | TOML (Streamlit 公式設定) | **UI テーマとスリープタイムアウト制御**：アプリの外観テーマカラー設定に加え、重要な **`[snowflake.sleep]` アプリ固有スリープ時間（`streamlitSleepTimeoutMinutes = 15`）** を設定し、無駄な課金を防止します。 |
-
-##### 2. 公式デフォルトテンプレートコードの完全解説 (`streamlit_app.py`)
-
-右側で棒グラフとテーブルを即時描画している公式テンプレートのコードロジックと動作原理です：
-
-```python
-# ==============================================================================
-# ファイル名: streamlit_app.py (公式初期テンプレートコード)
-# 用途: Streamlit in Snowflake (SiS) のネイティブ接続、対話型スライダー、グラフ描画
-# ==============================================================================
-
-# 1. コアライブラリのインポート
-import streamlit as st  # Streamlit UI コンポーネントおよび描画ライブラリ
-import os                # 環境変数（接続 TTL 等）を取得するための標準 OS ライブラリ
-
-# 2. タイトルとドキュメントリンクの描画
-# :balloon: は風船アイコンとして描画され、st.__version__ で実行中の Streamlit バージョン（例: 1.66.1）を出力
-st.title(f"Example Streamlit App :balloon: {st.__version__}")
-
-# ガイドテキストの出力（Markdown リンクや太字に対応）
-st.write(
-  """Replace this example with your own code!
-  **And if you're new to Streamlit,** check
-  out our easy-to-follow guides at
-  [docs.streamlit.io](https://docs.streamlit.io).
-  """
-)
-
-# 公式リファレンスリンク集の表示
-st.markdown("""
-- :page_with_curl: [Streamlit open source documentation](https://docs.streamlit.io)
-- :snowflake: [Streamlit in Snowflake documentation](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit)
-- :books: [Demo repo with templates](https://github.com/Snowflake-Labs/snowflake-demo-streamlit)
-- :memo: [Streamlit in Snowflake release notes](https://docs.snowflake.com/en/release-notes/streamlit-in-snowflake)
-""")
-
-# 3. Snowflake データウェアハウスへのネイティブセキュア接続
-# 【動作メカニズム】：
-#   - 最新版では従来の get_active_session() に代わり st.connection("snowflake") の利用が推奨
-#   - ttl パラメータ：接続ライフサイクルのキャッシュ時間（環境変数 SNOWFLAKE_CONNECTION_TTL から取得）
-#   - conn.session()：SQL 実行や DataFrame 操作を司る基礎の Snowpark Session オブジェクトを取得
-conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
-session = conn.session()
-
-# 4. 対話型スライダーウィジェットの配置（動的ユーザー入力の取得）
-# 【動作メカニズム】：
-#   - 最小 0 から最大 90 までのスライダーを提供（デフォルト初期値: 60）
-#   - ユーザーがスライダーを動かして離すと、スクリプト全体が再実行され、最新値が hifives_val に代入
-hifives_val = st.slider(
-  "Number of high-fives in Q3",  # スライダーのラベル（第3四半期のハイタッチ回数）
-  min_value=0,                   # 選択可能な最小値
-  max_value=90,                  # 選択可能な最大値
-  value=60,                      # 初期値
-  help="Use this to enter the number of high-fives you gave in Q3",  # ツールチップ説明
-)
-
-# 5. Snowpark 分散データセットの構築（動的変数のバインド）
-# 【動作メカニズム】：
-#   - session.create_dataframe により DWH 内メモリにデータセットを生成
-#   - Q1 (50, 25)、Q2 (20, 35) は固定サンプル値
-#   - Q3 の HIGH_FIVES 値にスライダーの値 [hifives_val, 30, "Q3"] を動的にバインド
-created_dataframe = session.create_dataframe(
-  [[50, 25, "Q1"], [20, 35, "Q2"], [hifives_val, 30, "Q3"]],
-  schema=["HIGH_FIVES", "FIST_BUMPS", "QUARTER"],
-)
-
-# 6. 計算の実行と Pandas DataFrame への変換
-# 【動作メカニズム】：
-#   - to_pandas() を呼び出した時点でウェアハウス上で計算が評価（遅延評価の解決）され、
-#   - 結果がクライアント側の Streamlit プロセスへ転送されます
-queried_data = created_dataframe.to_pandas()
-
-# 7. 時系列棒グラフ (Bar Chart) の描画
-# 【動作メカニズム】：
-#   - st.bar_chart は Altair ベースの軽量ベクトルチャートを描画
-#   - x="QUARTER" で四半期列、y="HIGH_FIVES" でハイタッチ回数列を指定
-st.subheader("Number of high-fives")
-st.bar_chart(data=queried_data, x="QUARTER", y="HIGH_FIVES")
-
-# 8. 明細対話型データテーブルの表示
-# 【動作メカニズム】：
-#   - st.dataframe により列ソートやテキスト検索、CSV エクスポートが可能なリッチテーブルを表示
-#   - use_container_width=True で横幅 100% 自適応表示
-st.subheader("Underlying data")
-st.dataframe(queried_data, use_container_width=True)
-```
-
----
-
-#### Step 4.B3: ウェアハウス内動的テーブルインスペクター完全コード (`streamlit_schema_inspector.py`)
-
-オンラインエディタの初期テンプレートコードを、以下の防護処理済み動的インスペクター完全コードに置き換えます：
-
-```python
-# ==============================================================================
-# アプリケーション名: Snowflake ウェアハウス内動的テーブルインスペクター
-# 特徴:
-#   1. データベースおよびスキーマを動的にスキャンし、所属テーブルを自動列挙
-#   2. テーブル名をクリックするだけで、メタデータ KPI とサンプルデータを即座に表示
-#   3. 全クエリに @st.cache_data(ttl=600) を適用し、多重課金を完全遮断
-#   4. 厳格な LIMIT 50 制御により、大規模テーブルの偶発的フルスキャンを防止
-# ==============================================================================
-import streamlit as st
-import pandas as pd
-from snowflake.snowpark.context import get_active_session
-
-# 1. ワイドモード設定
-st.set_page_config(
-    page_title="Snowflake ウェアハウス内動的テーブルインスペクター",
-    page_icon="🔍",
-    layout="wide"
-)
-
-st.title("🔍 Snowflake ウェアハウス内動的テーブルインスペクター (Schema Table Inspector)")
-st.caption("Streamlit in Snowflake ネイティブ実行 · パスワードレス認証 · 10分間メモリキャッシュによる課金防護")
-
-# 2. アクティブセッションの取得
-session = get_active_session()
-
-# 3. 利用可能なデータベース一覧を取得（システム内部DBを除外・キャッシュ化）
-@st.cache_data(ttl=600)
-def get_databases():
-    df = session.sql("SHOW DATABASES").to_pandas()
-    dbs = [row['name'] for _, row in df.iterrows() if not row['name'].startswith('SNOWFLAKE')]
-    return sorted(dbs)
-
-# 4. 指定データベース配下のスキーマ一覧を取得
-@st.cache_data(ttl=600)
-def get_schemas(db_name):
-    df = session.sql(f'SHOW SCHEMAS IN DATABASE "{db_name}"').to_pandas()
-    schemas = [row['name'] for _, row in df.iterrows() if row['name'] != 'INFORMATION_SCHEMA']
-    return sorted(schemas)
-
-# 5. スキーマ内の全テーブルメタデータをスキャン
-@st.cache_data(ttl=600)
-def scan_tables_in_schema(db_name, schema_name):
-    query = f'SHOW TABLES IN SCHEMA "{db_name}"."{schema_name}"'
-    df = session.sql(query).to_pandas()
-    if df.empty:
-        return pd.DataFrame()
-    cols_to_keep = ['name', 'rows', 'bytes', 'owner', 'created_on']
-    available_cols = [c for c in cols_to_keep if c in df.columns]
-    return df[available_cols]
-
-# 6. テーブルデータの安全なサンプルプレビュー（LIMIT 50 厳格制御）
-@st.cache_data(ttl=600)
-def preview_table_data(db_name, schema_name, table_name, limit=50):
-    query = f'SELECT * FROM "{db_name}"."{schema_name}"."{table_name}" LIMIT {limit}'
-    return session.sql(query).to_pandas()
-
-# 7. サイドバー：階層型ナビゲーション
-st.sidebar.header("🧭 ナビゲーション")
-databases = get_databases()
-selected_db = st.sidebar.selectbox("1. データベースを選択：", databases, index=0 if 'AIRBNB' not in databases else databases.index('AIRBNB'))
-
-schemas = get_schemas(selected_db)
-selected_schema = st.sidebar.selectbox("2. スキーマを選択：", schemas, index=0 if 'RAW' not in schemas else schemas.index('RAW'))
-
-st.sidebar.divider()
-
-# 8. テーブル一覧の動的取得と選択
-tables_df = scan_tables_in_schema(selected_db, selected_schema)
-
-if tables_df.empty:
-    st.warning(f"{selected_db}.{selected_schema} 配下にテーブルが存在しません。")
-else:
-    table_list = sorted(tables_df['name'].tolist())
-    st.sidebar.subheader("📋 検出されたテーブル一覧")
-    selected_table = st.sidebar.selectbox("3. 探査対象テーブルを選択：", table_list)
-
-    # 選択中テーブルのメタデータを抽出
-    current_meta = tables_df[tables_df['name'] == selected_table].iloc[0]
-    row_count = int(current_meta.get('rows', 0)) if pd.notnull(current_meta.get('rows')) else 0
-    size_bytes = int(current_meta.get('bytes', 0)) if pd.notnull(current_meta.get('bytes')) else 0
-    size_kb = size_bytes / 1024.0
-    owner = current_meta.get('owner', 'N/A')
-
-    # メイン画面：メタデータ KPI カード
-    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-    with kpi_col1:
-        st.metric(label="選択中のテーブル", value=selected_table)
-    with kpi_col2:
-        st.metric(label="総レコード行数", value=f"{row_count:,} 行")
-    with kpi_col3:
-        st.metric(label="ストレージサイズ", value=f"{size_kb:.2f} KB")
-    with kpi_col4:
-        st.metric(label="所有者ロール (Owner)", value=str(owner))
-
-    st.divider()
-
-    # メイン画面：サンプルデータのリアルタイムプレビュー (先頭50件)
-    st.subheader(f"📊 `{selected_table}` サンプルレコード (先頭 50 行プレビュー)")
-    with st.spinner("データを読み込み中..."):
-        preview_df = preview_table_data(selected_db, selected_schema, selected_table, limit=50)
-
-    st.dataframe(preview_df, use_container_width=True, hide_index=True)
-
-    # 操作バー：CSV ダウンロードとキャッシュクリア
-    btn_col1, btn_col2, _ = st.columns([2, 2, 6])
-    with btn_col1:
-        csv_data = preview_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 先頭50件を CSV でダウンロード",
-            data=csv_data,
-            file_name=f"{selected_table}_sample.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-    with btn_col2:
-        if st.button("🔄 キャッシュをクリアして再スキャン", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-
-# 課金安全通知バナー
-st.info("💡 **課金防護セーフガード**：全てのメタデータおよびサンプルクエリに `@st.cache_data(ttl=600)`（10分間キャッシュ）を設定しているため、テーブル切り替え時に DWH を余計に消費しません。また、ウェアハウスには `AUTO_SUSPEND = 60` 秒（無操作時自動休止）が適用されています。")
-```
-
----
-
-#### Step 4.B4: 実行結果とコスト防護の実機検証
-
-画面右上の **`Run`** をクリックして実行します：
-- データベースとして `AIRBNB`、スキーマとして `RAW` を選択；
-- インスペクターが即座に `RAW_LISTINGS`、`RAW_HOSTS`、`RAW_REVIEWS` などのテーブルを自動スキャン；
-- `RAW_LISTINGS` を選択すると、メイン画面に 4 つの KPI スコアカード（行数: 3,818 行、サイズ: 671.00 KB、所有者: TRANSFORM）が瞬時に表示されます；
-- その直下に、`id`、`listing_url`、`name`、`price`、`minimum_nights` などの先頭 50 件の実データが綺麗にレンダリングされ、ワンクリックで CSV 出力も可能；
-- **コスト防護の達成**：`@st.cache_data(ttl=600)` の恩恵により、テーブル間を何度も行き来しても DWH への問い合わせは発生せず、ウェアハウスは 60 秒後に安全に自動サスペンドされます。
-
-> **ウェアハウス内動的テーブルインスペクター稼働実機スクリーンショット**：
->
-> 左側に動的スキャンされたテーブル一覧、上部にメタデータ KPI 指標、中央に対話型サンプルプレビューを展開。完全パスワードレス・行数制限付き・キャッシュ防護済みの安全設計です：
->
-> ![ウェアハウス内動的テーブルインスペクター稼働実機画面](../images/10_step_05_schema_inspector_running.png)
-
----
-
-## 五、現場で必ずハマる暗坑と実戦回避策（重要）
-
----
-
-### `[!WARNING]` 【落とし穴 1】：フィルタ操作のたびに全コード再実行され、クレジットが爆発する
-
-- **事故現場**：
-  キャッシュを設定せずに数億件のテーブルを参照するダッシュボードを公開したところ、利用者がドロップダウンを操作するたびに高額なクエリが連続実行され、月間コストが数十万円跳ね上がった。
-- **原因**：
-  Streamlit の設計思想は**宣言的リアクティブ実行**です。画面上のパーツ（selectbox や slider 等）が操作されると、Python エンジンは**スクリプトの先頭行から末尾行までを丸ごと再実行**します。
-- **鉄壁の解決策**：
-  **すべての `session.sql()` 呼び出しは独立した関数に切り出し、必ず `@st.cache_data(ttl=...)` デコレータを付与すること！**
-  > 📖 **公式キャッシュベストプラクティス**：[Streamlit キャッシュ実行アーキテクチャとライフサイクル (Optimize performance with st.cache_data)](https://docs.streamlit.io/develop/concepts/architecture/caching)
-
-  ```python
-  @st.cache_data(ttl=300) # 300秒間はメモリキャッシュから即答
-  def fetch_data():
-      return session.sql("SELECT ...").to_pandas()
-  ```
-  これにより、何千回画面が操作されても DWH への問い合わせは発生せず、**ミリ秒レスポンスとゼロ追加課金**を両立できます。
-
----
-
-### `[!WARNING]` 【落とし穴 2】：行レベルセキュリティ (RLS) と権限エラー
-
-- **現象**：一般ユーザーがダッシュボードを開くと `Object does not exist or not authorized` になる、または本来見えてはならない役職のデータが表示される。
-- **原因**：
-  SiS の `get_active_session()` は作成者権限（Definer's Rights）ではなく、**アクセス中のユーザーの RBAC コンテキスト（Caller's Rights）で実行されます**。
-  > 📖 **公式アクセス制御仕様**：[Streamlit in Snowflake アクセス権限と共有モデル (Managing privileges for Streamlit apps)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
-
-- **解決策**：
-  1. 利用者ロールに Streamlit オブジェクト、Warehouse、参照テーブルへの `USAGE` / `SELECT` 権限を適切に付与する：
-     ```sql
-     GRANT USAGE ON STREAMLIT dev_demo_dashboard TO ROLE ANALYST_ROLE;
-     GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE ANALYST_ROLE;
-     GRANT SELECT ON TABLE DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics TO ROLE ANALYST_ROLE;
-     ```
-  2. マスキングポリシーや行アクセスポリシーが設定されていれば、ユーザーごとに表示データが自動的に制御されます。
-
----
-
-### `[!WARNING]` 【落とし穴 3】：外部 Python ライブラリの不足エラー
-
-- **現象**：`import plotly` や `import scikit-learn` を書くと `ModuleNotFoundError` で起動に失敗する。
-- **原因**：SiS のデフォルト環境には標準的なライブラリ（Streamlit, Pandas, Altair 等）のみが含まれています。
-  > 📖 **公式パッケージ管理仕様**：[Streamlit in Snowflake で environment.yml による追加パッケージ管理 (Managing Python packages)](https://docs.snowflake.com/ja/developer-guide/streamlit/environment-dependencies)
-
-- **解決策**：
-  ステージのルートに `environment.yml` を配置してアップロードすることで、必要なパッケージを自動ロードできます：
-  ```yaml
-  name: sis_env
-  channels:
-    - snowflake
-  dependencies:
-    - plotly=5.18.0
-    - scikit-learn=1.3.0
-  ```
-
----
-
-### `[!CAUTION]` 【落とし穴 4】：Streamlit 画面の接続維持によるサスペンド阻害とクレジット過剰消費
-
-- **エラー・事故事例**：
-  Snowsight 上で Streamlit ダッシュボードを作成・表示したまま、ブラウザのタブを閉じずに放置。数日後に確認したところ、無料枠のクレジットが完全に枯渇していた（あるいは本番アカウントで想定外の課金が発生した）。
-- **根本原因**：
-  Streamlit in Snowflake は、ブラウザとコンテナ間の **WebSocket 常時接続（ハートビート）** によって画面状態を維持します。  
-  ブラウザタブが開いたままの場合、フロントエンドから定期的な探活パケットが送信され続けるため、Warehouse 側は「アクティブなセッションが継続中」と判定し、**`AUTO_SUSPEND` のタイマーがリセットされ続けてスリープに入りません**。
-- **本番運用＆学習時の 3 段階の防御策**：
-  1. **プラットフォームの安全ネット：デフォルト約 15 分の自動切断（WebSocket Timeout）**：
-     Snowflake はアカウントレベルで **15 分間の非アクティブタイムアウト** を標準装備しています。15 分間マウス移動等の操作がない場合、接続は強制切断され、アプリは自動スリープ（Suspend）します。
-     > ⚠️ **注意**：ユーザーが画面上でマウスを動かしている間は、15 分のタイマーが自動リセットされ続けます。
-  2. **アプリ固有の設定：`.streamlit/config.toml` によるカスタムスリープタイマー**：
-     Stage のアプリルートに `.streamlit/config.toml` を作成し、スリープ時間を明示的に指定します（推奨 15 分、設定可能範囲 5〜240 分）：
-     ```toml
-     [snowflake.sleep]
-     streamlitSleepTimeoutMinutes = 15
-     ```
-  3. **動作確認後は必ずブラウザタブを閉じ、手動サスペンドを実行**：
-     ```sql
-     ALTER WAREHOUSE COMPUTE_WH SUSPEND;
-     ```
-  4. **リソースモニター（Resource Monitor）による強制サーキットブレーカーの配備**：
-     Streamlit 専任ウェアハウスに対して上限クォータを設定し、閾値到達時に自動サスペンドさせることで、想定外の課金を確実に防止します：
-     ```sql
-     CREATE OR REPLACE RESOURCE MONITOR STREAMLIT_COST_GUARD
-         WITH CREDIT_QUOTA = 5
-         FREQUENCY = MONTHLY
-         START_TIMESTAMP = IMMEDIATELY
-         TRIGGERS 
-             ON 80 PERCENT DO NOTIFY
-             ON 100 PERCENT DO SUSPEND;
-
-     ALTER WAREHOUSE COMPUTE_WH SET RESOURCE_MONITOR = STREAMLIT_COST_GUARD;
-     ```
-
----
-
-## 本章のまとめ
-
-1. **完全パスワードレス**：`get_active_session()` により、接続文字列や ID/Pass の流出リスクを完全に根絶しました。
-2. **キャッシュによるコスト防壁**：`@st.cache_data` を必須適用することで、対話的な操作性とクラウドコストの最小化を両立できます。
-3. **Infrastructure as Code**：`Stage + PUT + CREATE STREAMLIT` により、ダッシュボード資産をすべて Git 管理下の自動デプロイストリームに乗せることが可能です。
-
+## 🧭 本章のまとめと次章への接続
+
+本章の抜本的再構成を通じて、Streamlit in Snowflake の近代的な全体像が完全に整理されました：
+1. **認識の刷新**：**コンテナランタイム（SPCS・公式標準・約 0.11 credits/h）** と **ウェアハウスランタイム（Legacy・1.0 credit/h）** の圧倒的なコスト・機能格差を把握；
+2. **正統派フローの確立**：**モダンワークスペース（`snowflake.yml` ＋ `pyproject.toml`）** で安全に開発し、右上の **`「展開 (Deploy)」`** ボタンで本番 DWH へ一括配備するリリースサイクルを体得；
+3. **防護策の完備**：`@st.cache_data`、15 分 WebSocket タイムアウト、`streamlitSleepTimeoutMinutes` による多重防衛壁を構築。
+
+次章では、本プロジェクト全体の総仕上げとなるコストガバナンスの最終章へ進みます：
+👉 **[第 11 章：Snowflake コスト計算とリソースモニターガバナンス実践（Resource Monitor とクレジット消費の精密管理）](./11_snowflake_cost_management.md)**！

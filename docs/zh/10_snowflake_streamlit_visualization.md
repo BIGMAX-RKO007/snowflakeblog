@@ -1,16 +1,20 @@
-# 第 10 章：Streamlit in Snowflake (SiS) 数据可视化全流程实战 —— 从 API 台账到交互式看板
+# 第 10 章：Streamlit in Snowflake (SiS) 现代数据可视化全流程实战 —— 从工作区开发、一键部署(展開)到企业级生产看板
 
-> 本章依据 **《尚硅谷技术讲义写作规范 (shangguigu-style)》** 深度编撰：开门见山直击本质、去业务化聚焦纯技术、实操步骤带真实回显、直面暗坑实战避险、环境前置零隐式假设。
+> 本章依据 **《尚硅谷技术讲义写作规范 (shangguigu-style)》** 深度重构编撰：
+> - **开门见山极简对比**：直击容器运行时 (SPCS) vs 经典数仓运行时 (Warehouse) 的底层本质与近 90% 的成本差距；
+> - **正统工程生命周期**：确立以现代工作区（Workspace）为核心的 **Dev（隔离开发） $\to$ Test（即时热测） $\to$ Deploy（一键展開投产）** 标准交付闭环；
+> - **直面暗坑实战避险**：解析 15 分钟 WebSocket 自动休眠防线与 `.streamlit/config.toml` 防烧钱配置；
+> - **环境前置零隐式假设**：全量代码经 Tokyo 真实 Snowflake 账号（`mvfryvt-nv04752`）验证实跑，提供完整可复现的生产级数据表动态探查器（Schema Table Inspector）。
 
 ---
 
-## 引言：开门见山，极简心智模型
+## 🎯 引言：开门见山，极简心智模型
 
-在完成了外部 API 数据摄取入仓后，摆在数据工程师面前的下一个核心挑战是：**如何将冷冰冰的 SQL 数据表，快速转化为具备交互能力、即时响应的可视化仪表盘？**
+在完成了外部 API 数据摄取入仓后，数据工程师的核心命题转变为：**如何将冷冰冰的 SQL 底表，快速转化为具备交互能力、即时响应的可视化仪表盘？**
 
-在过去，搭建一个可视化看板通常需要引入沉重的独立 BI 工具（如 Tableau、PowerBI、Metabase）或者自建 Web 全栈应用（Vue/React + FastAPI）。这不仅需要配置繁琐的 ODBC/JDBC 驱动，更致命的是需要**把数据库管理员账号密码配置在外部服务器中**，且数据每次刷新都要在互联网上来回搬运。
+在过去，搭建报表通常需要引入独立 BI 工具（Tableau、PowerBI、Metabase）或自建 Web 应用。这不仅需要维护连接池账号密码，更致命的是**数据每次刷新都要在公网来回搬运，带来延迟与数据安全泄露风险**。
 
-Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底打破了这一传统架构：它将主流的 Python 数据可视化框架 Streamlit **原生内嵌到了 Snowflake 核心计算引擎中**！
+Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底重构了这一链路：它将主流的 Python 可视化框架 Streamlit **原生内嵌到了 Snowflake 核心计算引擎中**！
 
 ### 极简单明对比：传统外挂 BI vs Streamlit in Snowflake (SiS)
 
@@ -24,14 +28,15 @@ Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底打破了�
 
 【Streamlit in Snowflake 原生架构（零外设、零密码、仓内即时渲染）】
   ┌────────────────────────────────────────────────────────────────────────┐
-  │ Snowflake 虚拟计算仓库 (Virtual Warehouse)                             │
+  │ Snowflake 计算与安全边界                                               │
   │                                                                        │
-  │   Streamlit 运行时容器 (Python 3.10)                                   │
+  │   Streamlit 运行时（容器 SPCS 或 虚拟数仓）                             │
   │       │                                                                │
-  │       ├───── 1. 免密获取上下文 ───────> session = get_active_session() │
+  │       ├───── 1. 免密获取上下文 ───────> conn = st.connection("snowflake")│
   │       │                                                                │
   │       └───── 2. 仓内内存极速渲染 ─────> st.metric / st.line_chart       │
   │                       │                                                │
+  │   【现代研发工作流】：工作区沙箱 (Dev) ──> 即时热重载 (Test) ──> 右上角 [展開] (Deploy) │
   └───────────────────────┼────────────────────────────────────────────────┘
                           ▼ 统一托管于 Snowsight Web 页面中内嵌呈现
                   ┌─────────────────┐
@@ -39,158 +44,196 @@ Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底打破了�
                   └─────────────────┘
 ```
 
-- **核心疑问**：在 Snowflake 里写 Streamlit 代码，数据库账号密码写在哪里？用户拖动滑块时，SQL 查询会不会把数仓 Credit 刷爆？如何实现像写代码一样的自动化版本部署？
-- **本章目标**：去除任何花哨的业务包装，聚焦纯技术本质。从搭建监控指标底表开始，到编写包含 **KPI 仪表卡片、动态筛选下拉框、营收趋势折线图、实时明细表** 的完整看板，再到通过 SQL/Stage 实现 DevOps 自动化部署与性能防刷治理，一站式全部跑通！
-
-> 📖 **Snowflake & Streamlit 官方权威文档**：
-> - [Streamlit in Snowflake (SiS) 架构总览与核心概念](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit)
-> - [SiS 安全模型与必需角色权限 (Privileges Required)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
-> - [Streamlit 官方 API 手册 (Streamlit Documentation)](https://docs.streamlit.io/develop/api-reference)
-
 ---
 
-## 一、环境与前置准备 (Prerequisites)
+## ⚖️ 一、两大运行时深度选型：容器运行时 (Container) vs 数仓运行时 (Warehouse)
 
-在开始实操前，请确认具备以下条件：
+当在 Snowflake 中构建 Streamlit 应用时，首先面临的核心技术决策是：**选择哪一种底层执行底座（Python Runtime）？**
 
-| 依赖组件 | 规格要求 / 权限 | 作用说明 |
+在创建向导中，**Snowflake 官方已经默认给「コンテナで実行 (Run on Container)」打上了预选对勾（✔️ Default）**。这体现了平台架构的演进方向：
+
+![Snowflake 创建向导中的两类 Python 环境选项（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
+
+### 📊 核心技术与真实经济账对比
+
+| 核心评估维度 | 左卡片：コンテナで実行 (Run on Container)<br/>*(新一代 SPCS 容器运行时 · **✔️ 官方默认**)* | 右卡片：ウェアハウスで実行 (Run on Warehouse)<br/>*(传统数仓单机虚拟机 · ⚠️ 官方已标为 Legacy)* |
 | :--- | :--- | :--- |
-| **执行角色** | `ACCOUNTADMIN`（或拥有 `CREATE STREAMLIT`、`CREATE STAGE` 的角色） | 创建内部暂存区 Stage 与 Streamlit 应用对象 |
-| **计算仓库** | 任意运行中的 Virtual Warehouse（如 `COMPUTE_WH`） | 负责执行 SQL 查询和渲染 Streamlit Python 代码 |
-| **测试数据库与 Schema** | 具备读写权限的库（本教程使用 `DEV_DEMO_DB.API_INTEGRATION`） | 存放业务指标底表及 Streamlit Python 源码文件 |
-| **Python 基础** | 熟悉 Python 基础语法与 Pandas 数据操作 | 编写前端交互组件与数据处理逻辑 |
+| **官方定位与演进路线** | **Snowflake 官方钦定的下一代默认运行时**：<br/>全平台战略重心，UI 默认勾选推荐。 | **向下兼容的过渡方案 (Legacy)**：<br/>创建入口已明确打上 `レガシー` 标签，逐步退出主流。 |
+| **真实运行成本（性价比）** | **超高性价比（低至 ~0.11 credits/小时）**：<br/>基于 Snowpark Container Services (SPCS) 计算池，入门级节点（如 `CPU_X64_XS`）仅需 **约 0.11 credits / node / 小时**，相比数仓 **省钱近 90%**！在 Web 前端大部分时间等待用户点击交互的场景下，极为经济。 | **固定成本偏高（最低 1.0 credit/小时）**：<br/>哪怕最小规格的 `X-Small` 虚拟计算仓库，只要运行 1 小时就固定消耗 **1.0 credit**，长时间调试或闲置成本显著高于容器。 |
+| **第三方 Python 依赖生态** | **全面拥抱开源（全 PyPI 自由生态）**：<br/>官方标注 *“さらに多くのパッケージリソースが含まれます”*。<br/>通过 `pyproject.toml` 自由引入任意 pip 包，原生支持包含 C/Rust 扩展和复杂编译的原生库（如 PyTorch、Transformers、LangChain、DuckDB 等），彻底摆脱包缺失困扰。 | **受限 Anaconda 白名单模式**：<br/>官方标注 *“Snowflake Anacondaのパッケージをサポートします”*。<br/>只能在 Snowflake 预先审核打包的 Anaconda 频道内选包（通过 `environment.yml` 声明）。一旦业务需要冷门或最新 pip 库，将直接报错无法安装！ |
+| **多用户访问并发模型** | **单例常驻共享模式 (Shared App Service)**：<br/>多名分析师并发访问看板时共享后台容器进程，首屏渲染秒开，适合企业级公共大屏。 | **每用户独立会话模式 (Per-viewer Session)**：<br/>每个访问用户均在数仓内启动专属 Python 进程，并发访问时数仓内存压力倍增。 |
+| **硬件与算力扩展性** | 原生支持弹性 CPU 计算池及高性能 **GPU** 算力，可直接在看板后台挂载本地大语言模型与图像生成。 | 仅支持标准 CPU 虚拟机，无法调用 GPU 算力。 |
+
+> 📌 **架构选型结论**：
+> 官方之所以将「コンテナで実行 (Container Runtime)」设为默认，核心在于其**成本显著降低（约 0.11 vs 1.0 credit/h）、依赖生态全面开放（PyPI 全库支持）、支持 GPU 扩展**。在具备 SPCS 配额的环境中，应优先顺应官方路线采用容器运行时；仅当在受限且未开通 SPCS 的传统历史环境中时，才使用 Warehouse 模式作为向下兼容保底。
 
 ---
 
-## 二、技术架构与数据流向
+## 🛠️ 二、核心开发主线：现代工作区全生命周期实战（`Dev` $\to$ `Test` $\to$ `展開 / Deploy`）
 
-Streamlit in Snowflake 依托 Snowpark 框架实现了真正的仓内数据零拷贝。其完整的交互流转拓扑如下：
+现代 Snowflake 严禁在未经验证的情况下直接在生产库下裸写代码。官方推荐的标准工程工作流为：**在个人工作区沙箱中安全写码（Dev） $\to$ 实时热测（Test） $\to$ 右上角一键「展開」（Deploy）投产**。
 
-```mermaid
-flowchart TD
-    subgraph Storage["数据存储层 (Snowflake Storage)"]
-        TBL[("业务底表 / API 监控表<br/>(DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics)")]
-        STG["内部 Stage 暂存区<br/>(存放 streamlit_app.py 与 environment.yml)"]
-    end
+### Step 1: 精准定位导航入口与进入现代工作区
 
-    subgraph Warehouse["计算运行时 (Snowflake Compute Warehouse)"]
-        CTX["Snowpark Context<br/>session = get_active_session()"]
-        CACHE["缓存拦截层<br/>@st.cache_data(ttl=600)"]
-        EXEC["SQL 引擎<br/>session.sql('SELECT ...').to_pandas()"]
-        UI["Streamlit 渲染引擎<br/>• st.metric (KPI)<br/>• st.selectbox (交互)<br/>• st.line_chart (图表)<br/>• st.dataframe (表格)"]
-    end
+登录 Snowsight 控制台，在左侧导航栏点击 **「ワークスペース (Workspaces)」 $\to$ 「Streamlit」**（页面路径为 `#/streamlit-apps`）：
 
-    subgraph Client["前端呈现 (Snowsight Browser)"]
-        BROWSER["用户交互界面<br/>(安全内嵌渲染，零凭据外露)"]
-    end
+![Snowsight 控制台导航：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
 
-    STG --> UI
-    CTX --> EXEC
-    TBL --> EXEC
-    EXEC --> CACHE
-    CACHE --> UI
-    UI <== "WebSocket 双向绑定" ==> BROWSER
+直接点击右上角蓝色主按钮 **`+ Streamlit アプリ`**：
+系统会立即在当前用户的私有工作区（`USER$<USER_NAME>.PUBLIC.DEFAULT$`）中生成一套完备的现代工程项目沙箱，并自动打开在线 IDE：
+
+![Snowsight Streamlit 在线工作区全景（左侧项目树、中间代码编辑器、右侧即时交互渲染）](../images/10_step_03_gui_quick_create_editor.png)
+
+---
+
+### Step 2: 现代工程文件 4 件套解密（Snowflake CLI v2 规范）
+
+在左侧项目文件树中，展示了符合现代软件工程标准的 4 个核心文件：
+
+| 核心文件 | 规范标准 | 核心技术作用与工程角色 |
+| :--- | :--- | :--- |
+| **`streamlit_app.py`** | Python 3.11 核心脚本 | **主应用入口源码 (Main Entrypoint)**：编写 Streamlit 前端交互组件（`st.title`、`st.slider`、`st.metric`）与仓内数据提取逻辑。每当用户发生界面交互，引擎自顶向下响应式重新执行。 |
+| **`snowflake.yml`** | YAML (Snowflake CLI v2) | **现代项目定义清单 (Project Definition)**：声明应用元数据（`title: "無題"`）、主入口文件（`main_file: streamlit_app.py`）、计算池/仓库绑定，以及打包时的资产清单（`artifacts`）。全面支持终端 `snow streamlit deploy` 自动化发布。 |
+| **`pyproject.toml`** | TOML (PEP 517/518/621) | **现代依赖管理与运行版本规范**：取代旧版脆弱的 `environment.yml`。明确声明 Python 最低版本与核心依赖（`dependencies = ["streamlit[snowflake]"]`），深度集成超高速包管理器 `uv`（`[tool.uv]`）锁定版本。 |
+| **`.streamlit/config.toml`** | TOML (Streamlit 官方配置) | **前端样式与防烧钱超时控制**：定义看板主题颜色，以及最重要的 **`[snowflake.sleep]` 专属休眠时延配置**（如设置 `streamlitSleepTimeoutMinutes = 15`，实现应用级空闲挂起）。 |
+
+---
+
+### Step 3: 在线编辑、热重载调试与顶部四大操作按钮
+
+在 Monaco 在线编辑器中，顶部右侧整齐排列着四个操作中枢按钮：
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ 自分のワークスペース > 無題 > streamlit_app.py                                     │
+│ [ 実行 ]              [ ⚙️ 設定 ]         [ 📤 共有 ]        [ 🚀 展開 (Deploy) ] │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 深度剖析：存储 Python 脚本在 Stage 会产生费用吗？（Stage 存储 vs Warehouse 算力计费精算）
+1. **`[ 実行 ]` (Run)**：重新执行当前 Python 代码，并在右侧预览区即时查看组件与图表的变化。
+2. **`[ ⚙️ 設定 ]` (Settings)**：修改应用标题、调整绑定的计算算力与默认上下文。
+3. **`[ 📤 共有 ]` (Share)**：配置协作权限，允许团队成员协同查看或编辑。
+4. **`[ 🚀 展開 ]` (Deploy · 现代部署核心！)**：**开发完成后的正式投产发布按钮**！
 
-在采用 Stage 托管 Streamlit 脚本时，几乎所有开发者都会担心：**“把 Python 脚本保存在 Snowflake Stage 里面，究竟会不会持续扣费？会不会像有些云服务一样产生高昂的隐性账单？”**
+#### 官方开箱即用模板核心代码逐行精讲 (`streamlit_app.py`)
 
-> [!IMPORTANT] **核心结论：Stage 存储费用几乎为 0（可以完全忽略），真正的费用元凶是背后的 Virtual Warehouse 计算仓库！**
+在工作区中，默认生成的模板代码展示了现代 SiS 的规范写法：
 
-#### 1. 存储账单精算：每月不到 0.000001 美元（微乎其微）
-- **计费模式**：Snowflake 内部 Stage 按照底层云厂商标准对象存储容量计费（通常约为 **$23.00 ~ $40.00 / TB / 月**，折合约 $0.000022 / MB / 月）；
-- **文件体积**：一个完整的 Streamlit Python 脚本（如 `streamlit_app.py` 或 `streamlit_schema_inspector.py`）通常只有 **5 KB ~ 20 KB**；
-- **数学精算**：
-  $$\text{月度存储费用} = \frac{20 \text{ KB}}{1024 \times 1024 \times 1024 \text{ KB}} \times \$23.00 \approx \$0.00000043 \text{ 美元 / 月}$$
-  哪怕在 Stage 里存放 **100 个** 复杂的 Python 数据看板脚本，整整存放一年的费用也**不到 1 美分（不足 0.07 元人民币）**！
+```python
+# 1. 导入核心 Python 库
+import streamlit as st
+import os
 
-#### 2. 真正扣费元凶：计算虚拟数仓（Virtual Warehouse）
-- **计费真相**：Streamlit in Snowflake 不是无服务器静态托管，它依托底层的 **Virtual Warehouse** 作为 Python 容器与 SQL 查询的执行算力；
-- **单价标准**：最小规格的 `X-Small` 虚拟仓库每运行 1 小时消耗 **1 个 Credit**（折合标准费率约为 **$2.00 ~ $3.00 / 小时**）；
-- **重大扣费陷阱**：Streamlit 前端依托 **WebSocket 长连接保持心跳（Live Heartbeat）**。如果开发者在 Snowsight 网页中打开了看板，下班离开时**没有关闭浏览器标签页**，前端持续向后端发送探活心跳，虚拟仓库可能误以为“当前仍有交互请求”，阻碍自动休眠；
-- **空转代价**：仓库一天 24 小时空转将吞噬 24 Credits（约 $48 ~ $72 美元），一周即可将试用账户赠送的 400 美元额度彻底耗尽！
+# 2. 页面标题与版本动态展示
+st.title(f"Example Streamlit App :balloon: {st.__version__}")
+st.write(
+    """Replace this example with your own code!
+    **And if you're new to Streamlit,** check out our easy-to-follow guides at
+    [docs.streamlit.io](https://docs.streamlit.io).
+    """
+)
 
-#### 3. 官方原生防线：默认 15 分钟 WebSocket 超时断开与应用休眠机理
+# 3. 仓内标准免密连接 (Snowflake Connection)
+# 使用 st.connection 获取当前用户的安全会话，自动管理连接超时 TTL
+conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
+session = conn.session()
 
-针对“用户开着页面不关导致数仓空转”的隐患，Snowflake 官方在平台层设计了一套专门的**会话生命周期与休眠机制（Sleep Timeout）**：
+# 4. 交互滑块输入组件
+hifives_val = st.slider(
+    "Number of high-fives in Q3",
+    min_value=0,
+    max_value=90,
+    value=60,
+    help="Use this to enter the number of high-fives you gave in Q3",
+)
 
-> 📖 **官方权威参考**：
-> - [Manage sleep timeout for a Streamlit app using a warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/manage-sleep-timeout)
-> - [About Streamlit in Snowflake - WebSocket timeout](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#websocket-timeout)
-
-- **默认 15 分钟 WebSocket 断开（WebSocket Timeout）**：
-  当用户在浏览器中打开 Streamlit 看板时，前端与 Snowflake 后端建立 WebSocket 双向连接。在**账户级别（Account-level）**，默认设定了**约 15 分钟无活动自动超时（Approximately 15 minutes of inactivity）**。一旦超过 15 分钟未检测到任何有效操作，WebSocket 连接会被服务端主动断开，Streamlit 应用自动进入**挂起/休眠（Suspend/Sleep）**状态。
-- **活跃行为判定（鼠标移动即可重置）**：
-  官方文档明确指出：只要用户的鼠标光标在 Streamlit 画布区域内**晃动或移动（Mouse movement over the app）**，就会被前端探活引擎判定为活跃行为，**瞬间重置 15 分钟倒计时**。
-- **浏览器后台标签页限频陷阱（Background Tab Throttling）**：
-  如果用户将看板保留在浏览器后台标签页中，现代浏览器（Chrome、Edge）出于省电策略会自动限频后台 JavaScript 定时器与心跳，导致探活信号被中断，从而极易在后台直接触发 15 分钟超时断开。
-- **应用级自定义休眠计时器 (`.streamlit/config.toml`)**：
-  对于使用虚拟仓库运行的 SiS 应用，开发者无需联系客服，可直接在 Stage 根目录配置 `.streamlit/config.toml`，将休眠时间自定义在 **5 分钟 至 240 分钟（4 小时）** 之间：
-  ```toml
-  [snowflake.sleep]
-  streamlitSleepTimeoutMinutes = 15  # 允许设置 5 ~ 240 分钟
-  ```
-  *(注：若需修改全账户级别的默认 15 分钟 WebSocket 超时，需联系 Snowflake Support 提单申请)*。
-
-#### 4. 五大防扣费安全锁（The 5 Anti-Burn Safety Locks）
-为确保看板开发既流畅又绝对安全，生产实践中必须牢记以下五道防线：
-1. **秒级自动休眠**：虚拟仓库强制设置 `AUTO_SUSPEND = 60`（1 分钟无 SQL 查询即刻休眠）；
-2. **函数级内存强缓存**：所有读取数仓的函数必须添加 `@st.cache_data(ttl=600)` 10 分钟强缓存，用户在页面上点击切换表名或筛选时，直接从 Python 内存极速返回，**绝不向数仓发起二次 SQL 扫描**；
-3. **严格查询限流**：样本数据探查一律增加 `LIMIT 50`，防止全表扫描千万级大表；
-4. **配置应用级休眠计时**：在 Stage 根目录 `.streamlit/config.toml` 中配置 `streamlitSleepTimeoutMinutes = 15`，与官方 WebSocket 15 分钟兜底机制紧密联动；
-5. **随手关闭标签页与手动休眠**：调试完毕随手关闭网页标签页，必要时执行 `ALTER WAREHOUSE <wh> SUSPEND;` 手动挂起。
+# 5. 柱状图即时渲染
+# 当用户拖动滑块时，Streamlit 自顶向下重新执行，图表动态响应变化
+st.subheader("Number of high-fives")
+st.bar_chart({
+    "high-fives": [50, 20, hifives_val],
+})
+```
 
 ---
 
-## 三、核心函数与配置全量字典
+### Step 4: 核心高潮 · 一键投产 (`[ 🚀 展開 (Deploy) ]`)
 
-在编写 SiS 应用时，必须熟练使用以下核心 API：
+在个人工作区中完成调试并确认无误后，无需手写任何复杂的 DDL 或终端上传命令：
 
-> 📖 **官方 API 参考手册**：
-> - [get_active_session API Reference (Snowpark Python)](https://docs.snowflake.com/en/developer-guide/snowpark/reference/python/latest/api/snowflake.snowpark.context.get_active_session)
-> - [st.cache_data 缓存工作机制与 TTL 规范](https://docs.streamlit.io/develop/api-reference/caching-and-state/st.cache_data)
-> - [Streamlit Core Widgets & Charts API](https://docs.streamlit.io/develop/api-reference/layout/st.columns)
+1. 点击编辑器右上角的蓝色 **`「展開 (Deploy)」`** 按钮；
+2. 系统弹出发布向导，选择目标物理路径：
+   - **アプリタイトル (App Title)**：设定正式名称（例如 `DEV_DEMO_DASHBOARD`）；
+   - **アプリの場所 (App Location)**：选择目标 Database 与 Schema（例如 `DEV_DEMO_DB.API_INTEGRATION`）；
+   - **クエリウェアハウス (Query Warehouse)**：指定用于执行业务查询的计算仓库（例如 `COMPUTE_WH`）；
+3. 点击确认发布，系统自动完成代码打包，并在指定的物理命名空间下创建持久化的 Streamlit 对象！
 
-| 函数 / 语法 | 典型用法 | 生产建议 | 核心作用与底层逻辑 |
-| :--- | :--- | :--- | :--- |
-| `get_active_session()` | `from snowflake.snowpark.context import get_active_session` | 必须置顶使用 | **免密上下文**：自动捕获当前访问者的 Snowflake RBAC 身份，无需任何密码连接串。 |
-| `@st.cache_data` | `@st.cache_data(ttl=600)` | 所有查询必须加缓存 | **防刷锁**：将查询结果缓存指定秒数，用户筛选交互时不再反复扣费查询底表。 |
-| `st.metric()` | `st.metric(label="总调用量", value=1240, delta="+12%")` | 适合看板顶部 | **KPI 记分卡**：直观展示关键核心指标及同比/环比浮动。 |
-| `st.selectbox()` | `st.selectbox("选择分类", options=['All', 'A', 'B'])` | 用于多维下钻 | **交互下拉菜单**：改变选项后触发应用响应式重新渲染。 |
-| `st.line_chart()` | `st.line_chart(df.set_index('DATE')['REVENUE'])` | 必须设置索引列 | **趋势折线图**：原生基于 Altair 渲染的矢量折线图，支持悬浮查看。 |
-| `st.dataframe()` | `st.dataframe(df, use_container_width=True)` | 宽屏自适应 | **交互式数据表**：支持列排序、文本搜索、CSV 导出。 |
-| `streamlitSleepTimeoutMinutes` | `[snowflake.sleep]` 表配置 | 建议设为 `15`（范围 5~240） | **应用级休眠计时器**：在 `.streamlit/config.toml` 中控制无交互后自动挂起应用的时延，与 WebSocket 15 分钟兜底机制协同防烧钱。 |
+#### 真实执行与元数据存证验证（来自实机测试数据）
+
+在后台执行 `SHOW STREAMLITS;`，可以清晰看到通过工作区与展開生成的底层元数据记录：
+
+```text
+Name: ST658619B1D62298C0E9E309D122F8B666CDD245F4 
+DB: USER$FANXIAO | Schema: PUBLIC | Owner: 無題 
+Metadata: {
+  "sourceWorkspaceUri": "workspace:/USER%2524.PUBLIC.DEFAULT%2524/無題",
+  "sourceWorkspacePath": "/ws/USER%24/PUBLIC/DEFAULT%24/無題/streamlit_app.py",
+  "sourceWorkspaceUserId": "FANXIAO",
+  "createActionSource": "create-app"
+}
+```
+这铁证了：工作区项目是原生带完整发布链路的现代资产，绝非丢弃型的临时草稿！
 
 ---
 
-## 四、双轨制部署实操与逐行命令（DevOps 代码化 vs Web GUI 低代码）
+## 🧭 三、分支路径解密：下拉双菜单的定位与工程价值
 
-在企业实战中，Streamlit in Snowflake 支持两种完全不同的落地路径，兼顾工程自动化与业务敏捷性：
-- **轨道 A（DevOps / CI/CD 代码化工程部署）**：面向数据工程师与平台架构师，通过 Internal Stage + SQL DDL 声明式管理，纳入 Git 与 CI/CD 自动化流水线；
-- **轨道 B（Snowsight Web GUI 交互式探索）**：面向业务分析师（BA）与探索性 PoC 场景，直接在 Snowflake Web 界面点选创建，在线调试。
+在 Streamlit 管理页面右上角的 **`+ Streamlit アプリ`** 按钮旁，点击下拉小三角会展开两个补充入口：
+
+![Streamlit 创建按钮与下拉创建选项（ウェアハウスで作成 vs リポジトリから作成）](../images/10_step_03_gui_create_dropdown_options.png)
+
+### 1. 入口 A：`リポジトリから作成 (Create from Repository)` —— Git CI/CD 工程化集成
+- **技术定位**：面向成熟的数据平台团队。代码由外部 Git 仓库（GitHub / GitLab）统一管理，避免在 Web 页面上手工修改代码。
+- **实操流程**：
+  1. 点击「リポジトリから作成」，在弹出的对话框中点击「メインファイルを選択」；
+  2. 系统弹出 **「リポジトリのStreamlitを選択」**，选择挂载了 Git Repository 对象的数据库与分支文件：
+     
+     ![选择 Git 仓库文件子弹窗](../images/10_step_03_gui_repo_select_database.png)
+     
+  3. 指定物理放置的 Database 与 Schema（如 `DEV_DEMO_DB.API_INTEGRATION`）；
+  4. 选定 Python 环境（优先选择官方默认的 **「コンテナで実行」**），即可完成工程绑定。
+
+### 2. 入口 B：`ウェアハウスで作成 (レガシー)` —— 旧系统向下兼容模式
+- **技术定位**：Snowflake 第一代旧版 Streamlit 的创建方式，已被官方明确打上 **`レガシー (Legacy)`** 标签。
+- **运行特征**：
+  - 绕过工作区沙箱，在第一步就必须将应用直接写死在特定的 Database 和 Schema 下；
+  - 仅支持传统的虚拟计算仓库（最低 1.0 credit/h 起步）；
+  - 依赖管理采用旧版 Conda `environment.yml`，受限于 Anaconda 官方审核白名单，无法安装任意开源 PyPI 依赖；
+  - **适用场景**：仅在维护数年前遗留的老旧单文件看板、或环境完全未开启 SPCS 容器权限时作为兜底使用。
 
 ---
 
-### 轨道 A（DevOps / CI/CD 代码化工程部署）：API 监控看板
+## 💻 四、生产级实战案例：仓内数据表动态探查器 (Schema Table Inspector)
 
-#### Step 4.A1: 创建业务监控底表与测试数据
+在实际数据分析与数仓运维中，工程师经常需要一款能够**动态浏览数仓内所有库、模式、数据表，并能实时下钻查看前 50 条样本数据与元数据**的交互式工具。
 
-在数据库中准备一份纯技术视角的业务监控与 API 调用量模拟表：
+以下为基于现代规范编写的生产级全功能看板源码。
+
+### Step 1: 准备测试底表与数据 (`DEV_DEMO_DB.API_INTEGRATION`)
 
 ```sql
 USE DATABASE DEV_DEMO_DB;
 USE SCHEMA API_INTEGRATION;
 
--- 1. 创建技术指标表
-CREATE OR REPLACE TABLE test_sales_metrics (
+-- 1. 创建测试指标表
+CREATE TABLE IF NOT EXISTS test_sales_metrics (
     date DATE,
     category STRING,
     revenue NUMBER(10,2),
     api_call_count INT
 );
 
--- 2. 插入测试数据
+-- 2. 写入模拟业务数据
 INSERT INTO test_sales_metrics VALUES
   ('2026-10-25', 'Electronics', 12500.50, 420),
   ('2026-10-26', 'Clothing', 8400.00, 310),
@@ -199,698 +242,166 @@ INSERT INTO test_sales_metrics VALUES
   ('2026-10-29', 'Electronics', 14200.00, 480);
 ```
 
-> **控制台真实回显与底表验证截图**：
-> ```text
-> Table TEST_SALES_METRICS successfully created.
-> number of rows inserted: 5
-> ```
->
-> 执行 `SELECT * FROM DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics;` 查看准备就绪的 5 条多维度技术指标数据：
->
-> ![Snowflake 监控底表数据查询结果](../images/10_step_01_test_sales_metrics_table.png)
-
 ---
 
-#### Step 4.A2: 编写完整的 Streamlit 应用源码 (`streamlit_app.py`)
-
-编写应用脚本，实现 KPI 记分卡、动态分类筛选、趋势折线图和实时明细数据表：
+### Step 2: 编写完整的生产级应用源码 (`streamlit_schema_inspector.py`)
 
 ```python
 # ==============================================================================
-# 文件名: streamlit_app.py
-# 作用: Streamlit in Snowflake 生产级交互式监控看板 (Route A)
+# 文件名称: streamlit_schema_inspector.py
+# 核心用途: 生产级仓内数据表动态探查器 (具备 10 分钟缓存防刷与多级下钻)
 # ==============================================================================
 import streamlit as st
-from snowflake.snowpark.context import get_active_session
+import pandas as pd
 
-# 1. 页面基础配置 (宽屏沉浸模式)
-st.set_page_config(page_title="Snowflake API 监控看板", layout="wide")
-st.title("📊 Snowflake API 调用与业务监控实时看板")
+# 1. 宽屏页面初始化
+st.set_page_config(page_title="Snowflake 仓内数据表探查器", layout="wide", page_icon="🔍")
+st.title("🔍 Snowflake 数据架构与表结构动态探查看板")
 
-# 2. 获取仓内活动会话 (零密码安全鉴权)
-session = get_active_session()
+# 2. 获取免密连接上下文
+conn = st.connection("snowflake")
+session = conn.session()
 
-# 3. 生产防刷核心：使用 cache_data 对 SQL 查询实施 10 分钟缓存
+# 3. 生产防刷核心：使用 cache_data 对元数据实施 10 分钟强缓存
 @st.cache_data(ttl=600)
-def load_data():
-    sql = """
-        SELECT 
-            date,
-            category,
-            revenue,
-            api_call_count
-        FROM DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics
-        ORDER BY date ASC
-    """
-    return session.sql(sql).to_pandas()
+def get_databases():
+    """获取当前账号下所有可用数据库列表"""
+    df = session.sql("SHOW DATABASES").to_pandas()
+    return sorted(df["name"].tolist())
 
-raw_df = load_data()
+@st.cache_data(ttl=600)
+def get_schemas(db_name):
+    """获取指定数据库下的模式列表"""
+    df = session.sql(f"SHOW SCHEMAS IN DATABASE {db_name}").to_pandas()
+    return sorted(df["name"].tolist())
 
-# 4. 侧边栏交互筛选器
-st.sidebar.header("🔍 多维数据下钻筛选")
-categories = ["全部 (All)"] + sorted(list(raw_df["CATEGORY"].unique()))
-selected_category = st.sidebar.selectbox("选择业务分类：", categories)
+@st.cache_data(ttl=600)
+def get_tables(db_name, schema_name):
+    """获取指定模式下的全部数据表与行数概览"""
+    df = session.sql(f"SHOW TABLES IN SCHEMA {db_name}.{schema_name}").to_pandas()
+    if df.empty:
+        return pd.DataFrame()
+    return df[["name", "rows", "bytes", "owner", "created_on"]]
 
-if selected_category != "全部 (All)":
-    df = raw_df[raw_df["CATEGORY"] == selected_category]
+@st.cache_data(ttl=300)
+def preview_table_data(full_table_name):
+    """抽样探查表内前 50 条明细数据 (严格加 LIMIT 保护数仓)"""
+    return session.sql(f"SELECT * FROM {full_table_name} LIMIT 50").to_pandas()
+
+# 4. 侧边栏多级联动筛选
+st.sidebar.header("📁 命名空间导航")
+databases = get_databases()
+selected_db = st.sidebar.selectbox("选择数据库 (Database)：", databases, index=0)
+
+schemas = get_schemas(selected_db)
+selected_schema = st.sidebar.selectbox("选择模式 (Schema)：", schemas, index=0)
+
+# 5. 主画布区域：展示当前模式下的表清单
+st.subheader(f"📊 模式 `{selected_db}.{selected_schema}` 下的表资产")
+tables_df = get_tables(selected_db, selected_schema)
+
+if tables_df.empty:
+    st.info("⚠️ 当前模式下暂无可用数据表。")
 else:
-    df = raw_df
+    # 顶部指标卡
+    m1, m2 = st.columns(2)
+    m1.metric("数据表总数", len(tables_df))
+    total_rows = tables_df["rows"].sum() if "rows" in tables_df.columns else 0
+    m2.metric("总记录行数", f"{total_rows:,}")
+    
+    # 呈现表元数据一览
+    st.dataframe(tables_df, use_container_width=True, hide_index=True)
+    
+    st.divider()
+    
+    # 6. 单表样本数据下钻探查
+    selected_table = st.selectbox("选择需要抽样探查的数据表：", tables_df["name"].tolist())
+    if selected_table:
+        full_name = f"{selected_db}.{selected_schema}.{selected_table}"
+        st.write(f"🔬 **正在抽样展示 `{full_name}` 前 50 条记录：**")
+        
+        sample_df = preview_table_data(full_name)
+        st.dataframe(sample_df, use_container_width=True)
+        
+        # 字段列信息摘要
+        with st.expander("📋 查看字段结构与数据类型"):
+            col_info = pd.DataFrame({
+                "列名 (Column)": sample_df.columns,
+                "Python 数据类型": [str(t) for t in sample_df.dtypes]
+            })
+            st.table(col_info)
 
-# 5. 看板顶部核心 KPI 仪表卡片 (Columns 排布)
-kpi1, kpi2, kpi3 = st.columns(3)
-total_revenue = df["REVENUE"].sum()
-total_api_calls = df["API_CALL_COUNT"].sum()
-avg_revenue_per_call = total_revenue / total_api_calls if total_api_calls > 0 else 0
-
-with kpi1:
-    st.metric(label="总营收金额 (USD)", value=f"${total_revenue:,.2f}", delta="+8.5%")
-with kpi2:
-    st.metric(label="外部 API 调用总次数", value=f"{total_api_calls:,}", delta="+120")
-with kpi3:
-    st.metric(label="单次调用产出比", value=f"${avg_revenue_per_call:.2f}")
-
-st.divider()
-
-# 6. 图表与明细数据分栏呈现
-chart_col, table_col = st.columns([3, 2])
-
-with chart_col:
-    st.subheader("📈 每日营收趋势折线图")
-    chart_data = df.groupby("DATE")["REVENUE"].sum().reset_index()
-    st.line_chart(chart_data.set_index("DATE")["REVENUE"])
-
-with table_col:
-    st.subheader("📋 实时底层数据台账")
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-# 7. 手动刷新按钮
-if st.button("🔄 清除应用缓存并强制重新拉取"):
+# 7. 缓存重置防线
+if st.sidebar.button("🔄 强制刷新元数据缓存"):
     st.cache_data.clear()
     st.rerun()
 ```
 
 ---
 
-#### Step 4.A3: 通过 Stage + SQL 实现自动化 DevOps 部署
+### Step 3: 查看已部署应用并进行协同共享
 
-通过 **Internal Stage + SQL DDL** 即可将 Streamlit 看板纳入 Git CI/CD 自动化部署流：
+在工作区点击 **「展開」** 并发布到 `DEV_DEMO_DB.API_INTEGRATION` 后，返回 Streamlit 列表，应用已成为正式的生产级资产：
 
-> 📖 **官方 DDL 与部署规范**：
-> - [CREATE STREAMLIT 语法规范与参数手册](https://docs.snowflake.com/en/sql-reference/sql/create-streamlit)
-> - [在 Snowflake 内部 Stage 托管 Streamlit 文件的官方操作指南](https://docs.snowflake.com/en/developer-guide/streamlit/create-streamlit-sql)
+![Streamlit 应用列表展示已发布的正式资产](../images/10_step_03_gui_app_list_dual_created.png)
 
-```sql
--- 1. 创建内部 Stage (启用目录表索引)
-CREATE OR REPLACE STAGE dev_streamlit_stage DIRECTORY = (ENABLE = TRUE);
-
--- 2. 上传脚本文件 (客户端或终端 PUT 命令)
-PUT file:///tmp/streamlit_app.py @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage AUTO_COMPRESS=FALSE OVERWRITE=TRUE;
-
--- 3. 执行 DDL 声明式创建 Streamlit 应用对象
-CREATE OR REPLACE STREAMLIT dev_demo_dashboard
-  ROOT_LOCATION = '@DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage'
-  MAIN_FILE = 'streamlit_app.py'
-  QUERY_WAREHOUSE = 'COMPUTE_WH'
-  COMMENT = '生产级 API 监控与可视化看板 (Route A - DevOps)';
-```
-
-> **内部 Stage 文件验证截图**：
->
-> 执行 `LIST @DEV_DEMO_DB.API_INTEGRATION.dev_streamlit_stage;` 确认 `streamlit_app.py` 已经成功挂载于数仓暂存区中：
->
-> ![Snowflake 内部 Stage 存储的 Streamlit 源码文件](../images/10_step_02_stage_streamlit_file.png)
+点击进入看板，全团队具备对应库表权限的成员均可协同交互，且所有查询直接在仓内安全边界内运行！
 
 ---
 
-#### Step 4.A4: 验证部署状态与看板运行实景
+## 🛡️ 五、费用精算与防烧钱安全锁（Cost & Anti-Burn Governance）
 
-执行 `SHOW STREAMLITS;` 查询已部署的看板元数据：
+在上线 Streamlit 看板时，架构师必须算清两笔核心账目：**存储账** 与 **算力账**。
 
-```sql
-SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
-```
-
-> **控制台真实查询结果**：
-> ```text
-> ┌──────────────────────────┬─────────────────────┬───────────────┬─────────────────┬──────────┬────────────┐
-> │ created_on               │ name                │ database_name │ schema_name     │ owner    │ warehouse  │
-> ├──────────────────────────┼─────────────────────┼───────────────┼─────────────────┼──────────┼────────────┤
-> │ 2026-11-02 08:38:52 PST  │ DEV_DEMO_DASHBOARD  │ DEV_DEMO_DB   │ API_INTEGRATION │ SYSADMIN │ COMPUTE_WH │
-> └──────────────────────────┴─────────────────────┴───────────────┴─────────────────┴──────────┴────────────┘
-> ```
-
-在 Snowflake Snowsight 控制台中，通过左侧菜单栏 **「ワークスペース (Workspaces)」 -> 「Streamlit」**（或直接访问 `#/streamlit-apps`）进入已发布看板列表：
-
-![Snowflake Snowsight Streamlit 应用列表](../images/10_step_03_streamlit_app_list.png)
-
-点击进入看板，即可体验原生内嵌于计算仓库中的实时交互式可视化大屏：
-
-![Streamlit in Snowflake 原生交互式监控看板运行实景](../images/10_step_04_streamlit_dashboard_live.png)
+### 1. 存储账单真相：每月不足 0.000001 美元（彻底消除焦虑）
+- **计费模式**：代码文件存放在内部 Stage 或容器卷中，按底层标准对象存储容量计费（约 **$23.00 / TB / 月**）；
+- **文件体积**：一个完整的 Streamlit Python 源码通常仅 **10 KB ~ 30 KB**；
+- **精算结果**：
+  $$\text{月存储费} = \frac{30 \text{ KB}}{1024 \times 1024 \times 1024 \text{ KB}} \times \$23.00 \approx \$0.00000065 \text{ 美元 / 月}$$
+  存放 100 个大型看板脚本，整整存放一年的费用也**不足 1 美分**！代码存储费用完全可以忽略。
 
 ---
 
-### 轨道 B（Snowsight Web GUI 交互式探索）：仓内数据表动态探查器 (Schema Table Inspector)
+### 2. 算力扣费防线与官方 15 分钟超时机制
+真正的费用消耗来自于底层的**计算资源**：
+- **容器运行时 (SPCS)**：入门级 `CPU_X64_XS` 仅需 **~0.11 credits/h**，并且底层计算池支持闲置自动挂起（Auto-suspend）；
+- **数仓运行时 (Warehouse)**：最低规格 `X-Small` 运行 1 小时扣除 **1.0 credit**，需设置 `AUTO_SUSPEND = 60`（1 分钟无查询自动休眠）。
 
-在很多业务分析或敏捷验证场景中，我们不希望每次都通过终端写命令行或执行 `PUT`。分析师希望**直接在 Snowsight 网页上点选创建应用，并动态扫描数仓内任意 Database / Schema 下的全部数据表，点击表名即可触发数据查询与元数据探查**！
+#### 官方原生防线：默认 15 分钟 WebSocket 超时断开机理
+当用户在浏览器打开看板时，前端与后端保持 WebSocket 长连接。为了防止“用户下班不关网页导致算力彻夜空转”，Snowflake 在平台层设置了严密的兜底保护：
 
-#### Step 4.B1: 基于 Snowsight Web 页面导航与创建 Streamlit 应用
+> 📖 **官方参考**：
+> - [Manage sleep timeout for a Streamlit app](https://docs.snowflake.com/en/developer-guide/streamlit/manage-sleep-timeout)
+> - [WebSocket timeout in Streamlit in Snowflake](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#websocket-timeout)
 
-1. **精准定位 Streamlit 导航入口（Snowflake 界面精准导航）**：
-   登录 Snowsight 网页控制台（首页 `ホーム / Home`），进入 Streamlit 资产管理界面有两种标准入口：
-   - **路径一（侧边栏主菜单导航，推荐）**：在左侧「データを扱う (Data)」区域中，将鼠标移动至 **「ワークスペース (Workspaces)」**，在弹出的右侧浮层子菜单中直接点击 **「Streamlit」**（页面对应直接 URL 路径为 `#/streamlit-apps`）；
-   - **路径二（首页项目快速切换）**：在首页下方项目列表的标签页中，直接点击 **「Streamlits」** 选项卡，即可列出已存在的看板资产（如之前创建好的 `SCHEMA_TABLE_INSPECTOR`）。
-
-> **Snowsight 控制台真实导航路径与操作标注截图**：
->
-> 如下真实控制台截图所示，红框清晰标出了左侧「ワークスペース (Workspaces)」悬浮唤出「Streamlit」的准确位置，杜绝传统旧文档中模糊过时的路径误导：
->
-> ![Snowsight 控制台导航：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
-
-2. **创建方式深度调查：主按钮直接点击 vs 下拉双选项（机制全解剖与选型对比）**：
-
-在 Streamlit 管理页面右上角，我们可以看到一个蓝色的主按钮 **`+ Streamlit アプリ`**，旁边附带一个下拉三角箭头。针对您提出的操作差异，底层存在 3 种完全不同的创建逻辑：
-
-![Streamlit 创建按钮与下拉创建选项（ウェアハウスで作成 vs リポジトリから作成）](../images/10_step_03_gui_create_dropdown_options.png)
-
-| 创建交互路径 | 触发行为与底层工作机理 | 适用场景与优缺点分析 | 官方权威参考文档 |
-| :--- | :--- | :--- | :--- |
-| **路径 ①：直接点击 `+ Streamlit アプリ` 主按钮<br/>*(现代工作区项目 · 官方标准开发工作流 · ⭐ 推荐)* | **现代工程化工作区模式 (Workspace Project)**：<br/>系统直接创建一套具备现代工程化骨架的项目环境（包含 `snowflake.yml`、`pyproject.toml`、`.streamlit/config.toml`），以当前上下文即刻打开全功能 IDE。<br/><br/>**核心工程机制：Dev $\to$ Test $\to$ Deploy (展開)**<br/>在工作区中完成开发与即时预览调试后，点击右上角醒目的 **`「展開」 (Deploy)`** 按钮，即可将工作区应用一键发布到指定的物理数据库与模式中，完成向企业级生产对象的蜕变！ | **优点**：标准的“开发 $\to$ 测试 $\to$ 部署”软件工程闭环；代码结构规范，自带 Snowflake CLI v2 规范文件；右上角一键「展開」发布生产。<br/>**缺点**：初次接触易误以为只是临时测试页面。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight)<br/>[Snowflake CLI Streamlit Deploy](https://docs.snowflake.com/en/developer-guide/snowflake-cli-v2/command-reference/streamlit-commands/deploy) |
-| **路径 ②：点击下拉项 `ウェアハウスで作成 (レガシー)`<br/>*(Create in Warehouse - Legacy)*<br/>*(⚠️ 官方明确标注为 Legacy 传统过渡模式)* | **传统单体数仓直写模式**：弹出配置对话框，强制在选定的 Database/Schema 下直接创建对象，并绑定虚拟计算仓库（`COMPUTE_WH`）。<br/><br/>**为什么官方标注为“レガシー (Legacy)”？**<br/>在 Snowflake 全面拥抱容器化（Container Runtime）与现代工作区项目体系后，这种“直接在生产 Schema 里裸写脚本、依赖 Anaconda 白名单、绑定 1 Credit/h 昂贵数仓”的旧方式已被官方归入 Legacy。仅用于向下兼容旧版单文件脚本。 | **优点**：配置简单，直接跳过工作区发布步骤。<br/>**缺点**：缺乏开发与发布的隔离缓冲；仅支持受限的 Anaconda 包；计算仓库即使 XS 也要 1.0 credit/h，成本偏高。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
-| **路径 ③：点击下拉项 `リポジトリから作成`<br/>*(Create from Repository)* | **Git 仓库集成模式**：弹出 Git 绑定向导，直接连接到 Snowflake 中已建立的 Git Repository 对象（GitHub / GitLab / Azure DevOps），选取特定代码分支与入口脚本。 | **优点**：代码完全由外部 Git 仓库纳管，无缝融入企业 CI/CD 自动化流水线，原生支持复杂多文件工程。<br/>**缺点**：需要预先在 Snowflake 中配置 Git API Integration 凭据与仓库映射。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git Integration 官方文档](https://docs.snowflake.com/en/developer-guide/git/git-overview) |
-
-3. **进入创建弹窗并完成核心参数配置（经典数仓模式实操全流程）**：
-   - 点击下拉小箭头，选择 **`ウェアハウスで作成 (レガシー)`**：
-     
-     ![选择下拉菜单：ウェアハウスで作成 (レガシー)](../images/10_step_03_gui_select_warehouse_legacy.png)
-
-   - 在弹出的正式创建窗口中，我们可以清晰地配置 3 大核心属性：
-     - **アプリタイトル (App Name)**：填写应用标题（如 `SCHEMA_TABLE_INSPECTOR` 或实测命名 `FANXIAO 2026-11-11 8:25pm`）；
-     - **アプリの場所 (App location)**：精确指定物理所属的数据库与模式（如 `AIRBNB` $\rightarrow$ `DEV`，或 `DEV_DEMO_DB` $\rightarrow$ `API_INTEGRATION`）；
-     - **アプリウェアハウス (Warehouse)**：指定用于执行 SQL 与渲染的计算仓库（如 `COMPUTE_WH`）；
-     
-     ![Snowsight 经典数仓 Streamlit 创建弹窗](../images/10_step_03_gui_modal_warehouse_create.png)
-
-   - 点击右下角蓝色 **`作成 (Create)`** 按钮，系统即刻在指定的数据库 Schema 下创建持久化的 Streamlit 实体对象，并打开经典代码编辑器：
-     
-     ![经典数仓模式代码编辑器实景（左侧文件/数据库双标签、environment.yml 与 v1.52.2 预览）](../images/10_step_03_gui_legacy_editor_live.png)
-
-   - 返回 Streamlit 应用资产列表，可以清楚地看到刚创建的应用其「場所」实打实地显示为 **`AIRBNB.DEV`**，所有具备该模式权限的账号均可协同访问：
-     
-     ![Streamlit 资产列表中显示物理落盘位置为 AIRBNB.DEV](../images/10_step_03_gui_app_list_created.png)
+1. **默认 15 分钟无操作断开**：
+   连续 15 分钟未检测到用户交互，服务端主动断开 WebSocket 连接，看板进入 **休眠（Sleep）** 状态，停止占用算力。
+2. **活跃行为判断**：
+   用户的鼠标在看板区域内**移动或晃动**会被探活引擎捕获，重置 15 分钟计时器。
+3. **应用级休眠控制 (`.streamlit/config.toml`)**：
+   开发者可在项目配置中显式指定休眠时延（范围 5 ~ 240 分钟）：
+   ```toml
+   [snowflake.sleep]
+   streamlitSleepTimeoutMinutes = 15
+   ```
 
 ---
 
-##### 4. 深度技术解惑：直接点击创建 vs 下拉创建的本质差异 —— 工作区项目 (Dev) 与一键部署 (展開 / Deploy)
-
-很多工程师在实际操作时都会产生疑问：**“直接点击主按钮跳过去是在个人工作区，而下拉菜单则是选择数据库和模式直接创建，这两者的架构设计究竟有什么深层区别？”**
-
-这正是 Snowflake 推动的**现代软件工程生命周期（Dev $\to$ Test $\to$ Deploy）**与**传统单体直写模式**的代际演进：
-
-| 深度对比维度 | 方式 A：直接点击主按钮 `+ Streamlit アプリ`<br/>*(现代工作区项目 · 官方标准开发工作流 · ⭐ 推荐)* | 方式 B：下拉点击 `ウェアハウスで作成 (レガシー)`<br/>*(传统数仓直写模式 · ⚠️ 官方已标记为 Legacy)* |
-| :--- | :--- | :--- |
-| **工程定位与生命周期** | **隔离开发工作区（Development Sandbox）**：<br/>在「自分のワークスペース」中提供安全的沙箱开发环境，代码完全与生产数仓解耦，开发与热重载调试绝不影响线上运行中的库表资产。 | **直接写死在生产库（Direct Schema Object）**：<br/>跳过开发隔离期，第一步就必须指定生产 DB 与 Schema，在生产目录树下直接裸写代码，缺乏“开发 $\to$ 发布”的缓冲防线。 |
-| **部署发布能力 (Deploy)** | **原生支持右上角一键「展開 (Deploy)」**：<br/>在工作区开发测试完毕后，直接点击编辑器右上角 **`「展開」 (Deploy)`** 按钮，即可将该项目正式编译、打包并发布到指定的企业级 Database 与 Schema 中，生成正式的生产级 Streamlit 实体！ | **无「展開」概念（原地保存）**：<br/>编辑器的每一次保存都是直接修改生产 Schema 下的脚本，无法在未完成时保留私有草稿，也不支持多环境发布切换。 |
-| **项目工程文件规范** | **现代工程化 4 件套（符合 Snowflake CLI v2 标准）**：<br/>- `streamlit_app.py`：主入口源码<br/>- `snowflake.yml`：CLI v2 工程定义与部署配置<br/>- `pyproject.toml`：现代 Python 依赖与版本规范<br/>- `.streamlit/config.toml`：主题与超时休眠控制 | **传统轻量 2 件套（旧版 Conda 规范）**：<br/>- `streamlit_app.py`<br/>- `environment.yml` (旧版 Anaconda 包声明)<br/>*（缺乏项目级 CLI 部署配置文件）* |
-| **Streamlit 运行时版本** | **最新前沿标准版（如 v1.66.1）** | **旧版长期维护基线（如 v1.52.2）** |
-| **会话与鉴权调用** | 原生推荐标准：`conn = st.connection("snowflake")` / `session = conn.session()` | 兼容旧版：`from snowflake.snowpark.context import get_active_session` |
-| **权限与安全隔离** | 开发期仅自己私有可见，不占用公共 Schema 命名空间；点击「展開」发布后才赋予企业级 RBAC 共享权限。 | 从创建第一秒起就暴露在目标 Schema 下，极易产生未完工半成品垃圾对象。 |
-
-> 💡 **架构师权威建议**：
-> - **现代正统开发规范**：坚决采用 **`+ Streamlit アプリ`** 主按钮！在个人工作区中利用现代 4 件套规范编写调试，确认无误后点击右上角 **`「展開 (Deploy)」`** 正式发布到目标 Database.Schema；
-> - **旧系统维护**：仅在维护过去基于 `environment.yml` 构建的老旧 Streamlit 单文件脚本时，才使用标注为 `レガシー (Legacy)` 的传统数仓直写方式。
+### 3. 五大防扣费安全锁清单 (The 5 Anti-Burn Safety Locks)
+1. **优先顺应官方路线选用容器运行时**（~0.11 credits/h，相比数仓省钱 90%）；
+2. **所有读取数据的函数必须添加 `@st.cache_data(ttl=600)`**，交互时走内存缓存，不发起二次 SQL 扫描；
+3. **明细查询必须添加 `LIMIT 50`**，防止误触千万级全表扫描；
+4. **若使用虚拟数仓，严格设定 `AUTO_SUSPEND = 60`**；
+5. **在 `.streamlit/config.toml` 中明确配置 `streamlitSleepTimeoutMinutes = 15`**。
 
 ---
 
-##### 5. 下拉菜单深度剖析：为什么官方默认采用「コンテナで実行 (Container Runtime)」？—— 容器 vs 仓库的真实性价比与生态全景
-
-当在下拉菜单中点击第二个选项 **`リポジトリから作成 (Create from repository)`** 时，系统会弹出面向现代 DevOps 工程的专属创建弹窗：
-
-![点击下拉菜单选择「リポジトリから作成」](../images/10_step_03_gui_select_from_repository.png)
-
-![「リポジトリから作成」弹窗中的两类 Python 环境选项（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
-
-在弹窗中央，最核心也是最引人注目的配置项，正是 **「Python環境 (Python Environment)」** 的两大单选卡片。**请特别注意：Snowflake 官方在 UI 界面中已经默认给左侧的「コンテナで実行 (Run on Container)」打上了预选对勾（✔️ Default）！**
-
-###### 【核心技术对比】：コンテナで実行 (Container Runtime · 官方默认) vs ウェアハウスで実行 (Warehouse Runtime · 传统过渡)
-
-| 核心评估维度 | 左卡片：コンテナで実行 (Run on Container)<br/>*(新一代 SPCS 容器运行时 · **✔️ 官方默认**)* | 右卡片：ウェアハウスで実行 (Run on Warehouse)<br/>*(传统数仓单机虚拟机 · ⚠️ Legacy 模式)* |
-| :--- | :--- | :--- |
-| **官方定位与演进路线** | **Snowflake 官方钦定的下一代默认运行时**：<br/>UI 界面预选默认勾选，全平台战略重心。 | **向下兼容的过渡方案 (Legacy)**：<br/>官方在创建入口已打上 `レガシー` 标签，逐步退出主流。 |
-| **真实运行成本（性价比）** | **超高性价比（低至 ~0.11 credits/小时）**：<br/>基于 Snowpark Container Services (SPCS) 计算池，入门级节点（如 `CPU_X64_XS`）仅需 **约 0.11 credits / node / 小时**，相比数仓 **省钱近 90%**！对于轻量 Web 前端看板而言，极为经济！ | **成本偏高且固定（最低 1.0 credit/小时）**：<br/>哪怕最小规格的 `X-Small` 虚拟计算仓库，只要运行 1 小时就固定扣除 **1.0 credit**，长时间调试或空转成本显著高于容器。 |
-| **第三方 Python 依赖生态** | **全面拥抱开源（全 PyPI 自由生态）**：<br/>官方标注 *“さらに多くのパッケージリソースが含まれます”*。<br/>通过 `pyproject.toml` 或 `requirements.txt` 自由安装任意 pip 包，原生支持包含 C/Rust 扩展和复杂编译的原生库（如 PyTorch、Transformers、LangChain、DuckDB 等），彻底摆脱包缺失困扰。 | **受限 Anaconda 白名单模式**：<br/>官方标注 *“Snowflake Anacondaのパッケージをサポートします”*。<br/>只能在 Snowflake 预先审核打包的 Anaconda 频道内选包。一旦业务需要一个冷门或最新的 pip 库，将直接报错无法安装！ |
-| **多用户访问与并发架构** | **单例常驻共享模式 (Shared App Service)**：<br/>多名分析师并发访问看板时共享后台容器进程，首屏渲染秒开，适合企业级公共大屏。 | **每用户独立会话模式 (Per-viewer Session)**：<br/>每个访问用户均在数仓内启动专属 Python 进程，高并发下数仓内存压力倍增。 |
-| **算力与硬件扩展性** | 原生支持 CPU 弹性池及高性能 **GPU** 算力，可直接在看板后台挂载本地大语言模型与图像生成。 | 仅支持标准 CPU 虚拟机，无法使用 GPU。 |
-
-> 📖 **官方权威文档链接**：
-> - [About Streamlit in Snowflake runtimes (Container vs Warehouse)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes)
-> - [Create a Streamlit app from a repository (Git 仓库集成)](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)
-> - [Managing Python dependencies in Streamlit in Snowflake](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/dependency-management)
-
-> 📌 **架构选型权威总结**：
-> 官方之所以将「コンテナで実行 (Container Runtime)」设为默认，正是因为它**更便宜（约 0.11 vs 1.0 credit/h）、包生态更强大（全 PyPI 开源生态）、支持 GPU 扩展**。在具备 SPCS 配额的环境中，应优先顺应官方路线选用容器运行时；仅当在没有配置 SPCS 计算池的受限传统环境中时，才使用右侧的 Warehouse 模式作为向下兼容的保底方案。
-
----
-
-##### 6. 实操全过程复盘：从 Git 仓库选型到两类创建方式结果极其相似的底层奥秘
-
-在实际操作中，您通过下拉菜单第二项 **`リポジトリから作成 (Create from repository)`** 完整体验了从仓库定位到应用生成的全流程。以下我们将对照您实测截取的 6 张真机画面，彻底拆解这一过程，并解答最关键的架构疑问：**“为什么两个不同下拉选项创建出来的编辑器和预览界面如此相似？”**
-
-###### (1) 完整实操流程回溯与界面解析
-
-1. **步骤一：触发 Git 仓库文件绑定向导**：
-   在「Streamlitアプリを作成」弹窗中，可以看到输入框 **「リポジトリ内のファイルの場所 (Location of files in repository)」**，点击右侧的「メインファイルを選択」：
-   
-   ![点击「リポジトリ内のファイルの場所」中的メインファイルを選択](../images/10_step_03_gui_repo_modal_file_select.png)
-
-2. **步骤二：探查 Snowflake 数仓中的 Git 仓库实体**：
-   系统弹出子对话框 **「リポジトリのStreamlitを選択 (プレビュー)」**，提示 *“Gitリポジトリを含んでいるデータベースを選択するか新規Gitリポジトリに接続してください”*（请选择包含 Git 仓库的数据库或连接新的 Git 仓库）。在下拉列表中列出了账户内全部可访问的数据库（如 `AIRBNB`、`DEV_DEMO_DB`、`SNOWFLAKE` 等）：
-   
-   ![子弹窗提示选择包含 Git 仓库的数据库](../images/10_step_03_gui_repo_select_database.png)
-   
-   > 💡 **技术细节**：Snowflake 原生支持将 GitHub / GitLab 作为数据表同级的 Database 对象（通过 `CREATE GIT REPOSITORY` 命令）。由于当前各个数据库中尚未创建远程 Git 绑定对象，此处若未选取任何 Git 仓库文件，向导将允许跳过或退回主创建面板。
-
-3. **步骤三：精确指定应用的物理落盘位置 (アプリの場所)**：
-   在主弹窗的 **「アプリの場所 (App location)」** 区域，需要明确该应用注册在 Horizon Catalog 目录树中的物理 Database 与 Schema：
-   
-   ![主弹窗配置アプリの場所（选择目标数据库与模式）](../images/10_step_03_gui_repo_modal_app_location.png)
-   
-   点击「データベースを選択」下拉框，系统列出当前可用的业务数据库（如 `AIRBNB` 与 `DEV_DEMO_DB`）。实操中选择了 **`DEV_DEMO_DB`** 及其模式（如 `API_INTEGRATION`）：
-   
-   ![下拉菜单选择可用数据库 DEV_DEMO_DB](../images/10_step_03_gui_repo_app_location_db_list.png)
-
-4. **步骤四：运行时单选决定论（关键决策！）**：
-   在「Python環境」中，您将单选按钮保持或切换为 **「ウェアハウスで実行 (Run on Warehouse)」**，底层计算仓库选择 `COMPUTE_WH`，应用标题设定为 `FANXIAO 2026-11-11 8:37pm`，随后点击右下角 **`作成 (Create)`** 按钮！
-
-5. **步骤五：代码编辑器与预览界面成功加载**：
-   创建成功后，系统直接打开了熟悉的编辑器界面，左侧展示极简的两件套（`environment.yml` + `streamlit_app.py`），右侧预览区稳定运行着 Streamlit **v1.52.2** 示例看板：
-   
-   ![リポジトリから作成完成后生成的编辑器界面（v1.52.2 + environment.yml）](../images/10_step_03_gui_repo_created_editor_result.jpg)
-
-6. **步骤六：Streamlit 资产总表清晰对账**：
-   返回 Streamlit 应用管理列表，两款实操应用双双成功落盘并同屏展示：
-   
-   ![Streamlit 应用列表清晰显示两个应用及其物理位置](../images/10_step_03_gui_app_list_dual_created.png)
-   
-   - **应用 ①（8:25pm 创建）**：`FANXIAO 2026-11-11 8:25pm`，所属位置清晰显示为 **`AIRBNB.DEV`**；
-   - **应用 ②（8:37pm 创建）**：`FANXIAO 2026-11-11 8:37pm`，所属位置清晰显示为 **`DEV_DEMO_DB.API_INTEGRATION`**。
-
----
-
-###### (2) 深度解惑：为什么两个下拉菜单最终创建出的结果如此相似？
-
-很多工程师在实测到这一步时都会产生极大的疑惑：**“既然点击的是不同的下拉菜单（一个是经典数仓，一个是仓库集成），为什么最终打开的编辑器、文件结构（`environment.yml`）和 Streamlit 版本（v1.52.2）看起来几乎一模一样？”**
-
-这背后的根本原因在于：**运行时环境（Python Runtime Engine）是决定应用物理形态和技术栈的唯一核心要素！**
-
-| 核心影响因子 | 路径 ②：`ウェアハウスで作成 (レガシー)` | 路径 ③：`リポジトリから作成`（实操选型） | 路径 ③（若选型为「コンテナで実行」） |
-| :--- | :--- | :--- | :--- |
-| **选择的 Python 环境** | **数仓运行时 (Warehouse)**<br/>*(由选项自身唯一定义)* | **数仓运行时 (Warehouse)**<br/>*(在右侧卡片中主动选定)* | **容器运行时 (Container)**<br/>*(若勾选左侧 SPCS 卡片)* |
-| **底层执行底座** | 虚拟计算仓库虚拟机 (VM) | 虚拟计算仓库虚拟机 (VM) | SPCS Docker 容器集群 (Pod) |
-| **Streamlit 引擎版本** | **v1.52.2 (长期稳定版)** | **v1.52.2 (长期稳定版)** | **v1.66+ (最新前沿版)** |
-| **依赖管理文件** | **`environment.yml` (Conda)** | **`environment.yml` (Conda)** | **`pyproject.toml` (uv/pip)** |
-| **文件树结构** | 极简 2 件套 (`app.py` + `env.yml`) | 极简 2 件套 (`app.py` + `env.yml`) | 现代 4 件套 (含 `snowflake.yml` 等) |
-| **侧边栏能力** | 文件树 + **数仓表结构探查器** | 文件树 + **数仓表结构探查器** | 纯项目工程文件树 |
-| **两者的唯一真实差异** | **源码存储介质**：<br/>代码存放在数仓内部 Stage 中，物理落盘于 `AIRBNB.DEV`。 | **源码存储介质**：<br/>设计为直接读取远端 Git 分支；未绑定有效 Git 时，代码落盘于 `DEV_DEMO_DB.API_INTEGRATION`。 | **全维度颠覆**：<br/>从依赖包、Streamlit 版本到常驻进程机制全方位不同。 |
-
-> 📌 **核心结论一句话总结**：
-> 两个下拉菜单并非两套不相干的系统，而是**同一技术栈的不同工程接入点**。因为您在「リポジトリから作成」中选用了 **「ウェアハウスで実行」**，Snowflake 就会将其分配给同一种数仓计算引擎（Warehouse Runtime v1.52.2）。这就是为什么两者最终在编辑器界面、依赖文件和渲染效果上完全趋同的底层秘密！
-
----
-
-#### Step 4.B2: 默认工作区全景、顶部「展開」部署按钮、左侧工程目录树解密与官方模板源码精讲
-
-当创建应用完成后（直接点击 `+ Streamlit アプリ` 主按钮进入现代工作区），系统会直接打开三栏式沉浸式在线 IDE：
-- **左侧**：项目文件树（Project File Tree，包含 `snowflake.yml`、`pyproject.toml` 等现代工程骨架）；
-- **中间**：Monaco 内核在线代码编辑器（支持语法高亮、自动补全与实时报错提示）；
-- **右侧**：当前应用即时渲染的交互式 Web 页面（拖动滑块即可实时查看图表联动）；
-- **顶部操作栏（四大核心按钮，特别关注「展開」）**：
-  - **`[ 実行 ]` (Run)**：重新执行当前 Python 代码并热更新右侧预览；
-  - **`[ ⚙️ 設定 ]` (Settings)**：调整应用元数据、计算仓库与运行时配置；
-  - **`[ 📤 共有 ]` (Share)**：配置应用权限，向特定角色开放协作；
-  - **`[ 🚀 展開 ]` (Deploy · 现代部署核心！)**：**完成开发后的正式投产发布按钮**！开发者在工作区沙箱中调试无误后，无需任何繁琐命令行，直接点击 **「展開」**，选择目标 Database 与 Schema，即可将工作区项目一键打包发布为企业级生产 Streamlit 对象！
-
-> **Snowsight Streamlit 在线工作区实操实测全景截图**：
->
-> 如下真机截图所示，顶部红框区域直观呈现了「実行」、「設定」、「共有」以及核心的「展開」按钮，左侧清晰展示了现代 Streamlit in Snowflake 工程的标准 4 件套文件树，中间为模板 Python 源码，右侧已成功渲染出包含滑块交互与柱状图的官方示例应用：
->
-> ![Snowsight Streamlit 在线工作区全景（左侧项目树、中间代码编辑器、右侧即时交互渲染）](../images/10_step_03_gui_quick_create_editor.png)
-
-##### 1. 左侧项目树形结构各文件用途全景解密
-
-很多初学者看到左侧的一堆配置文件往往一头雾水，以下是现代 Snowflake Streamlit 工程标准 4 件套的核心技术作用：
-
-| 文件路径 / 相对位置 | 格式规范与技术标准 | 核心技术用途与在 Snowflake 架构中的角色 |
-| :--- | :--- | :--- |
-| **`streamlit_app.py`** | Python 3.11 核心脚本 | **主应用入口源码 (Main Entrypoint)**：包含所有的 Streamlit 前端组件定义（`st.title`、`st.slider`、`st.bar_chart`）与底层 Snowflake 数据交互逻辑。每当用户发生界面交互，Streamlit 执行引擎会自顶向下重新执行该脚本。 |
-| **`snowflake.yml`** | YAML (Snowflake CLI v2 规范) | **现代应用工程定义文件 (Project Definition)**：声明应用元数据（`title: "無題"`）、主入口（`main_file: streamlit_app.py`）、默认计算仓库（`query_warehouse: "COMPUTE_WH"`）、计算池（`compute_pool: "SYSTEM_COMPUTE_POOL_CPU"`）以及打包发布时的白名单文件列表（`artifacts`）。支持通过命令行 `snow streamlit deploy` 实现一键自动化部署。 |
-| **`pyproject.toml`** | TOML (PEP 517/518/621 规范) | **Python 依赖包与运行时版本管理**：替代旧版脆弱的 `environment.yml`。明确声明 Python 最低版本（`requires-python = "~=3.11.0"`）和核心依赖（`dependencies = ["streamlit[snowflake]"]`），并深度集成了新一代超高速包管理器 `uv`（`[tool.uv]`）的依赖锁定，杜绝版本冲突。 |
-| **`.streamlit/config.toml`** | TOML (Streamlit 官方配置) | **前端主题样式与休眠超时控制**：定义应用外观主题（如自定义主色调、背景色），以及最重要的 **`[snowflake.sleep]` 专属休眠时延配置**（如配置 `streamlitSleepTimeoutMinutes = 15`，实现应用级空闲挂起）。 |
-
-##### 2. 官方默认模板源码与执行逻辑逐行精讲 (`streamlit_app.py`)
-
-在右侧能够直接渲染出柱状图与明细表的底层秘密，正是这段精炼的官方默认模板代码。我们已为工程中的标准模板脚本附上了全量逐行专业注释：
-
-```python
-# ==============================================================================
-# 文件名称: streamlit_app.py (官方开箱即用默认模板)
-# 核心用途: 演示 Streamlit in Snowflake (SiS) 的原生连接、交互滑块与图表渲染
-# ==============================================================================
-
-# 1. 导入核心 Python 库
-import streamlit as st  # 导入 Streamlit 核心前端交互与图表渲染库
-import os                # 导入操作系统库，用于读取环境变量 (如连接超时 TTL)
-
-# 2. 页面标题与文本渲染 (支持 Emoji 表情与版本动态占位符)
-# :balloon: 会被 Streamlit 解析为彩色气球图标；st.__version__ 会动态输出当前运行时的 Streamlit 真实版本号 (如 1.66.1)
-st.title(f"Example Streamlit App :balloon: {st.__version__}")
-
-# 使用 st.write 输出引导说明文档 (支持原生 Markdown 粗体与超链接语法)
-st.write(
-  """Replace this example with your own code!
-  **And if you're new to Streamlit,** check
-  out our easy-to-follow guides at
-  [docs.streamlit.io](https://docs.streamlit.io).
-  """
-)
-
-# 使用 st.markdown 展示官方权威学习文档导航列表
-st.markdown("""
-- :page_with_curl: [Streamlit open source documentation](https://docs.streamlit.io)
-- :snowflake: [Streamlit in Snowflake documentation](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit)
-- :books: [Demo repo with templates](https://github.com/Snowflake-Labs/snowflake-demo-streamlit)
-- :memo: [Streamlit in Snowflake release notes](https://docs.snowflake.com/en/release-notes/streamlit-in-snowflake)
-""")
-
-# 3. 建立与 Snowflake 数据仓库的原生安全连接 (现代最佳实践)
-# 【核心机理】：
-#   - 新版 Streamlit 推荐使用 st.connection("snowflake") 代替老旧的 get_active_session()
-#   - ttl 参数：连接生命周期缓存时延，优先从环境变量 SNOWFLAKE_CONNECTION_TTL 读取，防止高并发下频繁握手
-#   - conn.session()：返回底层的 Snowpark Session 对象，用于执行 SQL 或构建分布式 DataFrame
-conn = st.connection("snowflake", ttl=os.getenv("SNOWFLAKE_CONNECTION_TTL"))
-session = conn.session()
-
-# 4. 创建交互式滑块组件 (获取用户动态输入)
-# 【核心机理】：
-#   - 滑块允许用户在 0 到 90 之间拖动选择数值，默认初始值为 60
-#   - 每次用户松开鼠标拖动滑块，Streamlit 会自顶向下重新执行整个 Python 脚本，并把新值赋给 hifives_val
-hifives_val = st.slider(
-  "Number of high-fives in Q3",  # 滑块标题：第 3 季度击掌次数
-  min_value=0,                   # 允许选择的最小值
-  max_value=90,                  # 允许选择的最大值
-  value=60,                      # 页面加载时的默认初始值
-  help="Use this to enter the number of high-fives you gave in Q3",  # 鼠标悬停时的提示气泡
-)
-
-# 5. 构建 Snowpark 分布式数据集 (动态绑定用户交互输入)
-# 【核心机理】：
-#   - session.create_dataframe 在 Snowflake 内部内存中生成数据集
-#   - 第 1 季度 (Q1: 50, 25)、第 2 季度 (Q2: 20, 35) 为固定样例值
-#   - 第 3 季度 (Q3) 的 HIGH_FIVES 指标直接绑定滑块当前值 [hifives_val, 30, "Q3"]，实现所动即所得
-#   - schema 参数定义数据集的列名规范
-created_dataframe = session.create_dataframe(
-  [[50, 25, "Q1"], [20, 35, "Q2"], [hifives_val, 30, "Q3"]],
-  schema=["HIGH_FIVES", "FIST_BUMPS", "QUARTER"],
-)
-
-# 6. 执行计算并转化为 Pandas DataFrame
-# 【核心机理】：
-#   - created_dataframe 是 Snowpark 惰性计算对象，调用 to_pandas() 时真正触发仓内计算，
-#   - 并将查询结果以紧凑格式传输到当前 Streamlit Python 进程内存中，供前端绘制图表
-queried_data = created_dataframe.to_pandas()
-
-# 7. 渲染时序柱状图 (Bar Chart)
-# 【核心机理】：
-#   - st.bar_chart 原生基于 Altair 矢量引擎渲染，自适应明暗主题
-#   - x="QUARTER" 指定 X 轴维度为季度列，y="HIGH_FIVES" 指定 Y 轴度量为击掌次数
-st.subheader("Number of high-fives")
-st.bar_chart(data=queried_data, x="QUARTER", y="HIGH_FIVES")
-
-# 8. 渲染底层明细交互式数据表 (Underlying Data Table)
-# 【核心机理】：
-#   - st.dataframe 将 Pandas 表格转换为具备列排序、文本搜索和全屏放大的交互式表格
-#   - use_container_width=True 开启容器宽度 100% 自适应，在大屏或不同分辨率下自动占满宽度
-st.subheader("Underlying data")
-st.dataframe(queried_data, use_container_width=True)
-```
-
----
-
-#### Step 4.B3: 替换为仓内数据表动态探查器源码 (`streamlit_schema_inspector.py`)
-
-在 Snowsight 在线编辑器中，将默认模板代码替换为以下经过防刷强化的动态探查器完整源码：
-
-```python
-# ==============================================================================
-# 应用名称: Snowflake 仓内数据表动态探查器 (Schema Table Inspector)
-# 核心特性:
-#   1. 动态扫描数据库与 Schema，自动枚举所有数据表
-#   2. 交互式点选表名，即时触发元数据 KPI 统计与样本数据预览
-#   3. 全量启用 @st.cache_data(ttl=600)，彻底杜绝重复刷新消耗数仓 Credit
-#   4. 严格 LIMIT 50 限流保护，防止误扫千万级大表
-# ==============================================================================
-import streamlit as st
-import pandas as pd
-from snowflake.snowpark.context import get_active_session
-
-# 1. 宽屏沉浸式页面配置
-st.set_page_config(
-    page_title="Snowflake 仓内数据表动态探查器",
-    page_icon="🔍",
-    layout="wide"
-)
-
-st.title("🔍 Snowflake 仓内数据表动态探查器 (Schema Table Inspector)")
-st.caption("基于 Streamlit in Snowflake 原生运行时 · 零密码免密鉴权 · 10 分钟内存缓存防刷保护")
-
-# 2. 获取仓内活动会话 (零密码安全鉴权)
-session = get_active_session()
-
-# 3. 缓存函数：拉取可用数据库列表 (防刷保护)
-@st.cache_data(ttl=600)
-def get_databases():
-    df = session.sql("SHOW DATABASES").to_pandas()
-    # 过滤掉 Snowflake 内部只读系统库
-    dbs = [row['name'] for _, row in df.iterrows() if not row['name'].startswith('SNOWFLAKE')]
-    return sorted(dbs)
-
-# 4. 缓存函数：拉取指定数据库下的 Schema 列表
-@st.cache_data(ttl=600)
-def get_schemas(db_name):
-    df = session.sql(f'SHOW SCHEMAS IN DATABASE "{db_name}"').to_pandas()
-    schemas = [row['name'] for _, row in df.iterrows() if row['name'] != 'INFORMATION_SCHEMA']
-    return sorted(schemas)
-
-# 5. 缓存函数：动态扫描 Schema 下的所有数据表元数据
-@st.cache_data(ttl=600)
-def scan_tables_in_schema(db_name, schema_name):
-    query = f'SHOW TABLES IN SCHEMA "{db_name}"."{schema_name}"'
-    df = session.sql(query).to_pandas()
-    if df.empty:
-        return pd.DataFrame()
-    cols_to_keep = ['name', 'rows', 'bytes', 'owner', 'created_on']
-    available_cols = [c for c in cols_to_keep if c in df.columns]
-    return df[available_cols]
-
-# 6. 缓存函数：安全预览指定表数据（严格限流 LIMIT 50，防止账单失控）
-@st.cache_data(ttl=600)
-def preview_table_data(db_name, schema_name, table_name, limit=50):
-    query = f'SELECT * FROM "{db_name}"."{schema_name}"."{table_name}" LIMIT {limit}'
-    return session.sql(query).to_pandas()
-
-# 7. 侧边栏：多级级联数仓导航
-st.sidebar.header("🧭 数仓位置导航")
-databases = get_databases()
-selected_db = st.sidebar.selectbox("1. 选择数据库 (Database)：", databases, index=0 if 'AIRBNB' not in databases else databases.index('AIRBNB'))
-
-schemas = get_schemas(selected_db)
-selected_schema = st.sidebar.selectbox("2. 选择模式 (Schema)：", schemas, index=0 if 'RAW' not in schemas else schemas.index('RAW'))
-
-st.sidebar.divider()
-
-# 8. 动态枚举目标 Schema 下的所有数据表
-tables_df = scan_tables_in_schema(selected_db, selected_schema)
-
-if tables_df.empty:
-    st.warning(f"在 {selected_db}.{selected_schema} 下未找到任何数据表。")
-else:
-    table_list = sorted(tables_df['name'].tolist())
-    st.sidebar.subheader("📋 扫描到的数据表清单")
-    selected_table = st.sidebar.selectbox("3. 选择目标表进行探查：", table_list)
-
-    # 提取当前选中表的元数据指标
-    current_meta = tables_df[tables_df['name'] == selected_table].iloc[0]
-    row_count = int(current_meta.get('rows', 0)) if pd.notnull(current_meta.get('rows')) else 0
-    size_bytes = int(current_meta.get('bytes', 0)) if pd.notnull(current_meta.get('bytes')) else 0
-    size_kb = size_bytes / 1024.0
-    owner = current_meta.get('owner', 'N/A')
-
-    # 主界面：元数据 KPI 卡片矩阵
-    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-    with kpi_col1:
-        st.metric(label="当前探查数据表", value=selected_table)
-    with kpi_col2:
-        st.metric(label="总数据行数", value=f"{row_count:,} 行")
-    with kpi_col3:
-        st.metric(label="存储占用空间", value=f"{size_kb:.2f} KB")
-    with kpi_col4:
-        st.metric(label="所有者角色 (Owner)", value=str(owner))
-
-    st.divider()
-
-    # 主界面：安全样本数据实时预览 (前 50 行)
-    st.subheader(f"📊 数据表 `{selected_table}` 实时样本数据 (前 50 行预览)")
-    with st.spinner("正在加载数据预览..."):
-        preview_df = preview_table_data(selected_db, selected_schema, selected_table, limit=50)
-
-    st.dataframe(preview_df, use_container_width=True, hide_index=True)
-
-    # 底部操作栏：数据导出与缓存控制
-    btn_col1, btn_col2, _ = st.columns([2, 2, 6])
-    with btn_col1:
-        csv_data = preview_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 下载前 50 行样本为 CSV",
-            data=csv_data,
-            file_name=f"{selected_table}_sample.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-    with btn_col2:
-        if st.button("🔄 清除缓存并重新扫描", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-
-# 底部成本安全警示横幅
-st.info("💡 **成本防刷安全保障**：所有元数据与数据查询均配置 `@st.cache_data(ttl=600)` 10 分钟强缓存，用户切换表或筛选时直接读取内存，不触发虚拟仓库唤醒计费；虚拟仓库设定 `AUTO_SUSPEND = 60` 秒无操作自动休眠。")
-```
-
----
-
-#### Step 4.B4: 运行实景展示与防刷安全验证
-
-点击右上角 **`Run`** 部署并运行该应用：
-- 级联选择数据库 `AIRBNB` 与模式 `RAW`；
-- 探查器自动枚举出 `RAW_LISTINGS`、`RAW_HOSTS`、`RAW_REVIEWS` 等全部数据表；
-- 点击选择 `RAW_LISTINGS`，主界面毫秒级呈现 4 大 KPI 仪表卡：
-  - **总数据行数**：`3,818 行`
-  - **存储占用空间**：`671.00 KB`
-  - **所有者角色**：`TRANSFORM`
-- 下方即时渲染出前 50 行真实房源样本明细（包含 `id`, `listing_url`, `name`, `price`, `minimum_nights` 等真实字段），并提供一键 CSV 导出；
-- **成本安全闭环**：得益于 `@st.cache_data(ttl=600)`，用户在不同表之间来回点选时，第二次点击同一张表直接从内存秒级出图，仓库在 60 秒无查询后自动进入挂起（SUSPENDED）状态，零浪费任何额度！
-
-> **Snowflake 仓内数据表动态探查器实景运行大图**：
->
-> 页面左侧为级联导航与动态扫描到的表清单，顶部清晰呈现元数据指标卡，中央动态渲染数据样本表格，全流程免密、限流、带缓存：
->
-> ![Snowflake 仓内数据表动态探查器运行实景](../images/10_step_05_schema_inspector_running.png)
-
----
-
-## 五、实战避坑与故障排查（重点）
-
-在实际交付 Streamlit in Snowflake 看板时，以下 3 个暗坑发生频率最高：
-
----
-
-### `[!WARNING]` 【避坑 1】：每次拖动下拉框整页重跑，数仓 Credit 暴增！
-
-- **真实惨案现场**：
-  某工程师搭建了一个销售分析看板，没有配置缓存。当业务部门同事反复点击时间范围、切换下拉筛选项时，每次点击都触发一次庞大的 `SELECT ...` 扫描数千万行底表。当天 Virtual Warehouse 一直保持最大运转，产生了数千美元的账单！
-- **根因深度分析**：
-  Streamlit 的核心设计哲学是**声明式响应（Reactive Execution）**。页面上的任何交互控件（`selectbox`、`slider`、`button`）一旦被触发，Python 引擎**会从第 1 行到最后 1 行重新完整执行一遍代码**！
-- **标准解决方案（防刷铁律）**：
-  **凡是涉及 `session.sql()` 的数据加载逻辑，必须抽取为独立函数，并使用 `@st.cache_data(ttl=...)` 修饰！**
-  > 📖 **官方缓存最佳实践**：[Streamlit 缓存执行架构与生命周期文档 (Optimize performance with st.cache_data)](https://docs.streamlit.io/develop/concepts/architecture/caching)
-
-  ```python
-  # 必须设置合理过期时间 (ttl=300 表示 5 分钟内复用内存缓存)
-  @st.cache_data(ttl=300)
-  def query_heavy_data():
-      return session.sql("SELECT ... FROM large_table").to_pandas()
-  ```
-  这样，无论用户在页面上点击切换筛选器多少次，数据均从应用内存秒级返回，Virtual Warehouse 甚至不会产生任何新的 SQL 扫描，实现**零延迟响应与零额外费用**！
-
----
-
-### `[!WARNING]` 【避坑 2】：权限穿透与行级安全 (RLS) 陷阱
-
-- **现象**：业务普通用户访问看板时报错 `Object does not exist or not authorized`，或者普通员工通过看板意外看到了全公司所有人员的薪资数据。
-- **根因分析**：
-  Streamlit in Snowflake 中的 `session = get_active_session()` 并不是以看板创建者（Owner）的身份运行，而是**严格以当前登录用户的会话上下文（Caller's Rights）执行**！
-  > 📖 **官方权限治理文档**：[Streamlit in Snowflake 访问控制与权限共享规范 (Managing privileges for Streamlit apps)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#privileges-required-for-streamlit-in-snowflake)
-
-- **标准解法**：
-  1. 确保将 Streamlit 应用对象授权给目标业务角色：
-     ```sql
-     GRANT USAGE ON STREAMLIT dev_demo_dashboard TO ROLE ANALYST_ROLE;
-     GRANT USAGE ON WAREHOUSE COMPUTE_WH TO ROLE ANALYST_ROLE;
-     GRANT SELECT ON TABLE DEV_DEMO_DB.API_INTEGRATION.test_sales_metrics TO ROLE ANALYST_ROLE;
-     ```
-  2. 如果底表配置了 Snowflake 动态数据脱敏（Masking Policy）或行级安全策略（Row Access Policy），`get_active_session()` 会原生继承策略，实现不同级别员工“看同一个看板、见不同范围数据”的终极安全治理。
-
----
-
-### `[!WARNING]` 【避坑 3】：缺少第三方 Python 扩展库
-
-- **现象**：在看板中 `import plotly` 或 `import xgboost` 时，页面报错 `ModuleNotFoundError`。
-- **根因分析**：SiS 默认仅预装了 Streamlit、Pandas、Altair 等基础常用库。
-  > 📖 **官方依赖配置规范**：[在 Streamlit in Snowflake 中使用 environment.yml 安装 Python 包 (Managing Python packages)](https://docs.snowflake.com/en/developer-guide/streamlit/environment-dependencies)
-
-- **标准解法**：
-  在 Stage 根目录下提供一个标准 Conda 环境文件 `environment.yml`：
-  ```yaml
-  name: sis_env
-  channels:
-    - snowflake
-  dependencies:
-    - plotly=5.18.0
-    - scikit-learn=1.3.0
-  ```
-  将其上传至 Stage 目录后，Snowflake 运行时会自动解析并挂载所需依赖包。
-
----
-
-### `[!CAUTION]` 【避坑 4】：Streamlit 页面保持连接阻断 Warehouse 休眠，导致额度被持续吞噬！
-
-- **真实惨案现场**：
-  很多开发者在 Snowsight 网页中建好 Streamlit 看板后，顺手将浏览器标签页留在后台下班离开。几天后再次登录时，发现账户提示免费额度用光（甚至在付费账号下产生意外巨额账单）。
-- **根因深度分析**：
-  Streamlit in Snowflake 依托浏览器与仓内 Python 容器之间的 **WebSocket 双向长连接（Live Heartbeat）** 进行页面状态保持。
-  只要浏览器标签页处于打开且活跃状态，前端就会不断向 Warehouse 发送探活心跳，可能阻碍虚拟仓库及时触发休眠。
-- **官方 15 分钟 WebSocket 超时与三层防刷防线**：
-  1. **平台级兜底机制：默认约 15 分钟 WebSocket 自动断开**：
-     Snowflake 官方在账户级别默认启用了 **15 分钟不活跃超时（WebSocket Timeout）**。如果连续 15 分钟没有鼠标晃动或操作，连接会自动被服务端切断，Streamlit 应用自动挂起（Suspend）。
-     > ⚠️ **注意**：如果用户仍在屏幕前晃动鼠标，该 15 分钟倒计时会被不断重置！
-  2. **应用级主动配置：`.streamlit/config.toml` 自定义休眠计时器**：
-     开发者可以在 Stage 的应用根目录下创建 `.streamlit/config.toml` 文件，显式约束最大空闲时延（建议设为 15 分钟，支持 5~240 分钟）：
-     ```toml
-     [snowflake.sleep]
-     streamlitSleepTimeoutMinutes = 15
-     ```
-  3. **测试完毕务必关闭标签页，并手动休眠仓库**：
-     完成前端页面调试后，随手关闭 Streamlit 浏览器标签页；在 SQL 中可随时手动挂起仓库：
-     ```sql
-     ALTER WAREHOUSE COMPUTE_WH SUSPEND;
-     ```
-  4. **配置账户级资源配额熔断器（Resource Monitor，企业防刷最强底线）**：
-     为 Streamlit 专用仓库绑定 Resource Monitor，一旦额度达到阈值自动挂起，杜绝账单失控：
-     ```sql
-     CREATE OR REPLACE RESOURCE MONITOR STREAMLIT_COST_GUARD
-         WITH CREDIT_QUOTA = 5
-         FREQUENCY = MONTHLY
-         START_TIMESTAMP = IMMEDIATELY
-         TRIGGERS 
-             ON 80 PERCENT DO NOTIFY
-             ON 100 PERCENT DO SUSPEND;
-
-     ALTER WAREHOUSE COMPUTE_WH SET RESOURCE_MONITOR = STREAMLIT_COST_GUARD;
-     ```
-
----
-
-## 本章小结
-
-1. **零密码免密集成**：通过 `get_active_session()` 摆脱传统 BI 工具对数据库账号密码的脆弱依赖，全面纳入 Snowflake RBAC 权限体系；
-2. **性能与成本守门员**：牢记 Streamlit 响应式重跑机制，将 `@st.cache_data` 作为每个查询函数的必备铠甲，兼顾极致流畅体验与数仓成本可控；
-3. **DevOps 自动化交付**：通过 `Stage + PUT + CREATE STREAMLIT` 实现看板代码即基础设施，无缝融入企业 CI/CD 发布体系。
-
+## 🧭 本章小结与后续导航
+
+通过本章的系统性重构，您已经彻底理清了 Streamlit in Snowflake 的现代工程脉络：
+1. **打破成见**：认清了 **容器运行时 (SPCS · 官方默认 · ~0.11 credits/h)** 与 **数仓运行时 (Warehouse · Legacy · 1.0 credit/h)** 的代际差异与真实性价比；
+2. **掌握正统**：熟练运用 **现代工作区沙箱（`snowflake.yml` + `pyproject.toml`）** 编写调试，并通过右上角 **`「展開 (Deploy)」`** 一键发布为企业级生产资产；
+3. **避坑防刷**：建立了基于 `@st.cache_data`、15 分钟 WebSocket 超时断开与 `streamlitSleepTimeoutMinutes` 的全套成本防御体系。
+
+接下来，我们将进入整个数仓迁移工程的终局之战：
+👉 **[第 11 章：Snowflake 费用成本精算与资源监控治理实战（Resource Monitor 与 Credit 消费精细化管控）](./11_snowflake_cost_management.md)**！
