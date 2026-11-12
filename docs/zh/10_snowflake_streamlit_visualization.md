@@ -374,9 +374,9 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 | 创建交互路径 | 触发行为与底层工作机理 | 适用场景与优缺点分析 | 官方权威参考文档 |
 | :--- | :--- | :--- | :--- |
-| **路径 ①：直接点击 `+ Streamlit アプリ` 主按钮** | **极速草稿模式**：跳过弹窗配置，系统以当前用户的默认上下文（Default DB / Schema / Warehouse）直接新建应用草稿，并**直接跳转到在线代码编辑页面**。 | **优点**：即点即写，适合临时原型验证。<br/>**缺点**：若当前默认数据库不是目标 Schema，容易把应用建错位置，需在编辑器顶部重新核对上下文。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight) |
-| **路径 ②：点击下拉项 `ウェアハウスで作成 (レガシー)`<br/>*(Create in Warehouse - Legacy)*<br/>**⭐ 本章推荐实操路径** | **经典数仓弹窗模式**：弹出完整的配置对话框（Modal Dialog），强制要求输入应用名称、指定目标数据库/Schema 并绑定虚拟计算仓库（`COMPUTE_WH`）。<br/><br/>**为什么标注为“レガシー (Legacy)”？**<br/>Snowflake 最新推出了基于容器服务（SPCS）的 Container Runtime，因此传统的纯虚拟数仓单机虚拟机运行模式被划为“经典/传统模式”。但在中小型 BI、日常看板和 SQL 探查场景下，该模式成本最低（X-Small 仅 1 Credit/h）且支持秒级休眠，**是目前最为稳健和推荐的生产方式**！ | **优点**：配置严格，位置绝不偏差，与本章教学 100% 契合。<br/>**缺点**：不支持依赖特殊 C 扩展的重型深度学习容器。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
-| **路径 ③：点击下拉项 `リポジトリから作成`<br/>*(Create from Repository)* | **Git 集成工程化模式**：弹出 Git 仓库绑定向导，直接连接到 Snowflake 中已建立的 Git Repository 对象（GitHub / GitLab / Azure DevOps），选取特定代码分支与主入口 `.py` 脚本文件。 | **优点**：代码即基础设施，无缝融入企业 Git CI/CD 自动发布流程，原生支持多文件（Multi-file）大型复杂应用。<br/>**缺点**：需要预先在 Snowflake 中配置 Git API Integration 凭据。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git Integration 官方文档](https://docs.snowflake.com/en/developer-guide/git/git-overview) |
+| **路径 ①：直接点击 `+ Streamlit アプリ` 主按钮<br/>*(现代工作区项目 · 官方标准开发工作流 · ⭐ 推荐)* | **现代工程化工作区模式 (Workspace Project)**：<br/>系统直接创建一套具备现代工程化骨架的项目环境（包含 `snowflake.yml`、`pyproject.toml`、`.streamlit/config.toml`），以当前上下文即刻打开全功能 IDE。<br/><br/>**核心工程机制：Dev $\to$ Test $\to$ Deploy (展開)**<br/>在工作区中完成开发与即时预览调试后，点击右上角醒目的 **`「展開」 (Deploy)`** 按钮，即可将工作区应用一键发布到指定的物理数据库与模式中，完成向企业级生产对象的蜕变！ | **优点**：标准的“开发 $\to$ 测试 $\to$ 部署”软件工程闭环；代码结构规范，自带 Snowflake CLI v2 规范文件；右上角一键「展開」发布生产。<br/>**缺点**：初次接触易误以为只是临时测试页面。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight)<br/>[Snowflake CLI Streamlit Deploy](https://docs.snowflake.com/en/developer-guide/snowflake-cli-v2/command-reference/streamlit-commands/deploy) |
+| **路径 ②：点击下拉项 `ウェアハウスで作成 (レガシー)`<br/>*(Create in Warehouse - Legacy)*<br/>*(⚠️ 官方明确标注为 Legacy 传统过渡模式)* | **传统单体数仓直写模式**：弹出配置对话框，强制在选定的 Database/Schema 下直接创建对象，并绑定虚拟计算仓库（`COMPUTE_WH`）。<br/><br/>**为什么官方标注为“レガシー (Legacy)”？**<br/>在 Snowflake 全面拥抱容器化（Container Runtime）与现代工作区项目体系后，这种“直接在生产 Schema 里裸写脚本、依赖 Anaconda 白名单、绑定 1 Credit/h 昂贵数仓”的旧方式已被官方归入 Legacy。仅用于向下兼容旧版单文件脚本。 | **优点**：配置简单，直接跳过工作区发布步骤。<br/>**缺点**：缺乏开发与发布的隔离缓冲；仅支持受限的 Anaconda 包；计算仓库即使 XS 也要 1.0 credit/h，成本偏高。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
+| **路径 ③：点击下拉项 `リポジトリから作成`<br/>*(Create from Repository)* | **Git 仓库集成模式**：弹出 Git 绑定向导，直接连接到 Snowflake 中已建立的 Git Repository 对象（GitHub / GitLab / Azure DevOps），选取特定代码分支与入口脚本。 | **优点**：代码完全由外部 Git 仓库纳管，无缝融入企业 CI/CD 自动化流水线，原生支持复杂多文件工程。<br/>**缺点**：需要预先在 Snowflake 中配置 Git API Integration 凭据与仓库映射。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git Integration 官方文档](https://docs.snowflake.com/en/developer-guide/git/git-overview) |
 
 3. **进入创建弹窗并完成核心参数配置（经典数仓模式实操全流程）**：
    - 点击下拉小箭头，选择 **`ウェアハウスで作成 (レガシー)`**：
@@ -400,29 +400,28 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ---
 
-##### 4. 深度技术解惑：为什么直接点击创建 vs 下拉「ウェアハウスで作成」感觉截然不同？
+##### 4. 深度技术解惑：直接点击创建 vs 下拉创建的本质差异 —— 工作区项目 (Dev) 与一键部署 (展開 / Deploy)
 
-很多工程师在实际操作时都会产生强烈的直觉疑惑：**“直接点击主按钮跳过去感觉轻飘飘的不像真的在创建，而通过下拉菜单弹窗配置后，才感觉实打实地在创建应用，这背后的底层机理究竟有什么不同？”**
+很多工程师在实际操作时都会产生疑问：**“直接点击主按钮跳过去是在个人工作区，而下拉菜单则是选择数据库和模式直接创建，这两者的架构设计究竟有什么深层区别？”**
 
-这绝非心理错觉，而是 Snowflake 内部两套截然不同的**对象模型与运行时架构**：
+这正是 Snowflake 推动的**现代软件工程生命周期（Dev $\to$ Test $\to$ Deploy）**与**传统单体直写模式**的代际演进：
 
-| 深度对比维度 | 方式 A：直接点击主按钮 `+ Streamlit アプリ`<br/>*(现代工作区草稿应用)* | 方式 B：下拉点击 `ウェアハウスで作成 (レガシー)`<br/>*(数仓第一公民对象 · **⭐ 本章重点**)* |
+| 深度对比维度 | 方式 A：直接点击主按钮 `+ Streamlit アプリ`<br/>*(现代工作区项目 · 官方标准开发工作流 · ⭐ 推荐)* | 方式 B：下拉点击 `ウェアハウスで作成 (レガシー)`<br/>*(传统数仓直写模式 · ⚠️ 官方已标记为 Legacy)* |
 | :--- | :--- | :--- |
-| **物理存储位置** | **「自分のワークスペース」 (My Workspace)**<br/>保存在用户的个人工作区私有暂存空间中，未绑定具体数据库。 | **`AIRBNB.DEV`（具体 Database.Schema）**<br/>真正落盘在数据库目录树中，作为物理资产永久保存。 |
-| **对象底层本质** | **临时草稿对象（Draft Workspace Asset）**：<br/>为了追求“零门槛即点即试”，隐式绕过了库、表、算力的选定，给了一个临时名字 `無題`。尚未成为持久化的 Schema 级对象。 | **数仓第一公民对象（First-Class Database Object）**：<br/>真正调用了 `CREATE STREAMLIT <db>.<schema>.<name>` DDL，具有严格的 RBAC 归属与审计跟踪。 |
-| **项目目录树构成** | **现代工程化 4 件套**：<br/>`streamlit_app.py`<br/>`snowflake.yml` (CLI v2)<br/>`pyproject.toml` (uv 包管理)<br/>`.streamlit/config.toml` | **经典数仓轻量 2 件套**：<br/>`streamlit_app.py`<br/>`environment.yml` (Conda 包管理)<br/>*（无冗余配置，纯净极简）* |
-| **侧边栏辅助功能** | 纯项目工程文件树，无法直观浏览数仓表格。 | **「ファイル (Files)」+「データベース (Databases)」双标签**：可在写 Python 代码时随时折叠展开数仓底表，直接查看字段名！ |
-| **Streamlit 运行时版本** | **最新激进版（如 v1.66.1）** | **稳健基线版（如 v1.52.2）** |
-| **仓内会话获取代码** | `conn = st.connection("snowflake")`<br/>`session = conn.session()` | `from snowflake.snowpark.context import get_active_session`<br/>`session = get_active_session()` *(经典免密标准)* |
-| **协作与可发现性** | 默认仅创建者自己在个人工作区可见，其他同事看不到。 | 列表清晰显示 `AIRBNB.DEV`，全企业具备权限的人均可在对应 Schema 下检索并调用。 |
+| **工程定位与生命周期** | **隔离开发工作区（Development Sandbox）**：<br/>在「自分のワークスペース」中提供安全的沙箱开发环境，代码完全与生产数仓解耦，开发与热重载调试绝不影响线上运行中的库表资产。 | **直接写死在生产库（Direct Schema Object）**：<br/>跳过开发隔离期，第一步就必须指定生产 DB 与 Schema，在生产目录树下直接裸写代码，缺乏“开发 $\to$ 发布”的缓冲防线。 |
+| **部署发布能力 (Deploy)** | **原生支持右上角一键「展開 (Deploy)」**：<br/>在工作区开发测试完毕后，直接点击编辑器右上角 **`「展開」 (Deploy)`** 按钮，即可将该项目正式编译、打包并发布到指定的企业级 Database 与 Schema 中，生成正式的生产级 Streamlit 实体！ | **无「展開」概念（原地保存）**：<br/>编辑器的每一次保存都是直接修改生产 Schema 下的脚本，无法在未完成时保留私有草稿，也不支持多环境发布切换。 |
+| **项目工程文件规范** | **现代工程化 4 件套（符合 Snowflake CLI v2 标准）**：<br/>- `streamlit_app.py`：主入口源码<br/>- `snowflake.yml`：CLI v2 工程定义与部署配置<br/>- `pyproject.toml`：现代 Python 依赖与版本规范<br/>- `.streamlit/config.toml`：主题与超时休眠控制 | **传统轻量 2 件套（旧版 Conda 规范）**：<br/>- `streamlit_app.py`<br/>- `environment.yml` (旧版 Anaconda 包声明)<br/>*（缺乏项目级 CLI 部署配置文件）* |
+| **Streamlit 运行时版本** | **最新前沿标准版（如 v1.66.1）** | **旧版长期维护基线（如 v1.52.2）** |
+| **会话与鉴权调用** | 原生推荐标准：`conn = st.connection("snowflake")` / `session = conn.session()` | 兼容旧版：`from snowflake.snowpark.context import get_active_session` |
+| **权限与安全隔离** | 开发期仅自己私有可见，不占用公共 Schema 命名空间；点击「展開」发布后才赋予企业级 RBAC 共享权限。 | 从创建第一秒起就暴露在目标 Schema 下，极易产生未完工半成品垃圾对象。 |
 
-> 💡 **架构师选型建议**：
-> - 如果只是**个人临时草稿、算法工程师快速验证一段数据绘图脚本**，直接点主按钮最快；
-> - 如果是**面向企业交付的数据仪表盘、生产级报表、团队共享的探查工具**，必须坚决选择 **`ウェアハウスで作成 (レガシー)`**，将应用锚定在企业级数仓的物理 Database 与 Schema 之下！
+> 💡 **架构师权威建议**：
+> - **现代正统开发规范**：坚决采用 **`+ Streamlit アプリ`** 主按钮！在个人工作区中利用现代 4 件套规范编写调试，确认无误后点击右上角 **`「展開 (Deploy)」`** 正式发布到目标 Database.Schema；
+> - **旧系统维护**：仅在维护过去基于 `environment.yml` 构建的老旧 Streamlit 单文件脚本时，才使用标注为 `レガシー (Legacy)` 的传统数仓直写方式。
 
 ---
 
-##### 5. 下拉菜单第二个选项深度剖析：`リポジトリから作成` (Git 集成) 与两类 Python 环境的本质区别
+##### 5. 下拉菜单深度剖析：为什么官方默认采用「コンテナで実行 (Container Runtime)」？—— 容器 vs 仓库的真实性价比与生态全景
 
 当在下拉菜单中点击第二个选项 **`リポジトリから作成 (Create from repository)`** 时，系统会弹出面向现代 DevOps 工程的专属创建弹窗：
 
@@ -430,26 +429,25 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ![「リポジトリから作成」弹窗中的两类 Python 环境选项（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
 
-在弹窗中央，最核心也是最引人注目的配置项，正是 **「Python環境 (Python Environment)」** 的两大单选卡片。这代表了 Snowflake 平台目前两种截然不同的执行底座：
+在弹窗中央，最核心也是最引人注目的配置项，正是 **「Python環境 (Python Environment)」** 的两大单选卡片。**请特别注意：Snowflake 官方在 UI 界面中已经默认给左侧的「コンテナで実行 (Run on Container)」打上了预选对勾（✔️ Default）！**
 
-###### 【核心技术对比】：コンテナで実行 (Container Runtime) vs ウェアハウスで実行 (Warehouse Runtime)
+###### 【核心技术对比】：コンテナで実行 (Container Runtime · 官方默认) vs ウェアハウスで実行 (Warehouse Runtime · 传统过渡)
 
-| 核心评估维度 | 左卡片：コンテナで実行 (Run on Container)<br/>*(新一代 SPCS 容器运行时)* | 右卡片：ウェアハウスで実行 (Run on Warehouse)<br/>*(经典 Virtual Warehouse 运行时 · **⭐ 教学推荐**)* |
+| 核心评估维度 | 左卡片：コンテナで実行 (Run on Container)<br/>*(新一代 SPCS 容器运行时 · **✔️ 官方默认**)* | 右卡片：ウェアハウスで実行 (Run on Warehouse)<br/>*(传统数仓单机虚拟机 · ⚠️ Legacy 模式)* |
 | :--- | :--- | :--- |
-| **底层算力基础设施** | **Snowpark Container Services (SPCS)** 容器算力池：<br/>应用代码运行在专用 Docker 容器中（可挂载 CPU 或高性能 **GPU** 算力）；内部 SQL 查询转发给虚拟仓库。 | **Virtual Warehouse (虚拟计算仓库)**：<br/>应用前端 Python 进程与内部 SQL 统一在数仓虚拟机中执行，无需额外容器。 |
-| **应用实例与多用户共享** | **单例常驻共享模式 (Shared App Service)**：<br/>所有访问看板的用户共享同一个后台容器服务进程，首屏渲染秒开，适合高并发大屏。 | **每用户独立会话模式 (Per-viewer Session)**：<br/>每个访问页面的用户都会在数仓内启动专属 Python 进程，彼此完全隔离。 |
-| **第三方 Python 依赖包生态** | **全生态自由引入 (PyPI & 私有源)**：<br/>官方标注 *“さらに多くのパッケージリソースが含まれます”*。可通过 `pyproject.toml` 或 `requirements.txt` 引入任意开源库，包括需要 C 扩展、Rust 或复杂编译的库（如 PyTorch、Transformers）。 | **受限 Anaconda 白名单模式**：<br/>官方标注 *“Snowflake Anacondaのパッケージをサポートします”*。只能使用 Snowflake 官方 Anaconda 通道内审核收录的受信任包（通过 `environment.yml` 声明）。 |
-| **休眠机制与生命周期** | **长效服务型**：<br/>用户无操作后应用保持存活 **3 天**，3 天后终止服务；底层算力池按照 Compute Pool 的挂起策略休眠。 | **短效敏捷型**：<br/>由前文介绍的 **约 15 分钟 WebSocket 超时** 和数仓 `AUTO_SUSPEND`（如 60 秒）双重守护，无操作后极速休眠。 |
-| **计费结算机制** | **双重计费**：<br/>消耗 Compute Pool 容器算力（如 `CPU_X64_XS` 约 0.11 credits/node/h）＋ 查询时的 Warehouse Credits。 | **单一计费（极致省钱）**：<br/>纯粹消耗 Virtual Warehouse Credits（`X-Small` 仅 1 credit/h），无操作即刻休眠，成本最透明可控！ |
-| **账号配额门槛** | **需要 SPCS 权限与算力配额**：<br/>在标准的 30 天免费试用账号中，容易受到容器配额（Quota）拦截。 | **零门槛（全账号原生通用）**：<br/>所有 Snowflake 账户标配，不受容器额度限制，开箱即用。 |
+| **官方定位与演进路线** | **Snowflake 官方钦定的下一代默认运行时**：<br/>UI 界面预选默认勾选，全平台战略重心。 | **向下兼容的过渡方案 (Legacy)**：<br/>官方在创建入口已打上 `レガシー` 标签，逐步退出主流。 |
+| **真实运行成本（性价比）** | **超高性价比（低至 ~0.11 credits/小时）**：<br/>基于 Snowpark Container Services (SPCS) 计算池，入门级节点（如 `CPU_X64_XS`）仅需 **约 0.11 credits / node / 小时**，相比数仓 **省钱近 90%**！对于轻量 Web 前端看板而言，极为经济！ | **成本偏高且固定（最低 1.0 credit/小时）**：<br/>哪怕最小规格的 `X-Small` 虚拟计算仓库，只要运行 1 小时就固定扣除 **1.0 credit**，长时间调试或空转成本显著高于容器。 |
+| **第三方 Python 依赖生态** | **全面拥抱开源（全 PyPI 自由生态）**：<br/>官方标注 *“さらに多くのパッケージリソースが含まれます”*。<br/>通过 `pyproject.toml` 或 `requirements.txt` 自由安装任意 pip 包，原生支持包含 C/Rust 扩展和复杂编译的原生库（如 PyTorch、Transformers、LangChain、DuckDB 等），彻底摆脱包缺失困扰。 | **受限 Anaconda 白名单模式**：<br/>官方标注 *“Snowflake Anacondaのパッケージをサポートします”*。<br/>只能在 Snowflake 预先审核打包的 Anaconda 频道内选包。一旦业务需要一个冷门或最新的 pip 库，将直接报错无法安装！ |
+| **多用户访问与并发架构** | **单例常驻共享模式 (Shared App Service)**：<br/>多名分析师并发访问看板时共享后台容器进程，首屏渲染秒开，适合企业级公共大屏。 | **每用户独立会话模式 (Per-viewer Session)**：<br/>每个访问用户均在数仓内启动专属 Python 进程，高并发下数仓内存压力倍增。 |
+| **算力与硬件扩展性** | 原生支持 CPU 弹性池及高性能 **GPU** 算力，可直接在看板后台挂载本地大语言模型与图像生成。 | 仅支持标准 CPU 虚拟机，无法使用 GPU。 |
 
 > 📖 **官方权威文档链接**：
 > - [About Streamlit in Snowflake runtimes (Container vs Warehouse)](https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit#streamlit-runtimes)
 > - [Create a Streamlit app from a repository (Git 仓库集成)](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)
 > - [Managing Python dependencies in Streamlit in Snowflake](https://docs.snowflake.com/en/developer-guide/streamlit/app-development/dependency-management)
 
-> 💡 **学习与演练阶段选型建议**：
-> 在本教程及后续的学习验证中，**强烈建议选择「ウェアハウスで実行 (Run on Warehouse)」**！这样既能完美使用 Snowflake 原生数仓算力跑通数据可视化全流程，又能避开 SPCS 容器池在试用账号下的配额限制与常驻扣费隐患。
+> 📌 **架构选型权威总结**：
+> 官方之所以将「コンテナで実行 (Container Runtime)」设为默认，正是因为它**更便宜（约 0.11 vs 1.0 credit/h）、包生态更强大（全 PyPI 开源生态）、支持 GPU 扩展**。在具备 SPCS 配额的环境中，应优先顺应官方路线选用容器运行时；仅当在没有配置 SPCS 计算池的受限传统环境中时，才使用右侧的 Warehouse 模式作为向下兼容的保底方案。
 
 ---
 
@@ -519,16 +517,21 @@ SHOW STREAMLITS LIKE 'DEV_DEMO_DASHBOARD' IN SCHEMA DEV_DEMO_DB.API_INTEGRATION;
 
 ---
 
-#### Step 4.B2: 默认工作区全景、左侧工程目录树解密与官方模板源码逐行精讲
+#### Step 4.B2: 默认工作区全景、顶部「展開」部署按钮、左侧工程目录树解密与官方模板源码精讲
 
-当创建应用完成后（或直接点击 `+ Streamlit アプリ` 主按钮极速跳入后），系统会直接打开三栏式沉浸式在线工作区：
-- **左侧**：项目文件树（Project File Tree）；
+当创建应用完成后（直接点击 `+ Streamlit アプリ` 主按钮进入现代工作区），系统会直接打开三栏式沉浸式在线 IDE：
+- **左侧**：项目文件树（Project File Tree，包含 `snowflake.yml`、`pyproject.toml` 等现代工程骨架）；
 - **中间**：Monaco 内核在线代码编辑器（支持语法高亮、自动补全与实时报错提示）；
-- **右侧**：当前应用即时渲染的交互式 Web 页面（拖动滑块即可实时查看图表联动）。
+- **右侧**：当前应用即时渲染的交互式 Web 页面（拖动滑块即可实时查看图表联动）；
+- **顶部操作栏（四大核心按钮，特别关注「展開」）**：
+  - **`[ 実行 ]` (Run)**：重新执行当前 Python 代码并热更新右侧预览；
+  - **`[ ⚙️ 設定 ]` (Settings)**：调整应用元数据、计算仓库与运行时配置；
+  - **`[ 📤 共有 ]` (Share)**：配置应用权限，向特定角色开放协作；
+  - **`[ 🚀 展開 ]` (Deploy · 现代部署核心！)**：**完成开发后的正式投产发布按钮**！开发者在工作区沙箱中调试无误后，无需任何繁琐命令行，直接点击 **「展開」**，选择目标 Database 与 Schema，即可将工作区项目一键打包发布为企业级生产 Streamlit 对象！
 
 > **Snowsight Streamlit 在线工作区实操实测全景截图**：
 >
-> 如下真机截图所示，左侧清晰展示了现代 Streamlit in Snowflake 工程的标准文件树，中间为模板 Python 源码，右侧已成功渲染出包含滑块交互与柱状图的官方示例应用：
+> 如下真机截图所示，顶部红框区域直观呈现了「実行」、「設定」、「共有」以及核心的「展開」按钮，左侧清晰展示了现代 Streamlit in Snowflake 工程的标准 4 件套文件树，中间为模板 Python 源码，右侧已成功渲染出包含滑块交互与柱状图的官方示例应用：
 >
 > ![Snowsight Streamlit 在线工作区全景（左侧项目树、中间代码编辑器、右侧即时交互渲染）](../images/10_step_03_gui_quick_create_editor.png)
 

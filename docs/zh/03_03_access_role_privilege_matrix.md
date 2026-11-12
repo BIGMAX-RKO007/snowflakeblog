@@ -339,3 +339,4 @@ SHOW GRANTS TO ROLE FUNC_ROLE_73G_APBAT1;
 
 下一步，我们将正式跨入数据流动的主干道：
 👉 **[第 04 章：数据迁移实务（抽取、内部Stage转运与高性能 COPY INTO 数据导入）](./04_data_migration.md)**！
+

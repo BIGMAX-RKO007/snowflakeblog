@@ -370,9 +370,9 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 
 | 作成アプローチ | トリガーされる挙動と内部メカニズム | 適用シナリオ・メリット・デメリット | 公式ドキュメントリファレンス |
 | :--- | :--- | :--- | :--- |
-| **パターン ①：`+ Streamlit アプリ` メインボタンを直接クリック** | **クイックドラフトモード**：設定ポップアップをスキップし、現在ログイン中のユーザーのデフォルトコンテキスト（Default DB / Schema / Warehouse）を使用して**即座にオンラインコードエディタ画面へ遷移**します。 | **メリット**：1クリックで最速でコード執筆を開始可能。<br/>**デメリット**：意図しないデフォルト DB/スキーマに作成されるリスクがあり、後からエディタ上部でコンテキストの確認・修正が必要。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight) |
-| **パターン ②：ドロップダウン `ウェアハウスで作成 (レガシー)` を選択<br/>*(Create in Warehouse - Legacy)*<br/>**⭐ 本チュートリアルの推奨パス** | **クラシック設定ダイアログモード**：設定ポップアップが必ず表示され、アプリ名、配置先データベース・スキーマ、およびクエリウェアハウス（`COMPUTE_WH`）を明示的に指定します。<br/><br/>**なぜ「レガシー (Legacy)」と表記されているのか？**<br/>Snowflake では現在、Snowpark Container Services (SPCS) をベースとした「コンテナランタイム (Container Runtime)」が新たに導入されたため、従来の仮想ウェアハウス（Virtual Warehouse）単体で動かす実行モデルが「レガシー（従来方式）」と位置づけられています。しかし、一般的な BI 画面や SQL 探査においては、コストが最小（X-Small で 1 クレジット/時）で自動サスペンドが確実な**本方式が最も堅牢かつ経済的であり、本章で推奨する標準パスです**！ | **メリット**：保存先とコンピュートを確実に指定でき、誤配置を完全に防止。<br/>**デメリット**：特殊な C 拡張や重厚な深層学習コンテナには非対応。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
-| **パターン ③：ドロップダウン `リポジトリから作成` を選択<br/>*(Create from Repository)* | **Git 連携エンタープライズ CI/CD モード**：Git リポジトリ設定ウィザードが開き、Snowflake 内に登録済みの Git Repository オブジェクト（GitHub / GitLab / Azure DevOps）からブランチとエントリーポイントとなる `.py` を直接指定します。 | **メリット**：コードが Git で一元管理され、自動デプロイが容易。複数ファイル（Multi-file）構成の本格的アプリを標準サポート。<br/>**デメリット**：事前に Snowflake 側で Git 連携シークレットとリポジトリ定義が必要。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git 連携の概要](https://docs.snowflake.com/ja/developer-guide/git/git-overview) |
+| **パターン ①：`+ Streamlit アプリ` メインボタンを直接クリック<br/>*(モダンワークスペース・公式標準開発フロー · ⭐ 推奨)* | **モダンワークスペースプロジェクトモード (Workspace Project)**：<br/>最新のプロジェクト骨格（`snowflake.yml`、`pyproject.toml`、`.streamlit/config.toml`）を備えた安全なサンドボックス環境が即座に生成され、フル機能 IDE が開きます。<br/><br/>**中核となる開発ライフサイクル：Dev $\to$ Test $\to$ Deploy (展開)**<br/>個人ワークスペース内で安全にコーディングと即時プレビュー検証を行い、完成後にエディタ右上の **`「展開 (Deploy)」`** ボタンを 1 クリックするだけで、任意のデータベース・スキーマへ正式な本番オブジェクトとしてデプロイ可能です！ | **メリット**：近代的な「開発 $\to$ 検証 $\to$ 展開」のソフトウェア工学ライフサイクルを完全準拠。Snowflake CLI v2 互換の構成ファイル群を完備。右上の「展開」で即座に本番公開。<br/>**デメリット**：初見では単なる一時的メモ帳と誤解しやすい。 | [Create your Streamlit app in Snowsight](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-snowsight)<br/>[Snowflake CLI Streamlit Deploy](https://docs.snowflake.com/ja/developer-guide/snowflake-cli-v2/command-reference/streamlit-commands/deploy) |
+| **パターン ②：ドロップダウン `ウェアハウスで作成 (レガシー)` を選択<br/>*(Create in Warehouse - Legacy)*<br/>*(⚠️ 公式に「レガシー」と明記された旧来方式)* | **従来型 DWH 直接配置モード**：設定ポップアップが開き、最初から本番 Database / Schema 配下に直接オブジェクトを作成し、仮想ウェアハウス（`COMPUTE_WH`）をバインドします。<br/><br/>**なぜ公式に「レガシー (Legacy)」と表記されているのか？**<br/>コンテナランタイムやモダンワークスペースが標準となった現在、本番スキーマに直接スクリプトを書き込み、Anaconda ホワイトリストに依存し、最低 1.0 credit/h を消費する旧来モデルは Legacy に分類されています。過去資産との下位互換のために維持されています。 | **メリット**：設定が単一ステップで完了する。<br/>**デメリット**：開発環境と本番環境の分離がなく危険。Anaconda ホワイトリスト以外の外部 pip パッケージを導入不可。ウェアハウス費用（1.0 credit/h〜）が常時発生。 | [Create a Streamlit app with Warehouse runtime](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-warehouse)<br/>[About Streamlit in Snowflake runtimes](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes) |
+| **パターン ③：ドロップダウン `リポジトリから作成` を選択<br/>*(Create from Repository)* | **Git 連携エンタープライズ CI/CD モード**：Git リポジトリ設定ウィザードが開き、Snowflake 内に登録済みの Git Repository オブジェクト（GitHub / GitLab / Azure DevOps）からブランチとエントリーポイントとなる `.py` を直接指定します。 | **メリット**：外部 Git による一元管理、CI/CD 自動化連携。複数ファイル構成の本格的アプリを標準サポート。<br/>**デメリット**：事前に Snowflake 側で Git 連携シークレットとリポジトリ定義が必要。 | [Create a Streamlit app from a repository](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)<br/>[Snowflake Git 連携の概要](https://docs.snowflake.com/ja/developer-guide/git/git-overview) |
 
 3. **作成ポップアップでのパラメータ入力（クラシックウェアハウスモードの実機全手順）**：
    - ドロップダウン矢印をクリックし、**`ウェアハウスで作成 (レガシー)`** を選択します：
@@ -396,29 +396,28 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 
 ---
 
-##### 4. 技術的深層解明：なぜ直接クリックとドロップダウン作成で「作成の実感」が全く異なるのか？
+##### 4. 技術的深層解明：直接クリック作成 vs ドロップダウン作成の本質的差異 —— ワークスペースプロジェクト (Dev) とワンクリックデプロイ (展開 / Deploy)
 
-多くのエンジニアが実機で操作した際に直感的な疑問を抱きます：**「メインボタンを直接クリックしたときは仮設のような軽さを感じ、ドロップダウンから作成したときは『本当に正規のアプリを作った』という手応えを感じる。この裏側にあるアーキテクチャの違いは何なのか？」**
+多くのエンジニアが実機で操作した際に疑問を抱きます：**「メインボタンを直接クリックすると個人ワークスペースに入り、ドロップダウンメニューでは DB やスキーマを選択して直接作成する。この 2 つの設計思想にはどのような本質的違いがあるのか？」**
 
-これは単なる UI の違いではなく、Snowflake 内部における**オブジェクトモデルとライフサイクル管理の根本的な差異**に起因します：
+これは、Snowflake が推進する**近代的ソフトウェア工学ライフサイクル（Dev $\to$ Test $\to$ Deploy）**と**旧来のモノリシック直書き方式**の世代交代を如実に物語っています：
 
-| 比較評価軸 | パターン A：`+ Streamlit アプリ` 直接クリック<br/>*(モダンワークスペース・ドラフトアプリ)* | パターン B：`ウェアハウスで作成 (レガシー)`<br/>*(DWH ファーストクラス物理オブジェクト · **⭐ 本章推奨**)* |
+| 比較評価軸 | パターン A：`+ Streamlit アプリ` 直接クリック<br/>*(モダンワークスペースプロジェクト · 現代の標準開発フロー · ⭐ 推奨)* | パターン B：`ウェアハウスで作成 (レガシー)`<br/>*(従来の DWH スキーマ直書き方式 · ⚠️ 公式 Legacy 指定)* |
 | :--- | :--- | :--- |
-| **物理的な格納場所** | **「自分のワークスペース」 (My Workspace)**<br/>ユーザー個人のプライベートな一時領域に配置され、特定の DB に紐付いていません。 | **`AIRBNB.DEV`（具体的な Database.Schema）**<br/>データベースカタログツリー内に物理的なスキーマオブジェクトとして永続化されます。 |
-| **オブジェクトの正体** | **ドラフトアセット（Draft Workspace Asset）**：<br/>「手軽に即座に試す」体験を優先し、DB・スキーマ・ウェアハウスの明示選択をバイパス。名前も `無題` となり、正式なスキーマオブジェクトとしては未固定。 | **ファーストクラス DB オブジェクト（First-Class Database Object）**：<br/>内部で `CREATE STREAMLIT <db>.<schema>.<name>` DDL が正式発行され、厳格な RBAC 所有権と監査ログが付与されます。 |
-| **プロジェクトファイル構成** | **最新モダン 4 点セット**：<br/>`streamlit_app.py`<br/>`snowflake.yml` (CLI v2)<br/>`pyproject.toml` (uv パッケージ管理)<br/>`.streamlit/config.toml` | **クラシック軽量 2 点セット**：<br/>`streamlit_app.py`<br/>`environment.yml` (Conda パッケージ管理)<br/>*（余計なファイルがなくシンプル・堅牢）* |
-| **サイドバー支援機能** | プロジェクトファイルツリーのみ。DB テーブルの直感的な参照は不可。 | **「ファイル (Files)」＋「データベース (Databases)」デュアルタブ**：コードを書きながら DWH 内のテーブル一覧やカラム名を即座に展開・確認可能！ |
+| **開発ライフサイクルと位置づけ** | **開発サンドボックス環境（Development Sandbox）**：<br/>「自分のワークスペース」内で安全にコーディング・検証を行い、本番 DWH の既存テーブル資産に一切影響を与えずにホットリロード開発が可能。 | **本番スキーマ直書き（Direct Schema Object）**：<br/>開発検証と本番公開の境界がなく、最初から本番スキーマ配下にオブジェクトを物理配置して直接コードを編集する旧来型。 |
+| **デプロイ機能 (展開 / Deploy)** | **エディタ右上の「展開 (Deploy)」ボタンで本番公開**：<br/>ワークスペースで開発・テストが完了した後、画面右上の **`「展開 (Deploy)」`** ボタンをクリックするだけで、対象 Database / Schema へ一発で本番オブジェクトとして昇格・配備可能！ | **「展開」機能なし（現地直接保存）**：<br/>エディタでの保存がそのまま本番オブジェクトの更新となるため、作りかけのコードを私的に保持する機能がありません。 |
+| **プロジェクトファイル構成** | **最新モダン 4 点セット（Snowflake CLI v2 準拠）**：<br/>- `streamlit_app.py`：メインエントリーポイント<br/>- `snowflake.yml`：CLI v2 プロジェクト定義・自動デプロイ設定<br/>- `pyproject.toml`：現代的 Python 依存関係・バージョン定義<br/>- `.streamlit/config.toml`：テーマとタイムアウト制御 | **クラシック軽量 2 点セット（旧 Conda 形式）**：<br/>- `streamlit_app.py`<br/>- `environment.yml` (Anaconda パッケージ宣言)<br/>*（プロジェクト定義や CLI デプロイ設定を持たない）* |
 | **Streamlit ランタイム版数** | **最新アグレッシブ版（例: v1.66.1）** | **長期安定基線版（例: v1.52.2）** |
-| **セッション取得コード** | `conn = st.connection("snowflake")`<br/>`session = conn.session()` | `from snowflake.snowpark.context import get_active_session`<br/>`session = get_active_session()` *(実績豊富な標準コード)* |
-| **共有・ガバナンス性** | デフォルトでは作成者本人のワークスペースでのみ参照可能。 | 一覧で `AIRBNB.DEV` と明示され、権限を持つチームメンバー全員がカタログから発見・共同利用可能。 |
+| **セッション取得コード** | 公式推奨の近代的コード：`conn = st.connection("snowflake")` / `session = conn.session()` | レガシー互換：`from snowflake.snowpark.context import get_active_session` |
+| **権限と安全分離** | 開発中は作成者本人のみ参照可能で、共有スキーマを汚染しない。完成後に「展開」を実行して初めて社内 RBAC を付与。 | 作成直後から対象スキーマ内に公開され、未完成アプリがカタログ上に露見するリスクがある。 |
 
 > 💡 **アーキテクトによる選定指針**：
-> - **個人の一時的な実験、Python 描画のクイックな PoC** $\rightarrow$ メインボタンを直接クリック（最速）；
-> - **企業本番へ納品するダッシュボード、チーム共有の探査ツール、CI/CD 運用資産** $\rightarrow$ 必ず **`ウェアハウスで作成 (レガシー)`** を選択し、企業 DWH の Database / Schema 配下に物理配置する！
+> - **現代の正統派開発フロー**：**`+ Streamlit アプリ`** メインボタンを採用！ワークスペースの近代 4 点セットで安全に開発・検証し、完成したら右上の **`「展開 (Deploy)」`** で本番 DWH へ正式リリースする；
+> - **過去資産の保守**：過去に `environment.yml` で構築された古い単一ファイルスクリプトを改修する場合に限り、下位互換用の `ウェアハウスで作成 (レガシー)` を利用する。
 
 ---
 
-##### 5. ドロップダウン第2オプションの徹底解剖：`リポジトリから作成` (Git 連携) と 2 種類の Python 環境の根本的差異
+##### 5. ドロップダウン第2オプションの徹底解剖：なぜ公式は「コンテナで実行 (Container Runtime)」をデフォルトに定めたのか？ —— コンテナ vs ウェアハウスの真のコスト対効果とエコシステム
 
 ドロップダウンの 2 つ目の項目 **`リポジトリから作成 (Create from repository)`** をクリックすると、現代の DevOps CI/CD パイプラインに最適化された専用ダイアログが表示されます：
 
@@ -426,26 +425,25 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 
 ![「リポジトリから作成」ダイアログ内の2種類のPython環境選択（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
 
-ダイアログの中央には、最も重要かつ注目すべき選択肢である **「Python環境 (Python Environment)」** の 2 つのカードが配置されています。これは、Snowflake 内部における全く異なる 2 種類の実行基盤を表しています：
+ダイアログの中央には、最も重要かつ注目すべき選択肢である **「Python環境 (Python Environment)」** の 2 つのカードが配置されています。**ここで極めて重要な事実として、Snowflake 公式の UI 画面では左側の「コンテナで実行 (Run on Container)」に最初からデフォルトの青いチェックマーク（✔️ Default）が付与されています！**
 
-###### 【コア技術比較】：コンテナで実行 (Container Runtime) vs ウェアハウスで実行 (Warehouse Runtime)
+###### 【コア技術比較】：コンテナで実行 (Container Runtime · 公式デフォルト) vs ウェアハウスで実行 (Warehouse Runtime · 従来移行用)
 
-| 比較評価軸 | 左カード：コンテナで実行 (Run on Container)<br/>*(次世代 SPCS コンテナランタイム)* | 右カード：ウェアハウスで実行 (Run on Warehouse)<br/>*(実績豊富な仮想ウェアハウスランタイム · **⭐ 本章推奨**)* |
+| 比較評価軸 | 左カード：コンテナで実行 (Run on Container)<br/>*(次世代 SPCS コンテナランタイム · **✔️ 公式デフォルト**)* | 右カード：ウェアハウスで実行 (Run on Warehouse)<br/>*(従来型 DWH 単体仮想マシン · ⚠️ レガシーモード)* |
 | :--- | :--- | :--- |
-| **基盤インフラ** | **Snowpark Container Services (SPCS)** 算力プール：<br/>アプリコードは専用 Docker コンテナ内で実行（CPU または高性能 **GPU** を割り当て可能）。内部クエリは仮想ウェアハウスへ送信。 | **Virtual Warehouse (仮想計算ウェアハウス)**：<br/>アプリのフロントエンド Python プロセスと SQL クエリの双方がウェアハウス VM 上で一元的に実行されます。 |
-| **インスタンス共有モデル** | **単一サービス常駐共有モデル (Shared App Service)**：<br/>アプリを閲覧する全ユーザーが同一のコンテナサービスを共有。起動後の初回レンダリングが極めて高速。 | **閲覧者ごとの独立セッションモデル (Per-viewer Session)**：<br/>ユーザーが画面を開くたびにウェアハウス内に個別の Python 実行環境が立ち上がります。 |
-| **外部ライブラリの自由度** | **フルオープン自由導入 (PyPI / 外部インデックス)**：<br/>UI 説明: *“さらに多くのパッケージリソースが含まれます”*。<br/>`pyproject.toml` や `requirements.txt` を通じて、PyTorch、Transformers など C 拡張や特殊コンパイルが必要な任意の外部ライブラリを導入可能。 | **厳格な Anaconda ホワイトリスト制**：<br/>UI 説明: *“Snowflake Anacondaのパッケージをサポートします”*。<br/>Snowflake 審査済みの Anaconda チャネル内のパッケージのみ利用可能（`environment.yml` で宣言）。 |
-| **スリープ・ライフサイクル** | **長期常駐サービス型**：<br/>非アクティブ状態が **3 日間** 継続した後にサービス終了。基盤プールは Compute Pool の自動サスペンドに従います。 | **短期アジャイル型**：<br/>前述の **約 15 分の WebSocket タイムアウト** およびウェアハウスの `AUTO_SUSPEND`（例: 60 秒）により、利用停止後即座にスリープ。 |
-| **コスト課金構造** | **二重課金モデル**：<br/>Compute Pool のコンテナノード費用（秒単位）＋ SQL 発行時の仮想ウェアハウス Credits。 | **単一課金モデル（コスト最優先）**：<br/>純粋に Virtual Warehouse Credits のみ（`X-Small` で 1 クレジット/時）。無操作時は即休止し、最も透明・安全！ |
-| **アカウント権限とクォータ** | **SPCS 権限と専用クォータが必須**：<br/>30 日無料トライアルアカウントでは、コンテナプールの作成クォータ制限に抵触しやすい。 | **ゼロ制限（全アカウント標準対応）**：<br/>すべての Snowflake アカウントで標準提供されており、クォータ制限を受けずに即利用可能。 |
+| **公式の戦略的位置づけ** | **Snowflake が全社的に推進する次世代の公式デフォルト**：<br/>UI で事前選択されており、今後の機能拡張の主軸。 | **下位互換性のための移行用選択肢 (Legacy)**：<br/>作成入口に `レガシー` 表記が付与され、段階的に主流から外れる旧方式。 |
+| **実際のランニングコスト（費用対効果）** | **圧倒的な低コスト（約 0.11 credits/時から）**：<br/>Snowpark Container Services (SPCS) の計算プールを利用し、最小構成（`CPU_X64_XS`）では **約 0.11 credits / node / 時**。仮想ウェアハウス（1.0 credit/時）と比較して **約 90% のコスト削減** が可能！軽量な Web ダッシュボードにとって極めて経済的。 | **高止まりする固定コスト（最低 1.0 credit/時）**：<br/>最小スペックの `X-Small` 仮想ウェアハウスであっても、1 時間稼働するごとに固定で **1.0 credit** を消費するため、長時間の開発や待機におけるコストがコンテナより格段に高くなります。 |
+| **外部 Python パッケージエコシステム** | **フルオープン自由導入（全 PyPI エコシステム解放）**：<br/>UI 説明: *“さらに多くのパッケージリソースが含まれます”*。<br/>`pyproject.toml` や `requirements.txt` を通じて任意の pip パッケージを導入可能。C/Rust 拡張やコンパイルを要する機械学習・LLM ライブラリ（PyTorch、Transformers、LangChain、DuckDB など）もネイティブ動作。 | **厳格な Anaconda ホワイトリスト制**：<br/>UI 説明: *“Snowflake Anacondaのパッケージをサポートします”*。<br/>Snowflake 審査済みの Anaconda チャネル内のパッケージに限定（`environment.yml` で宣言）。チャネルに存在しない pip ライブラリはインポート不可でエラーとなります。 |
+| **インスタンス共有モデル** | **単一サービス常駐共有モデル (Shared App Service)**：<br/>複数ユーザーが同一のコンテナサービスを共有。初回起動後のレンダリングが即時応答し、社内共有大画面に最適。 | **閲覧者ごとの独立セッションモデル (Per-viewer Session)**：<br/>ユーザーごとにウェアハウス内で個別の Python 実行環境が立ち上がるため、アクセス集中時にメモリ負荷が増大。 |
+| **ハードウェアと拡張性** | CPU プールに加え、高性能 **GPU** ノードの割り当てが可能。倉内でのローカル LLM や画像生成を直接サポート。 | 標準的な CPU 仮想マシンのみに限定。 |
 
 > 📖 **公式ドキュメントリファレンス**：
 > - [About Streamlit in Snowflake runtimes (Container vs Warehouse)](https://docs.snowflake.com/ja/developer-guide/streamlit/about-streamlit#streamlit-runtimes)
 > - [Create a Streamlit app from a repository (Git リポジトリ連携)](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/creating-your-app#label-creating-streamlit-apps-git)
 > - [Managing Python dependencies in Streamlit in Snowflake](https://docs.snowflake.com/ja/developer-guide/streamlit/app-development/dependency-management)
 
-> 💡 **学習・検証時の選定ガイド**：
-> 本チュートリアルを含む検証や一般的な社内ダッシュボード開発においては、**「ウェアハウスで実行 (Run on Warehouse)」の選択を強く推奨します**！SPCS コンテナプールの常時課金やトライアル制限を完全に回避しながら、Snowflake の強力なデータ連携を安全に体験できます。
+> 📌 **アーキテクチャ選定の結論**：
+> 公式が「コンテナで実行 (Container Runtime)」をデフォルトに定めた理由は明白であり、**「圧倒的に安価（約 0.11 vs 1.0 credit/h）」「PyPI 全面開放による圧倒的なパッケージ自由度」「GPU 対応」** にあります。SPCS クォータが利用可能な環境では、公式推奨に従いコンテナランタイムを最優先に採用すべきです。コンテナプールが未割り当ての旧来の制限環境においてのみ、右側の Warehouse モードを下位互換の代替策として選択します。
 
 ---
 
@@ -515,16 +513,21 @@ Streamlit 管理画面の右上には、青色のメインボタン **`+ Streaml
 
 ---
 
-#### Step 4.B2: デフォルトワークスペース全貌、左側プロジェクトツリー解読と公式テンプレートコードの行毎解説
+#### Step 4.B2: デフォルトワークスペース全貌、上部「展開」デプロイボタン、左側プロジェクトツリー解読と公式テンプレートコード精講
 
-アプリ作成完了時（または `+ Streamlit アプリ` ボタンを直接クリックした際）、3 カラム構成の Snowsight オンラインワークスペースが開きます：
-- **左側**：プロジェクトファイルツリー（Project File Tree）；
-- **中央**：Monaco 内核のオンラインコードエディタ（構文ハイライト・補完対応）；
-- **右側**：リアルタイムに描画されるインタラクティブ Web 画面（スライダー操作で即座にグラフ連動）。
+アプリ作成完了時（`+ Streamlit アプリ` メインボタンからモダンワークスペースに入った際）、3 カラム構成の Snowsight オンライン IDE が開きます：
+- **左側**：プロジェクトファイルツリー（`snowflake.yml`、`pyproject.toml` 等の近代構成）；
+- **中央**：Monaco 内核のオンラインコードエディタ（構文ハイライト・自動補完対応）；
+- **右側**：リアルタイムに描画されるインタラクティブ Web 画面（スライダー操作で即座にグラフ連動）；
+- **上部ツールバー（4 大中核ボタンと最重要「展開」機能）**：
+  - **`[ 実行 ]` (Run)**：Python コードを再評価し、右側のプレビュー画面を即時リロード；
+  - **`[ ⚙️ 設定 ]` (Settings)**：アプリのタイトル、ウェアハウス、コンテキスト設定を変更；
+  - **`[ 📤 共有 ]` (Share)**：特定ロールへの閲覧・編集権限を付与；
+  - **`[ 🚀 展開 ]` (Deploy · 現代デプロイの中枢！)**：**開発完了後の正式リリースボタン**！ワークスペースのサンドボックスで検証を終えた後、この **「展開」** をクリックし、対象 Database と Schema を選択するだけで、企業本番 DWH オブジェクトとして一発デプロイ・永続化されます！
 
 > **Snowsight Streamlit オンラインワークスペース実機キャプチャ（3 カラム構成）**：
 >
-> 以下の実機画面の通り、左側に最新の Streamlit in Snowflake 標準ファイル群、中央にテンプレート Python コード、右側にスライダーと棒グラフを含む公式サンプルアプリが即時レンダリングされています：
+> 以下の実機画面の通り、上部に「実行」「設定」「共有」および核心となる「展開」ボタンが配置され、左側に最新の Streamlit in Snowflake 標準ファイル群、中央にテンプレート Python コード、右側にスライダーと棒グラフを含む公式サンプルアプリが即時レンダリングされています：
 >
 > ![Snowsight Streamlit オンラインワークスペース全景（左側プロジェクトツリー・中央エディタ・右側リアルタイム描画）](../images/10_step_03_gui_quick_create_editor.png)
 

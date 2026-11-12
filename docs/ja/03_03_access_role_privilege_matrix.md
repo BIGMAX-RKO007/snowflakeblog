@@ -340,3 +340,4 @@ SHOW GRANTS TO ROLE FUNC_ROLE_73G_APBAT1;
 
 次章からは、いよいよデータが実際に動く本流へと進みます：
 👉 **[第 04 章：データ移行実務（抽出・内部ステージ連携・COPY INTO バッチ高速取込）](./04_data_migration.md)**！
+
