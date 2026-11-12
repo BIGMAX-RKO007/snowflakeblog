@@ -52,7 +52,7 @@ Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底重构了�
 
 在创建向导中，**Snowflake 官方已经默认给「コンテナで実行 (Run on Container)」打上了预选对勾（✔️ Default）**。这体现了平台架构的演进方向：
 
-![Snowflake 创建向导中的两类 Python 环境选项（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
+![Snowflake 创建向导中的两类 Python 环境选项（コンテナで実行 vs ウェアハウスで実行）](../images/10_06_repository_creation_modal_runtimes.png)
 
 ### 📊 核心技术与真实经济账对比
 
@@ -75,14 +75,18 @@ Snowflake 推出的 **Streamlit in Snowflake（简称 SiS）** 彻底重构了�
 
 ### Step 1: 精准定位导航入口与进入现代工作区
 
-登录 Snowsight 控制台，在左侧导航栏点击 **「ワークスペース (Workspaces)」 $\to$ 「Streamlit」**（页面路径为 `#/streamlit-apps`）：
+登录 Snowsight 控制台，在左侧导航栏悬浮或点击 **「ワークスペース (Workspaces)」 $\to$ 「Streamlit」**：
 
-![Snowsight 控制台导航：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
+![Snowsight 控制台导航：ワークスペース (Workspaces) -> Streamlit 入口](../images/10_01_navigation_workspaces_streamlit.png)
+
+进入 Streamlit 应用管理总览页面（`#/streamlit-apps`），这里集中列出了所有已创建或已部署的 Streamlit 资产：
+
+![Streamlit 应用管理总览列表与创建入口](../images/10_02_streamlit_app_management_list.png)
 
 直接点击右上角蓝色主按钮 **`+ Streamlit アプリ`**：
 系统会立即在当前用户的私有工作区（`USER$<USER_NAME>.PUBLIC.DEFAULT$`）中生成一套完备的现代工程项目沙箱，并自动打开在线 IDE：
 
-![Snowsight Streamlit 在线工作区全景（左侧项目树、中间代码编辑器、右侧即时交互渲染）](../images/10_step_03_gui_quick_create_editor.png)
+![Snowsight Streamlit 在线工作区全景（左侧项目树、中间代码编辑器、顶部中枢按钮）](../images/10_04_workspace_ide_scaffold_and_preview.png)
 
 ---
 
@@ -162,11 +166,15 @@ st.bar_chart({
 在个人工作区中完成调试并确认无误后，无需手写任何复杂的 DDL 或终端上传命令：
 
 1. 点击编辑器右上角的蓝色 **`「展開 (Deploy)」`** 按钮；
-2. 系统弹出发布向导，选择目标物理路径：
-   - **アプリタイトル (App Title)**：设定正式名称（例如 `DEV_DEMO_DASHBOARD`）；
-   - **アプリの場所 (App Location)**：选择目标 Database 与 Schema（例如 `DEV_DEMO_DB.API_INTEGRATION`）；
-   - **クエリウェアハウス (Query Warehouse)**：指定用于执行业务查询的计算仓库（例如 `COMPUTE_WH`）；
-3. 点击确认发布，系统自动完成代码打包，并在指定的物理命名空间下创建持久化的 Streamlit 对象！
+2. 系统弹出发布向导（如下图），选择与配置部署目标：
+   - **ターゲット名 (Target Name)**：指定部署目标标识（如 `streamlit_app`）；
+   - **アプリタイトル (App Title)**：设定看板正式显示名称；
+   - **アプリの場所 (App Location)**：选择发布目标 Database 与 Schema（如 `DEV_DEMO_DB.API_INTEGRATION`）；
+   - **コンピュートプール (Compute Pool)**：指定底层托管容器的计算池（默认 `SYSTEM_COMPUTE_POOL_CPU`）；
+   - **クエリウェアハウス (Query Warehouse)**：指定用于执行业务 SQL 的计算仓库（如 `COMPUTE_WH`）；
+3. 点击确认保存并发布，系统自动完成代码打包，并在指定的物理命名空间下创建持久化的生产级 Streamlit 对象！
+
+![Snowflake 现代工作区展开 (Deploy) 与部署配置弹窗](../images/10_05_workspace_deploy_modal.png)
 
 #### 真实执行与元数据存证验证（来自实机测试数据）
 
@@ -190,7 +198,7 @@ Metadata: {
 
 在 Streamlit 管理页面右上角的 **`+ Streamlit アプリ`** 按钮旁，点击下拉小三角会展开两个补充入口：
 
-![Streamlit 创建按钮与下拉创建选项（ウェアハウスで作成 vs リポジトリから作成）](../images/10_step_03_gui_create_dropdown_options.png)
+![Streamlit 创建按钮与下拉创建选项（ウェアハウスで作成 vs リポジトリから作成）](../images/10_03_create_dropdown_options.png)
 
 ### 1. 入口 A：`リポジトリから作成 (Create from Repository)` —— Git CI/CD 工程化集成
 - **技术定位**：面向成熟的数据平台团队。代码由外部 Git 仓库（GitHub / GitLab）统一管理，避免在 Web 页面上手工修改代码。
@@ -198,7 +206,7 @@ Metadata: {
   1. 点击「リポジトリから作成」，在弹出的对话框中点击「メインファイルを選択」；
   2. 系统弹出 **「リポジトリのStreamlitを選択」**，选择挂载了 Git Repository 对象的数据库与分支文件：
      
-     ![选择 Git 仓库文件子弹窗](../images/10_step_03_gui_repo_select_database.png)
+     ![选择 Git 仓库文件子弹窗](../images/10_07_repository_file_picker_database.png)
      
   3. 指定物理放置的 Database 与 Schema（如 `DEV_DEMO_DB.API_INTEGRATION`）；
   4. 选定 Python 环境（优先选择官方默认的 **「コンテナで実行」**），即可完成工程绑定。
@@ -210,6 +218,8 @@ Metadata: {
   - 仅支持传统的虚拟计算仓库（最低 1.0 credit/h 起步）；
   - 依赖管理采用旧版 Conda `environment.yml`，受限于 Anaconda 官方审核白名单，无法安装任意开源 PyPI 依赖；
   - **适用场景**：仅在维护数年前遗留的老旧单文件看板、或环境完全未开启 SPCS 容器权限时作为兜底使用。
+
+![旧版基于数仓创建 Streamlit 弹窗（ウェアハウスで作成）](../images/10_08_legacy_warehouse_creation_modal.png)
 
 ---
 
@@ -242,6 +252,10 @@ INSERT INTO test_sales_metrics VALUES
   ('2026-10-29', 'Electronics', 14200.00, 480);
 ```
 
+执行后可在 Horizon Catalog 数据库浏览器中即时查验数据样本：
+
+![Horizon Catalog 中 TEST_SALES_METRICS 表的数据预览](../images/10_09_database_test_metrics_table.png)
+
 ---
 
 ### Step 2: 编写完整的生产级应用源码 (`streamlit_schema_inspector.py`)
@@ -253,99 +267,157 @@ INSERT INTO test_sales_metrics VALUES
 # ==============================================================================
 import streamlit as st
 import pandas as pd
+from snowflake.snowpark.context import get_active_session
 
 # 1. 宽屏页面初始化
-st.set_page_config(page_title="Snowflake 仓内数据表探查器", layout="wide", page_icon="🔍")
-st.title("🔍 Snowflake 数据架构与表结构动态探查看板")
+st.set_page_config(
+    page_title="Snowflake 仓内数据表动态探查器",
+    page_icon="🔍",
+    layout="wide"
+)
+
+st.title("🔍 Snowflake 仓内数据表动态探查器 (Schema Table Inspector)")
+st.caption("基于 Streamlit in Snowflake 原生运行时 · 零密码免密鉴权 · 10 分钟内存缓存防刷保护")
 
 # 2. 获取免密连接上下文
-conn = st.connection("snowflake")
-session = conn.session()
+session = get_active_session()
 
 # 3. 生产防刷核心：使用 cache_data 对元数据实施 10 分钟强缓存
 @st.cache_data(ttl=600)
 def get_databases():
     """获取当前账号下所有可用数据库列表"""
-    df = session.sql("SHOW DATABASES").to_pandas()
-    return sorted(df["name"].tolist())
+    try:
+        df = session.sql("SHOW DATABASES").to_pandas()
+        name_col = next((c for c in df.columns if str(c).lower() == 'name'), None)
+        if name_col:
+            dbs = [str(row[name_col]) for _, row in df.iterrows() if not str(row[name_col]).upper().startswith('SNOWFLAKE')]
+        else:
+            dbs = [str(row.iloc[1]) for _, row in df.iterrows() if not str(row.iloc[1]).upper().startswith('SNOWFLAKE')]
+        return sorted(dbs)
+    except Exception as e:
+        st.error(f"获取数据库列表失败: {e}")
+        return ["AIRBNB", "DEV_DEMO_DB"]
 
 @st.cache_data(ttl=600)
 def get_schemas(db_name):
     """获取指定数据库下的模式列表"""
-    df = session.sql(f"SHOW SCHEMAS IN DATABASE {db_name}").to_pandas()
-    return sorted(df["name"].tolist())
+    try:
+        df = session.sql(f"SHOW SCHEMAS IN DATABASE \"{db_name}\"").to_pandas()
+        name_col = next((c for c in df.columns if str(c).lower() == 'name'), None)
+        if name_col:
+            schemas = [str(row[name_col]) for _, row in df.iterrows() if str(row[name_col]).upper() != 'INFORMATION_SCHEMA']
+        else:
+            schemas = [str(row.iloc[1]) for _, row in df.iterrows() if str(row.iloc[1]).upper() != 'INFORMATION_SCHEMA']
+        return sorted(schemas)
+    except Exception as e:
+        st.error(f"获取 Schema 列表失败: {e}")
+        return ["DEV", "PUBLIC"]
 
-@st.cache_data(ttl=600)
-def get_tables(db_name, schema_name):
-    """获取指定模式下的全部数据表与行数概览"""
-    df = session.sql(f"SHOW TABLES IN SCHEMA {db_name}.{schema_name}").to_pandas()
-    if df.empty:
+def fetch_schema_tables(db_name, schema_name):
+    """动态扫描 Schema 下的所有数据表元数据"""
+    try:
+        query = f"SHOW TABLES IN SCHEMA \"{db_name}\".\"{schema_name}\""
+        df = session.sql(query).to_pandas()
+        if df.empty:
+            return pd.DataFrame()
+        df.columns = [str(c).lower() for c in df.columns]
+        if 'name' not in df.columns and len(df.columns) > 1:
+            df['name'] = df.iloc[:, 1]
+        cols_to_keep = ['name', 'rows', 'bytes', 'owner', 'created_on']
+        available_cols = [c for c in cols_to_keep if c in df.columns]
+        return df[available_cols] if available_cols else df
+    except Exception as e:
+        st.error(f"扫描数据表失败: {e}")
         return pd.DataFrame()
-    return df[["name", "rows", "bytes", "owner", "created_on"]]
 
 @st.cache_data(ttl=300)
-def preview_table_data(full_table_name):
+def preview_table_data(db_name, schema_name, table_name, limit=50):
     """抽样探查表内前 50 条明细数据 (严格加 LIMIT 保护数仓)"""
-    return session.sql(f"SELECT * FROM {full_table_name} LIMIT 50").to_pandas()
+    try:
+        query = f"SELECT * FROM \"{db_name}\".\"{schema_name}\".\"{table_name}\" LIMIT {limit}"
+        return session.sql(query).to_pandas()
+    except Exception as e:
+        st.error(f"加载数据预览失败: {e}")
+        return pd.DataFrame({"STATUS": [f"数据预览暂不可用: {e}"]})
 
 # 4. 侧边栏多级联动筛选
-st.sidebar.header("📁 命名空间导航")
+st.sidebar.header("🧭 数仓位置导航")
 databases = get_databases()
-selected_db = st.sidebar.selectbox("选择数据库 (Database)：", databases, index=0)
+selected_db = st.sidebar.selectbox("1. 选择数据库 (Database)：", databases, index=0 if 'AIRBNB' not in databases else databases.index('AIRBNB'))
 
 schemas = get_schemas(selected_db)
-selected_schema = st.sidebar.selectbox("选择模式 (Schema)：", schemas, index=0)
+selected_schema = st.sidebar.selectbox("2. 选择模式 (Schema)：", schemas, index=0 if 'RAW' not in schemas else schemas.index('RAW'))
 
-# 5. 主画布区域：展示当前模式下的表清单
-st.subheader(f"📊 模式 `{selected_db}.{selected_schema}` 下的表资产")
-tables_df = get_tables(selected_db, selected_schema)
+st.sidebar.divider()
+
+# 动态拉取数据表列表
+tables_df = fetch_schema_tables(selected_db, selected_schema)
 
 if tables_df.empty:
-    st.info("⚠️ 当前模式下暂无可用数据表。")
+    st.warning(f"在 {selected_db}.{selected_schema} 下未找到任何数据表。")
 else:
-    # 顶部指标卡
-    m1, m2 = st.columns(2)
-    m1.metric("数据表总数", len(tables_df))
-    total_rows = tables_df["rows"].sum() if "rows" in tables_df.columns else 0
-    m2.metric("总记录行数", f"{total_rows:,}")
-    
-    # 呈现表元数据一览
-    st.dataframe(tables_df, use_container_width=True, hide_index=True)
-    
-    st.divider()
-    
-    # 6. 单表样本数据下钻探查
-    selected_table = st.selectbox("选择需要抽样探查的数据表：", tables_df["name"].tolist())
-    if selected_table:
-        full_name = f"{selected_db}.{selected_schema}.{selected_table}"
-        st.write(f"🔬 **正在抽样展示 `{full_name}` 前 50 条记录：**")
-        
-        sample_df = preview_table_data(full_name)
-        st.dataframe(sample_df, use_container_width=True)
-        
-        # 字段列信息摘要
-        with st.expander("📋 查看字段结构与数据类型"):
-            col_info = pd.DataFrame({
-                "列名 (Column)": sample_df.columns,
-                "Python 数据类型": [str(t) for t in sample_df.dtypes]
-            })
-            st.table(col_info)
+    table_list = sorted(tables_df['name'].tolist())
+    st.sidebar.subheader("📋 扫描到的数据表清单")
+    selected_table = st.sidebar.selectbox("3. 选择目标表进行探查：", table_list)
 
-# 7. 缓存重置防线
-if st.sidebar.button("🔄 强制刷新元数据缓存"):
-    st.cache_data.clear()
-    st.rerun()
+    # 提取当前选中表的元数据
+    current_meta = tables_df[tables_df['name'] == selected_table].iloc[0]
+    row_count = int(current_meta.get('rows') or current_meta.get('ROWS') or 0)
+    size_bytes = int(current_meta.get('bytes') or current_meta.get('BYTES') or 0)
+    size_kb = size_bytes / 1024.0
+    owner = current_meta.get('owner') or current_meta.get('OWNER') or 'N/A'
+
+    # 主界面：元数据 KPI 卡片
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.metric(label="当前探查数据表", value=selected_table)
+    with kpi_col2:
+        st.metric(label="总数据行数", value=f"{row_count:,} 行")
+    with kpi_col3:
+        st.metric(label="存储占用空间", value=f"{size_kb:.2f} KB")
+    with kpi_col4:
+        st.metric(label="所有者角色 (Owner)", value=str(owner))
+
+    st.divider()
+
+    # 5. 单表样本数据下钻探查
+    st.subheader(f"📊 数据表 `{selected_table}` 实时样本数据 (前 50 行预览)")
+    with st.spinner("正在加载数据预览..."):
+        preview_df = preview_table_data(selected_db, selected_schema, selected_table, limit=50)
+
+    st.dataframe(preview_df, use_container_width=True)
+
+    # 底部操作栏：数据下载与缓存刷新
+    btn_col1, btn_col2, _ = st.columns([2, 2, 6])
+    with btn_col1:
+        csv_data = preview_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 下载前 50 行样本为 CSV",
+            data=csv_data,
+            file_name=f"{selected_table}_sample.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    with btn_col2:
+        if st.button("🔄 清除缓存并重新扫描", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+# 底部生产安全提示横幅
+st.info("🔒 **生产环境防刷保障**：核心元数据查询均设置 `@st.cache_data(ttl=600)` 10 分钟强缓存；即使反复切换页面亦直接命中内存，绝不重复唤醒数仓！结合数仓 `AUTO_SUSPEND = 60` 秒级休眠，杜绝一切隐式扣费。")
 ```
 
 ---
 
 ### Step 3: 查看已部署应用并进行协同共享
 
-在工作区点击 **「展開」** 并发布到 `DEV_DEMO_DB.API_INTEGRATION` 后，返回 Streamlit 列表，应用已成为正式的生产级资产：
+在工作区完成调试、点击 **「展開 (Deploy)」** 并发布到 `DEV_DEMO_DB.API_INTEGRATION` 命名空间后，返回 Streamlit 列表页面，应用已注册为受 Snowflake 统一纳管的企业级生产资产：
 
-![Streamlit 应用列表展示已发布的正式资产](../images/10_step_03_gui_app_list_dual_created.png)
+![Streamlit 应用列表展示已发布的正式资产](../images/10_10_deployed_streamlit_app_list.png)
 
-点击进入看板，全团队具备对应库表权限的成员均可协同交互，且所有查询直接在仓内安全边界内运行！
+点击进入看板，全团队具备对应库表权限的成员均可协同交互，且所有查询直接在仓内安全边界内运行，实现零密码、纯原生、带防刷保护的数仓可视化探索：
+
+![全屏运行中的仓内数据表动态探查器 (Schema Table Inspector)](../images/10_11_schema_table_inspector_running.png)
 
 ---
 

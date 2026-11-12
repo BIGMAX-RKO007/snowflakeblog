@@ -52,7 +52,7 @@ Snowflake 上で Streamlit アプリを構築する際、最初に直面する�
 
 新規作成ウィザードにおいて、**Snowflake 公式は左側の「コンテナで実行 (Run on Container)」に最初からデフォルトの青いチェックマーク（✔️ Default）を付与しています**。これはプラットフォーム全体の戦略的進化を象徴しています：
 
-![Snowflake ウィザード内の2種類のPython環境選択（コンテナで実行 vs ウェアハウスで実行）](../images/10_step_03_gui_modal_repository_runtimes.png)
+![Snowflake ウィザード内の2種類のPython環境選択（コンテナで実行 vs ウェアハウスで実行）](../images/10_06_repository_creation_modal_runtimes.png)
 
 ### 📊 核心的技術仕様と実際のコスト対比
 
@@ -77,12 +77,16 @@ Snowflake 上で Streamlit アプリを構築する際、最初に直面する�
 
 Snowsight コンソールへログインし、左側メニューの **「ワークスペース (Workspaces)」 $\to$ 「Streamlit」** を選択します（URL: `#/streamlit-apps`）：
 
-![Snowsight ナビゲーション：ワークスペース -> Streamlit 入口](../images/10_step_03_gui_navigation_streamlit.png)
+![Snowsight ナビゲーション：ワークスペース -> Streamlit 入口](../images/10_01_navigation_workspaces_streamlit.png)
+
+Streamlit アプリ管理の一覧画面（`#/streamlit-apps`）が表示され、作成・デプロイ済みの全 Streamlit 資産が集中管理されています：
+
+![Streamlit アプリ管理一覧画面と作成エントリー](../images/10_02_streamlit_app_management_list.png)
 
 画面右上の青色メインボタン **`+ Streamlit アプリ`** を直接クリックします：
 システムは即座に現在のユーザー専用のプライベート領域（`USER$<USER_NAME>.PUBLIC.DEFAULT$`）内に近代的な開発サンドボックスを展開し、オンライン IDE を起動します：
 
-![Snowsight Streamlit オンラインワークスペース全景（左側プロジェクトツリー・中央エディタ・右側リアルタイム描画）](../images/10_step_03_gui_quick_create_editor.png)
+![Snowsight Streamlit オンラインワークスペース全景（左側プロジェクトツリー・中央エディタ・右側リアルタイム描画）](../images/10_04_workspace_ide_scaffold_and_preview.png)
 
 ---
 
@@ -162,11 +166,15 @@ st.bar_chart({
 ワークスペースで動作検証を完了したら、煩雑な DDL コマンドやファイル転送を手動実行する必要はありません：
 
 1. エディタ右上の青色ボタン **`「展開 (Deploy)」`** をクリック；
-2. 表示されるデプロイウィザードで配備先を指定：
-   - **アプリタイトル (App Title)**：正式なアプリ名称（例: `DEV_DEMO_DASHBOARD`）；
+2. 表示されるデプロイウィザード（下図）で配備先を指定：
+   - **ターゲット名 (Target Name)**：デプロイ対象の識別名（例: `streamlit_app`）；
+   - **アプリタイトル (App Title)**：正式なアプリ名称；
    - **アプリの場所 (App Location)**：物理配置先の Database と Schema（例: `DEV_DEMO_DB.API_INTEGRATION`）；
+   - **コンピュートプール (Compute Pool)**：背後で稼働するコンテナ計算プール（デフォルト `SYSTEM_COMPUTE_POOL_CPU`）；
    - **クエリウェアハウス (Query Warehouse)**：データクエリを実行する仮想ウェアハウス（例: `COMPUTE_WH`）；
-3. デプロイを実行すると、コードが自動パッケージングされ、指定のネームスペース配下に永続化された Streamlit オブジェクトが正式生成されます！
+3. 保存して展開を実行すると、コードが自動パッケージングされ、指定のネームスペース配下に永続化された Streamlit オブジェクトが正式生成されます！
+
+![Snowflake 近代ワークスペース展開 (Deploy) とデプロイ設定ダイアログ](../images/10_05_workspace_deploy_modal.png)
 
 #### 実機メタデータの証跡検証（実環境クエリ検証結果）
 
@@ -190,7 +198,7 @@ Metadata: {
 
 右上の **`+ Streamlit アプリ`** ボタンの右側にある矢印をクリックすると、2 つの補足エントリーが展開されます：
 
-![Streamlit 作成ボタンとドロップダウン選択肢](../images/10_step_03_gui_create_dropdown_options.png)
+![Streamlit 作成ボタンとドロップダウン選択肢](../images/10_03_create_dropdown_options.png)
 
 ### 1. エントリー A：`リポジトリから作成 (Create from Repository)` —— Git CI/CD 連携
 - **技術的位置づけ**：成熟したデータ基盤チーム向け。ソースコードを外部 Git（GitHub / GitLab）で一元管理し、Web 画面での手作業による改変を排除します。
@@ -198,7 +206,7 @@ Metadata: {
   1. 「リポジトリから作成」を選択し、「メインファイルを選択」をクリック；
   2. Git Repository オブジェクトを含むデータベースとブランチ内のエントリーポイントを指定：
      
-     ![Git リポジトリファイル選択ダイアログ](../images/10_step_03_gui_repo_select_database.png)
+     ![Git リポジトリファイル選択ダイアログ](../images/10_07_repository_file_picker_database.png)
      
   3. 配置先スキーマと Python 環境（公式デフォルトの **「コンテナで実行」** 推奨）を選択して連携を完了します。
 
@@ -209,6 +217,8 @@ Metadata: {
   - 仮想ウェアハウス（最低 1.0 credit/h）の単体 VM 実行に限定；
   - 旧式の Conda `environment.yml` を使用し、Anaconda 公式ホワイトリスト内のライブラリに制限される；
   - **適用場面**：数年前に作成された古い単一ファイルスクリプトの改修や、SPCS クォータが利用できない旧環境でのみ代替利用します。
+
+![旧版ウェアハウス基準の Streamlit 作成ダイアログ（レガシー）](../images/10_08_legacy_warehouse_creation_modal.png)
 
 ---
 
@@ -241,6 +251,10 @@ INSERT INTO test_sales_metrics VALUES
   ('2026-10-29', 'Electronics', 14200.00, 480);
 ```
 
+投入後、Horizon Catalog のデータベースエクスプローラーから即座にデータプレビューを確認できます：
+
+![Horizon Catalog の TEST_SALES_METRICS テーブルプレビュー](../images/10_09_database_test_metrics_table.png)
+
 ---
 
 ### Step 2: 完全な本番アプリコード (`streamlit_schema_inspector.py`)
@@ -252,88 +266,144 @@ INSERT INTO test_sales_metrics VALUES
 # ==============================================================================
 import streamlit as st
 import pandas as pd
+from snowflake.snowpark.context import get_active_session
 
-# 1. ページ初期設定
-st.set_page_config(page_title="Snowflake 倉内データ表探査ツール", layout="wide", page_icon="🔍")
-st.title("🔍 Snowflake データアーキテクチャ・表構造ダイナミック探査")
+# 1. ワイド画面ページ初期化
+st.set_page_config(
+    page_title="Snowflake 倉内データ表ダイナミック探査ツール",
+    page_icon="🔍",
+    layout="wide"
+)
 
-# 2. パスワード不要の安全なセッション取得
-conn = st.connection("snowflake")
-session = conn.session()
+st.title("🔍 Snowflake 倉内データ表ダイナミック探査ツール (Schema Table Inspector)")
+st.caption("Streamlit in Snowflake ネイティブランタイム · パスワードレス安全認証 · 10分間メモリキャッシュ保護")
 
-# 3. 課金暴走防止の核心：cache_data による 10 分間メモリキャッシュ
+# 2. セッションコンテキストの取得
+session = get_active_session()
+
+# 3. 課金暴走防止の核心：cache_data によるメタデータ 10 分間強キャッシュ
 @st.cache_data(ttl=600)
 def get_databases():
     """アカウント内の全データベース一覧を取得"""
-    df = session.sql("SHOW DATABASES").to_pandas()
-    return sorted(df["name"].tolist())
+    try:
+        df = session.sql("SHOW DATABASES").to_pandas()
+        name_col = next((c for c in df.columns if str(c).lower() == 'name'), None)
+        if name_col:
+            dbs = [str(row[name_col]) for _, row in df.iterrows() if not str(row[name_col]).upper().startswith('SNOWFLAKE')]
+        else:
+            dbs = [str(row.iloc[1]) for _, row in df.iterrows() if not str(row.iloc[1]).upper().startswith('SNOWFLAKE')]
+        return sorted(dbs)
+    except Exception as e:
+        st.error(f"データベース一覧の取得に失敗: {e}")
+        return ["AIRBNB", "DEV_DEMO_DB"]
 
 @st.cache_data(ttl=600)
 def get_schemas(db_name):
-    """指定データベース内の全スキーマ一覧を取得"""
-    df = session.sql(f"SHOW SCHEMAS IN DATABASE {db_name}").to_pandas()
-    return sorted(df["name"].tolist())
+    """指定データベース配下のスキーマ一覧を取得"""
+    try:
+        df = session.sql(f"SHOW SCHEMAS IN DATABASE \"{db_name}\"").to_pandas()
+        name_col = next((c for c in df.columns if str(c).lower() == 'name'), None)
+        if name_col:
+            schemas = [str(row[name_col]) for _, row in df.iterrows() if str(row[name_col]).upper() != 'INFORMATION_SCHEMA']
+        else:
+            schemas = [str(row.iloc[1]) for _, row in df.iterrows() if str(row.iloc[1]).upper() != 'INFORMATION_SCHEMA']
+        return sorted(schemas)
+    except Exception as e:
+        st.error(f"スキーマ一覧の取得に失敗: {e}")
+        return ["DEV", "PUBLIC"]
 
-@st.cache_data(ttl=600)
-def get_tables(db_name, schema_name):
-    """指定スキーマ内のテーブル一覧と行数概要を取得"""
-    df = session.sql(f"SHOW TABLES IN SCHEMA {db_name}.{schema_name}").to_pandas()
-    if df.empty:
+def fetch_schema_tables(db_name, schema_name):
+    """指定スキーマ配下の全テーブル一覧とメタデータを動的スキャン"""
+    try:
+        query = f"SHOW TABLES IN SCHEMA \"{db_name}\".\"{schema_name}\""
+        df = session.sql(query).to_pandas()
+        if df.empty:
+            return pd.DataFrame()
+        df.columns = [str(c).lower() for c in df.columns]
+        if 'name' not in df.columns and len(df.columns) > 1:
+            df['name'] = df.iloc[:, 1]
+        cols_to_keep = ['name', 'rows', 'bytes', 'owner', 'created_on']
+        available_cols = [c for c in cols_to_keep if c in df.columns]
+        return df[available_cols] if available_cols else df
+    except Exception as e:
+        st.error(f"テーブルスキャンに失敗: {e}")
         return pd.DataFrame()
-    return df[["name", "rows", "bytes", "owner", "created_on"]]
 
 @st.cache_data(ttl=300)
-def preview_table_data(full_table_name):
-    """先頭 50 行のサンプルデータを抽出 (LIMIT 句で数倉負荷を抑制)"""
-    return session.sql(f"SELECT * FROM {full_table_name} LIMIT 50").to_pandas()
+def preview_table_data(db_name, schema_name, table_name, limit=50):
+    """テーブル先頭 50 行のサンプルデータを安全に抽出（LIMIT 必須）"""
+    try:
+        query = f"SELECT * FROM \"{db_name}\".\"{schema_name}\".\"{table_name}\" LIMIT {limit}"
+        return session.sql(query).to_pandas()
+    except Exception as e:
+        st.error(f"プレビューデータの抽出に失敗: {e}")
+        return pd.DataFrame({"STATUS": [f"データプレビュー利用不可: {e}"]})
 
-# 4. サイドバーによる階層型ナビゲーション
-st.sidebar.header("📁 ネームスペース選択")
+# 4. サイドバー多段連携フィルタ
+st.sidebar.header("🧭 ネームスペースナビゲーション")
 databases = get_databases()
-selected_db = st.sidebar.selectbox("データベース (Database)：", databases, index=0)
+selected_db = st.sidebar.selectbox("1. データベースを選択 (Database)：", databases, index=0 if 'AIRBNB' not in databases else databases.index('AIRBNB'))
 
 schemas = get_schemas(selected_db)
-selected_schema = st.sidebar.selectbox("スキーマ (Schema)：", schemas, index=0)
+selected_schema = st.sidebar.selectbox("2. スキーマを選択 (Schema)：", schemas, index=0 if 'RAW' not in schemas else schemas.index('RAW'))
 
-# 5. メインキャンバス：テーブル一覧の可視化
-st.subheader(f"📊 `{selected_db}.{selected_schema}` 配下のテーブル資産")
-tables_df = get_tables(selected_db, selected_schema)
+st.sidebar.divider()
+
+# テーブル一覧の動的取得
+tables_df = fetch_schema_tables(selected_db, selected_schema)
 
 if tables_df.empty:
-    st.info("⚠️ 指定スキーマ内に利用可能なテーブルが存在しません。")
+    st.warning(f"{selected_db}.{selected_schema} 配下に利用可能なテーブルが存在しません。")
 else:
-    # サマリー指標
-    m1, m2 = st.columns(2)
-    m1.metric("テーブル総数", len(tables_df))
-    total_rows = tables_df["rows"].sum() if "rows" in tables_df.columns else 0
-    m2.metric("総レコード行数", f"{total_rows:,}")
-    
-    # メタデータ一覧表示
-    st.dataframe(tables_df, use_container_width=True, hide_index=True)
-    
-    st.divider()
-    
-    # 6. テーブル詳細サンプルのドリルダウン
-    selected_table = st.selectbox("サンプルデータを調査するテーブルを選択：", tables_df["name"].tolist())
-    if selected_table:
-        full_name = f"{selected_db}.{selected_schema}.{selected_table}"
-        st.write(f"🔬 **`{full_name}` の先頭 50 行サンプル：**")
-        
-        sample_df = preview_table_data(full_name)
-        st.dataframe(sample_df, use_container_width=True)
-        
-        # カラム構造サマリー
-        with st.expander("📋 カラム定義およびデータ型の確認"):
-            col_info = pd.DataFrame({
-                "カラム名 (Column)": sample_df.columns,
-                "Python 型": [str(t) for t in sample_df.dtypes]
-            })
-            st.table(col_info)
+    table_list = sorted(tables_df['name'].tolist())
+    st.sidebar.subheader("📋 スキャンされたテーブル一覧")
+    selected_table = st.sidebar.selectbox("3. 探査対象テーブルを選択：", table_list)
 
-# 7. 強制更新ボタン
-if st.sidebar.button("🔄 メタデータキャッシュをクリアして再取得"):
-    st.cache_data.clear()
-    st.rerun()
+    # 選択テーブルのメタデータ抽出
+    current_meta = tables_df[tables_df['name'] == selected_table].iloc[0]
+    row_count = int(current_meta.get('rows') or current_meta.get('ROWS') or 0)
+    size_bytes = int(current_meta.get('bytes') or current_meta.get('BYTES') or 0)
+    size_kb = size_bytes / 1024.0
+    owner = current_meta.get('owner') or current_meta.get('OWNER') or 'N/A'
+
+    # メイン画面：KPI メトリックカード
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.metric(label="現在探査中のテーブル", value=selected_table)
+    with kpi_col2:
+        st.metric(label="総レコード件数", value=f"{row_count:,} 行")
+    with kpi_col3:
+        st.metric(label="ストレージ占有容量", value=f"{size_kb:.2f} KB")
+    with kpi_col4:
+        st.metric(label="所有者ロール (Owner)", value=str(owner))
+
+    st.divider()
+
+    # 5. サンプルデータドリルダウン
+    st.subheader(f"📊 データ表 `{selected_table}` リアルタイムサンプルデータ (先頭 50 行)")
+    with st.spinner("プレビューを読み込み中..."):
+        preview_df = preview_table_data(selected_db, selected_schema, selected_table, limit=50)
+
+    st.dataframe(preview_df, use_container_width=True)
+
+    # アクションバー：ダウンロードとキャッシュクリア
+    btn_col1, btn_col2, _ = st.columns([2, 2, 6])
+    with btn_col1:
+        csv_data = preview_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 先頭 50 行を CSV ダウンロード",
+            data=csv_data,
+            file_name=f"{selected_table}_sample.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    with btn_col2:
+        if st.button("🔄 キャッシュをクリアして再スキャン", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+# 画面下部安全通知
+st.info("🔒 **本番環境コスト防護**：主要メタデータクエリは `@st.cache_data(ttl=600)` により 10 分間メモリ保持され、画面操作時の無駄な DWH 呼び出しをゼロ化しています。ウェアハウスの `AUTO_SUSPEND = 60` 秒休眠と併せて不測の課金を徹底防止します。")
 ```
 
 ---
@@ -342,9 +412,11 @@ if st.sidebar.button("🔄 メタデータキャッシュをクリアして再�
 
 ワークスペースから **「展開」** を実行して `DEV_DEMO_DB.API_INTEGRATION` へリリースすると、アプリ一覧に正式な永続化オブジェクトとして登録されます：
 
-![Streamlit アプリ一覧画面で正式オブジェクトとして登録されている様子](../images/10_step_03_gui_app_list_dual_created.png)
+![Streamlit アプリ一覧画面で正式オブジェクトとして登録されている様子](../images/10_10_deployed_streamlit_app_list.png)
 
-アクセス権を持つ組織メンバー全員がカタログ経由でアプリを起動可能となり、全ての SQL クエリは Snowflake の安全なガバナンス境界内で完結します！
+アクセス権を持つ組織メンバー全員がカタログ経由でアプリを起動可能となり、全ての SQL クエリは Snowflake の安全なガバナンス境界内で完結します。パスワードレスかつキャッシュ保護された直感的なデータ探査環境がここに完成します：
+
+![全画面稼働中の倉内データ表ダイナミック探査ダッシュボード (Schema Table Inspector)](../images/10_11_schema_table_inspector_running.png)
 
 ---
 
