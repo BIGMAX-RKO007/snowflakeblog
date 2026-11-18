@@ -1,6 +1,9 @@
 # 第 07-1 讲：Snowflake Openflow 核心原理与多模态数据集成架构
 
-> 💡 **系列导航**：本讲为 Openflow 专题架构总览篇。掌握本篇的 Apache NiFi 内核、SPCS 容器化部署与全模态接入基盘后，请继续阅读 [第 07-2 讲：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战](./07_02_openflow_box_integration.md) 学习具体落地方案。
+> 💡 **系列导航**：
+> - **第 07-1 讲（本篇）**：Snowflake Openflow 核心原理与多模态数据集成架构
+> - [第 07-2 讲：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战](./07_02_openflow_box_integration.md)
+> - [第 07-3 讲：Box × Snowflake 企业级连携技术调查报告与架构评审指南（日企PoC调查阶段专篇）](./07_03_enterprise_investigation_and_feasibility_report.md)
 >
 > 本讲依据 **《尚硅谷技术讲义写作规范 (shangguigu-style)》** 深度编撰：开门见山直击本质、去业务化聚焦纯技术、逐行拆解全部配置参数、提供真机执行与配额截图防幻觉、直面暗坑实战避险、环境前置零隐式假设。
 

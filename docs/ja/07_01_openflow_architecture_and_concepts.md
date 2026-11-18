@@ -1,6 +1,9 @@
 # 第 07-1 章：Snowflake Openflow コアアーキテクチャとマルチモーダルデータ統合
 
-> 💡 **シリーズナビゲーション**：本章は Openflow のアーキテクチャ全体像を解説する基礎編です。Apache NiFi エンジン、SPCS コンテナ基盤、マルチモーダル統合の仕組みを理解した後は、[第 07-2 章：Snowflake Openflow による Box クラウド連携と Cortex ナレッジ検索実践](./07_02_openflow_box_integration.md) へお進みください。
+> 💡 **シリーズナビゲーション**：
+> - **第 07-1 章（本章）**：Snowflake Openflow コアアーキテクチャとマルチモーダルデータ統合
+> - [第 07-2 章：Snowflake Openflow による Box クラウド連携と Cortex ナレッジ検索実践](./07_02_openflow_box_integration.md)
+> - [第 07-3 章：Box × Snowflake 連携技術調査報告書・アーキテクチャ審議ガイド（PoC検討・比較評価・セキュリティ統制）](./07_03_enterprise_investigation_and_feasibility_report.md)
 >
 > 本章は **『尚硅谷（Shangguigu）技術テキスト作成規範』** に準拠して全面執筆されています：本質を突く極小比較、業務ノイズを排除した純粋技術フォーカス、全 SQL 設定パラメータの 1 行単位での徹底解説、実機キャプチャによる AI 幻覚（ハルシネーション）の完全排除、落とし穴と回避策の明示、前提条件の完全前置。
 

@@ -1,6 +1,9 @@
 # 第 07-2 讲：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战
 
-> 💡 **系列导航**：本讲为 Openflow 专题实战篇。建议先阅读 [第 07-1 讲：Snowflake Openflow 核心原理与多模态数据集成架构](./07_01_openflow_architecture_and_concepts.md) 掌握 Openflow 底层 Apache NiFi 引擎底座、SPCS 容器化托管与多源治理基座。
+> 💡 **系列导航**：
+> - [第 07-1 讲：Snowflake Openflow 核心原理与多模态数据集成架构](./07_01_openflow_architecture_and_concepts.md)
+> - **第 07-2 讲（本篇）**：基于 Snowflake Openflow 的 Box 云盘同步与知识检索实战
+> - [第 07-3 讲：Box × Snowflake 企业级连携技术调查报告与架构评审指南（日企PoC调查阶段专篇）](./07_03_enterprise_investigation_and_feasibility_report.md)
 >
 > 本章依据 **《尚硅谷技术讲义写作规范 (shangguigu-style)》** 深度重构：开门见山直击本质、去业务化聚焦纯技术、全 SQL 配置项逐行参数字典拆解、全流程真机截图与毫秒级执行指标拒绝 AI 幻觉、直面暗坑实战避险、环境前置零隐式假设。
 
